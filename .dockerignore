@@ -1,0 +1,10 @@
+node_modules
+dist
+dados
+.env
+.env.local
+.git
+.claude
+mock
+ferramentas
+*.log

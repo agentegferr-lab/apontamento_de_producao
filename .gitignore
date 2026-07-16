@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+.claude/settings.local.json
+
+# Apontamentos em andamento: estado de runtime do terminal, nao codigo.
+# ATENCAO: e a unica copia deles ate o Finalizar — inclua na rotina de BACKUP da maquina.
+dados/

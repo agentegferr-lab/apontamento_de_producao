@@ -1,0 +1,831 @@
+/*
+ * GFERRO — Apontamento de Producao.
+ * Tema claro, alvo touchscreen de chao de fabrica: alvos grandes, alto contraste, sem
+ * depender de hover (nao existe cursor aqui).
+ */
+
+/*
+ * Paleta do Grupo Ferro: amarelo + preto.
+ *
+ * O amarelo e a marca, mas nao serve de fundo de tela inteira num turno de 8 horas — cansa
+ * a vista e nao deixa nada se destacar. Ele entra como acento (cabecalho, estado ativo,
+ * EM PRODUCAO) sobre um fundo neutro claro. Amarelo so leva texto PRETO: amarelo com branco
+ * nao passa em nenhum criterio de contraste.
+ */
+:root {
+  --amarelo: #f5d211; /* o amarelo do material da marca */
+  --amarelo-escuro: #d9b900;
+  --amarelo-tenue: #fdf6d6;
+  --preto: #231f20; /* o "preto" da logo e quente, nao puro */
+  --grafite: #2e2e33;
+
+  --fundo: #f4f4f5;
+  --papel: #ffffff;
+  --tinta: #17171a;
+  --tinta-fraca: #6b6b73;
+  --tinta-tenue: #9a9aa3;
+  --linha: #e4e4e7;
+
+  /* Semanticas: nao sao da marca, mas status precisa ser lido sem depender de texto. */
+  --verde: #16a34a;
+  --verde-escuro: #15803d;
+  --verde-claro: #dcfce7;
+  --vermelho: #dc2626;
+  --vermelho-escuro: #b91c1c;
+  --ambar: #b45309;
+  --ambar-claro: #fde9c8;
+  --raio: 8px;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--tinta);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  user-select: none; /* o dedo do operador nao pode sair selecionando texto */
+  /* Terminal fixo, nao uma pagina: a tela nunca rola inteira — cada area rola por conta
+     propria (kanban__colunas, leitura em telas baixas), sempre ocupando 100% do monitor. */
+  overflow: hidden;
+}
+
+.app {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- cabecalho --------------------------------------------------------------------- */
+.cabecalho {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+  padding: 12px 24px;
+  background: var(--preto);
+}
+
+.logo {
+  flex-shrink: 0;
+  color: var(--amarelo);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+.abas {
+  display: flex;
+  gap: 6px;
+  margin-left: 8px;
+}
+.aba {
+  min-height: 44px;
+  padding: 0 18px;
+  font: inherit;
+  font-weight: 700;
+  color: #b0aca6;
+  background: transparent;
+  border: none;
+  border-radius: var(--raio);
+  cursor: pointer;
+}
+.aba--ativa {
+  background: var(--amarelo);
+  color: var(--preto);
+}
+
+/* Relogio na barra preta: fonte branca. */
+.relogio {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #fff;
+  font-size: 15px;
+  /* tabular-nums impede a largura de dancar a cada segundo que muda. */
+  font-variant-numeric: tabular-nums;
+}
+.relogio__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.relogio__item svg {
+  width: 18px;
+  height: 18px;
+  opacity: 0.75;
+}
+.relogio__separador {
+  width: 1px;
+  height: 20px;
+  background: rgb(255 255 255 / 0.25);
+}
+
+.seletor {
+  min-height: 44px;
+  padding: 0 12px;
+  font: inherit;
+  color: var(--tinta);
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  cursor: pointer;
+}
+.seletor--recurso {
+  margin-left: auto;
+}
+
+/* --- tela de leitura ---------------------------------------------------------------- */
+.leitura {
+  flex: 1;
+  min-height: 0;
+  width: min(1000px, 94%);
+  margin: 0 auto;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.leitura__titulo {
+  margin: 12px 0 8px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.leitura__subtitulo {
+  margin: 0 0 28px;
+  color: var(--tinta-fraca);
+}
+
+.leitura__linha {
+  flex-shrink: 0; /* tem overflow:hidden por causa das bordas arredondadas — sem isso, o
+    flexbox usa 0 como tamanho minimo do item e o campo de leitura pode ser espremido a
+    ponto de sumir quando a tela e baixa demais para caber tudo sem rolar. */
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 16px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  overflow: hidden;
+  text-align: left;
+}
+
+.leitura__rotulo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 340px;
+  flex-shrink: 0;
+  padding: 18px;
+  background: #f8fafc;
+  border-right: 1px solid var(--linha);
+}
+.leitura__rotulo strong {
+  display: block;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+}
+.leitura__rotulo small {
+  display: block;
+  margin-top: 3px;
+  color: var(--tinta-tenue);
+  font-size: 12px;
+}
+.leitura__icone {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--amarelo-tenue);
+  color: var(--grafite);
+  border: 1px solid var(--amarelo);
+}
+.leitura__icone svg {
+  width: 24px;
+  height: 24px;
+}
+
+.leitura__campo {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 10px;
+}
+.leitura__campo input {
+  width: 100%;
+  height: 62px;
+  padding: 0 56px 0 16px;
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  font-size: 26px;
+  color: var(--tinta);
+  /* O leitor de codigo de barras digita rapido feito teclado, e alguns navegadores
+     baseados em WebKit/Chromium (comum em terminal touchscreen) ignoram `color` nessas
+     circunstancias (autofill, tema do sistema) e usam esta propriedade em vez disso —
+     sem ela o texto digitado podia ficar praticamente invisivel mesmo com a cor certa. */
+  -webkit-text-fill-color: var(--tinta);
+  caret-color: var(--tinta);
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+.leitura__campo input:focus {
+  outline: none;
+  border-color: var(--preto);
+  box-shadow: 0 0 0 3px var(--amarelo);
+}
+.leitura__campo input:disabled {
+  background: #f8fafc;
+  -webkit-text-fill-color: var(--tinta);
+  opacity: 1;
+}
+/* Preenchimento automatico do navegador tambem troca a cor de fundo (geralmente pra um
+   amarelo claro) e pode manter o texto na cor antiga do tema — forcando os dois aqui evita
+   qualquer combinacao ilegivel. */
+.leitura__campo input:-webkit-autofill,
+.leitura__campo input:-webkit-autofill:hover,
+.leitura__campo input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--tinta);
+  -webkit-box-shadow: 0 0 0 1000px var(--papel) inset;
+  box-shadow: 0 0 0 1000px var(--papel) inset;
+  caret-color: var(--tinta);
+}
+.leitura__marca {
+  position: absolute;
+  right: 26px;
+  color: var(--tinta-tenue);
+  pointer-events: none;
+}
+.leitura__marca svg {
+  width: 26px;
+  height: 26px;
+}
+
+.leitura__acoes {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 28px;
+}
+
+.leitura__nota {
+  margin-top: 28px;
+  color: var(--tinta-tenue);
+  font-size: 14px;
+}
+
+/* --- botoes ------------------------------------------------------------------------- */
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 0 32px;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #fff;
+  border: none;
+  border-radius: var(--raio);
+  cursor: pointer;
+  transition: filter 0.1s;
+}
+.botao svg {
+  width: 22px;
+  height: 22px;
+}
+.botao:active:not(:disabled) {
+  filter: brightness(0.9);
+  transform: translateY(1px);
+}
+.botao:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.botao--iniciar {
+  background: var(--verde);
+}
+/* Pausar nao usa o amarelo da marca: ao lado do verde/vermelho ele viraria mais um sinal
+   de transito, e o amarelo aqui e identidade, nao status. Ambar separa os dois papeis. */
+.botao--pausar {
+  background: var(--ambar);
+}
+.botao--finalizar {
+  background: var(--vermelho);
+}
+.botao--neutro {
+  color: var(--tinta);
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.botao--pequeno {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 15px;
+}
+
+/* --- avisos ------------------------------------------------------------------------- */
+.aviso {
+  margin: 20px auto 0;
+  padding: 14px 18px;
+  border-radius: var(--raio);
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: left;
+}
+.aviso--ok {
+  background: var(--verde-claro);
+  border-left: 4px solid var(--verde);
+  color: var(--verde-escuro);
+}
+.aviso--erro {
+  background: #fee2e2;
+  border-left: 4px solid var(--vermelho);
+  color: var(--vermelho-escuro);
+}
+
+/* --- escolha do recurso ------------------------------------------------------------- */
+.escolha {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.escolha__opcao {
+  padding: 22px;
+  font: inherit;
+  text-align: left;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  cursor: pointer;
+}
+.escolha__opcao strong {
+  display: block;
+  font-size: 18px;
+}
+.escolha__opcao small {
+  display: block;
+  margin-top: 4px;
+  color: var(--tinta-tenue);
+}
+.escolha__opcao:active {
+  border-color: var(--preto);
+  background: var(--amarelo-tenue);
+}
+.escolha--modal {
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 0;
+}
+.escolha--modal .escolha__opcao {
+  padding: 16px;
+}
+
+/* --- modal -------------------------------------------------------------------------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 0.5);
+  z-index: 50;
+}
+.modal__caixa {
+  width: min(440px, 100%);
+  padding: 28px;
+  background: var(--papel);
+  border-radius: 12px;
+  text-align: left;
+}
+.modal__titulo {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+.modal__texto {
+  margin: 0 0 20px;
+  color: var(--tinta-fraca);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.modal__entrada {
+  width: 100%;
+  height: 64px;
+  padding: 0 16px;
+  font-size: 28px;
+  font-family: ui-monospace, monospace;
+  color: var(--tinta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+.modal__entrada:focus {
+  outline: none;
+  border-color: var(--preto);
+  box-shadow: 0 0 0 3px var(--amarelo);
+}
+.modal__acoes {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+.modal__acoes .botao {
+  flex: 1;
+  padding: 0 12px;
+}
+
+/* --- kanban ------------------------------------------------------------------------- */
+.kanban {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+.kanban__topo {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.kanban__titulo {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.kanban__subtitulo {
+  margin: 4px 0 0;
+  color: var(--tinta-fraca);
+  font-size: 14px;
+}
+.kanban__controles {
+  display: flex;
+  gap: 10px;
+}
+
+.kanban__kpis {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 108px;
+  padding: 8px 18px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+.kpi__valor {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta);
+}
+.kpi__rotulo {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tinta-fraca);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.kpi--producao {
+  border-color: var(--verde);
+  background: var(--verde-claro);
+}
+.kpi--producao .kpi__valor {
+  color: var(--verde-escuro);
+}
+.kpi--aguardando {
+  border-color: var(--amarelo);
+  background: var(--amarelo-tenue);
+}
+.kpi--aguardando .kpi__valor {
+  color: var(--grafite);
+}
+.kpi--parado {
+  border-color: var(--vermelho);
+  background: #fee2e2;
+}
+.kpi--parado .kpi__valor {
+  color: var(--vermelho-escuro);
+}
+.kpi--fila {
+  min-width: 130px;
+  border-color: var(--linha);
+  background: var(--fundo);
+}
+.kpi--fila .kpi__valor {
+  color: var(--tinta-fraca);
+}
+.kanban__vazio {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 60px;
+  text-align: center;
+  color: var(--tinta-tenue);
+}
+.kanban__rodape {
+  flex-shrink: 0;
+  margin: 12px 0 0;
+  color: var(--tinta-tenue);
+  font-size: 13px;
+}
+
+.kanban__colunas {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-auto-flow: column;
+  /* minmax(0, 1fr) em vez de minmax(230px, 1fr): sem piso de largura, as colunas dividem
+     o espaco disponivel em partes iguais e sempre cabem na tela, nunca gerando scroll
+     horizontal — mesmo que o Nomus devolva muitas colunas ao mesmo tempo. */
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.coluna {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.coluna__topo {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--preto);
+}
+.coluna__nome {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--amarelo);
+}
+.coluna__contador {
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--amarelo);
+  color: var(--preto);
+  font-size: 13px;
+  font-weight: 700;
+}
+.coluna__cards {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  overflow-y: auto;
+  overflow-x: hidden; /* so browsers don't quietly promote this to "auto" too (spec: an
+    axis left as visible next to a non-visible one is computed as auto), which turned
+    into a horizontal scrollbar once colunas ficaram estreitas o bastante. */
+}
+.coluna__vazia {
+  margin: 0;
+  padding: 20px 0;
+  text-align: center;
+  color: var(--tinta-tenue);
+}
+
+.ficha {
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  /* Nomes de produto e descricoes vem do Nomus sem quebra prevista — uma palavra longa
+     sozinha (ex.: "componentes") nao cabe numa coluna estreita e o texto normal so
+     quebra em espaco. overflow-wrap e herdado, entao um lugar so resolve o card inteiro. */
+  overflow-wrap: anywhere;
+}
+.ficha__cabecalho {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.ficha__os {
+  min-width: 0;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  /* Sempre 1 linha com o pedido ao lado: se a coluna for estreita demais pros dois, a OS
+     encolhe e trunca com reticencias em vez de descer pra outra linha. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ficha__pedido {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--preto);
+  color: var(--amarelo);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.3px;
+}
+.ficha__produto {
+  margin: 3px 0 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--tinta-fraca);
+  line-height: 1.3;
+}
+.ficha__descricao {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--tinta-tenue);
+  line-height: 1.3;
+}
+.ficha__etapas {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--tinta-tenue);
+}
+.ficha__parada {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ambar);
+}
+.ficha__rodape {
+  display: flex;
+  flex-wrap: wrap; /* etiqueta + tempo nao encolhem abaixo do seu texto — numa coluna
+    espremida (varias colunas cabendo sem scroll), sem isso essa linha forcava o card
+    a ficar mais largo que a coluna. */
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin-top: 6px;
+}
+.ficha__tempo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tinta-fraca);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ficha__tempo svg {
+  width: 13px;
+  height: 13px;
+}
+
+.etiqueta {
+  padding: 4px 9px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  /* "AGUARDANDO" e uma palavra so, sem espaco pra quebrar — numa coluna bem estreita
+     (muitas colunas cabendo sem scroll horizontal) ela sozinha era mais larga que o
+     card. Deixa quebrar em vez de forcar overflow. */
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.etiqueta--producao {
+  background: var(--amarelo);
+  color: var(--preto);
+}
+.etiqueta--parado {
+  background: var(--ambar-claro);
+  color: var(--ambar);
+}
+.etiqueta--aguardando {
+  background: #ececef;
+  color: var(--tinta-fraca);
+}
+.etiqueta--concluido {
+  background: var(--verde-claro);
+  color: var(--verde-escuro);
+}
+
+/* --- boot --------------------------------------------------------------------------- */
+.boot {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 24px;
+  text-align: center;
+}
+/* Aqui nao ha cabecalho: sem o fundo preto, o amarelo sumiria no fundo claro da pagina. */
+.boot .logo {
+  padding: 10px 20px;
+  background: var(--preto);
+  border-radius: var(--raio);
+}
+.boot__titulo {
+  margin: 8px 0 0;
+  font-size: 24px;
+  color: var(--vermelho-escuro);
+}
+.boot__texto {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--tinta-fraca);
+  line-height: 1.5;
+}
+.boot__dica {
+  margin: 0;
+  max-width: 60ch;
+  padding: 12px 16px;
+  background: var(--verde-claro);
+  border-radius: var(--raio);
+  color: var(--verde-escuro);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* --- telas estreitas (tablet retrato, monitores menores) ---------------------------- */
+@media (max-width: 720px) {
+  .cabecalho {
+    padding: 10px 16px;
+  }
+  .relogio {
+    margin-left: 0;
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .leitura {
+    width: 100%;
+    padding: 16px;
+  }
+  .leitura__linha {
+    flex-direction: column;
+  }
+  .leitura__rotulo {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--linha);
+  }
+  .leitura__acoes {
+    flex-direction: column;
+  }
+  .leitura__acoes .botao {
+    width: 100%;
+  }
+
+  .kanban {
+    padding: 16px;
+  }
+}
