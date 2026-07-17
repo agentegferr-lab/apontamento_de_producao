@@ -10,6 +10,13 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+# O servidor carimba dataHoraInicial/Final com o relogio local do container (ver
+# server/index.js, agoraLocalISO) — isso so bate com o cronometro do navegador (e com o
+# horario real gravado no Nomus) se o container pensar que esta no fuso do Brasil. Imagem
+# Alpine nao traz tzdata por padrao: sem o pacote, TZ vira no-op e o container fica em UTC
+# mesmo assim, 3h a frente do horario de Brasilia.
+RUN apk add --no-cache tzdata
+ENV TZ=America/Sao_Paulo
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
