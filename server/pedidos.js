@@ -90,6 +90,8 @@ export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido
   return [Number(idOrdem), { pedido: String(codigo), produto: produto ?? null }]
 }
 
+let atualizandoEmFundo = null
+
 export async function mapaPedidosPorOrdem() {
   let ordens
   try {
@@ -106,12 +108,11 @@ export async function mapaPedidosPorOrdem() {
   }
 
   const campoPedido = CAMPO_PEDIDO()
-  const maxNovos = MAX_NOVOS_POR_CHAMADA()
-  const pausaMs = PAUSA_ENTRE_CHAMADAS_MS()
   const mapa = new Map()
-  let mudou = false
-  let novosBuscados = 0
 
+  // So usa o que JA esta em cache — nunca espera uma busca nova ao Nomus aqui. Ordem sem
+  // pedido cacheado ainda fica sem "Pedido"/produto no card desta vez, e aparece sozinha
+  // assim que o lote de fundo abaixo resolver ela.
   for (const ordem of ordens) {
     const item = ordem?.itensPedido?.[0]
     const idOrdem = ordem?.id ?? ordem?.idOrdem
@@ -120,32 +121,63 @@ export async function mapaPedidosPorOrdem() {
     const chave = String(item.idPedido)
     const emCache = cache.get(chave)
     const valido = emCache && Date.now() - emCache.buscadoEm < TTL_CACHE_MS()
+    if (!valido) continue
 
-    let pedido = valido ? emCache.pedido : null
+    const entrada = entradaPedido(idOrdem, item, emCache.pedido, campoPedido, ordem?.descricaoProduto ?? null)
+    if (entrada) mapa.set(...entrada)
+  }
 
-    if (!valido) {
-      // Teto de buscas novas por chamada: com centenas de pedidos ainda nao vistos (cache
-      // frio), buscar todos de uma vez e o que causou a avalanche de 429 do incidente
-      // acima. O resto fica sem pedido NESTE ciclo e aparece no proximo (a cada poucos
-      // minutos, conforme o cache do resto do app renova).
-      if (novosBuscados >= maxNovos) continue
+  agendarAtualizacaoEmFundo(ordens)
+  return mapa
+}
+
+/**
+ * Busca pedidos novos (nao cacheados) em segundo plano, sem bloquear quem pediu o kanban.
+ *
+ * INCIDENTE (2026-07-17): essa busca rodava DENTRO de mapaPedidosPorOrdem, no meio da
+ * requisicao do /api/kanban — com o Nomus sob rate limit (429 recorrente), esperar ate 20
+ * buscas novas sequenciais (cada uma podendo levar ate ~30s de backoff) segurava a resposta
+ * por 40+ segundos. Rodar em segundo plano tira o kanban dessa espera: a tela carrega com o
+ * que ja esta em cache na hora, e os pedidos que faltam vao preenchendo nas atualizacoes
+ * seguintes. So um lote de fundo por vez (chamadas concorrentes ao kanban nao empilham
+ * lotes); o proximo lote so comeca quando o anterior termina.
+ */
+function agendarAtualizacaoEmFundo(ordens) {
+  if (atualizandoEmFundo) return
+
+  const maxNovos = MAX_NOVOS_POR_CHAMADA()
+  const pausaMs = PAUSA_ENTRE_CHAMADAS_MS()
+
+  atualizandoEmFundo = (async () => {
+    let mudou = false
+    let novosBuscados = 0
+
+    for (const ordem of ordens) {
+      if (novosBuscados >= maxNovos) break
+
+      const item = ordem?.itensPedido?.[0]
+      if (!item?.idPedido) continue
+
+      const chave = String(item.idPedido)
+      const emCache = cache.get(chave)
+      const valido = emCache && Date.now() - emCache.buscadoEm < TTL_CACHE_MS()
+      if (valido) continue
 
       if (novosBuscados > 0) await dormir(pausaMs)
       novosBuscados++
 
       try {
-        pedido = await buscarPedido(item.idPedido)
+        await buscarPedido(item.idPedido)
         mudou = true
       } catch (erro) {
         console.warn(`[pedidos] falha ao buscar pedido ${item.idPedido}: ${erro.message}`)
-        continue
       }
     }
 
-    const entrada = entradaPedido(idOrdem, item, pedido, campoPedido, ordem?.descricaoProduto ?? null)
-    if (entrada) mapa.set(...entrada)
-  }
-
-  if (mudou) persistirCache()
-  return mapa
+    if (mudou) persistirCache()
+  })()
+    .catch((erro) => console.warn('[pedidos] lote de fundo falhou:', erro.message))
+    .finally(() => {
+      atualizandoEmFundo = null
+    })
 }
