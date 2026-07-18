@@ -141,7 +141,14 @@ export function montarKanban({ operacoes, apontamentos, emAndamento, pedidosPorO
       idOrdem,
       nomeOrdem: referencia.nomeOrdem,
       pedido: pedidoInfo?.pedido ?? null,
+      // id interno do pedido (nao o codigo textual acima) — disponivel na hora, direto da
+      // ordem, sem depender da busca lenta ao Nomus. Usar isto pra agrupar/deduplicar por
+      // pedido (ver TelaKanban.jsx); `pedido` textual e so pra exibicao.
+      idPedido: pedidoInfo?.idPedido ?? null,
       produto: pedidoInfo?.produto ?? null,
+      // Status de requisicao de material da ordem (Planejada/Confirmada/Liberada/...) — nao
+      // confundir com `status` acima, que e o status de PRODUCAO calculado por este modulo.
+      statusOrdem: pedidoInfo?.statusOrdem ?? null,
       descricao: referencia.descricao,
       operacao: referencia.operacao,
       idOperacaoOrdem: referencia.id,

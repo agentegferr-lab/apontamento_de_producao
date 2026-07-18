@@ -77,17 +77,37 @@ async function buscarPedido(idPedido) {
 }
 
 /**
- * Parte pura: dado UM item de itensPedido (ja resolvido pra um pedido carregado), decide
- * a entrada do mapa. Separada do loop com I/O pra dar pra testar sem mockar rede/disco.
+ * Parte pura: dado UM item de itensPedido, decide a entrada do mapa. Separada do loop com
+ * I/O pra dar pra testar sem mockar rede/disco.
  *
- * `produto` vem de `descricaoProduto`, um campo da propria ordem (nao do pedido) — nao
- * custa chamada extra ao Nomus, so passa direto pelo cruzamento existente.
+ * `produto` e `statusOrdem` vem de campos da propria ordem (nao do pedido) — nao custam
+ * chamada extra ao Nomus, e por isso NAO dependem do pedido ja ter resolvido: a entrada
+ * sempre existe (com produto/statusOrdem prontos) mesmo que `pedido` ainda esteja null
+ * esperando o lote de fundo. Antes os tres campos ficavam presos atras da resolucao do
+ * pedido (que pode levar varios ciclos numa empresa grande) — isso deixava a maioria dos
+ * cards sem produto/status por um bom tempo, e um KPI que dependa de statusOrdem
+ * (ver TelaKanban.jsx) contava quase tudo errado.
+ *
+ * `statusOrdem` e o status de requisicao de material da ordem (Planejada/Confirmada/
+ * Liberada/...), nao tem nada a ver com o status de PRODUCAO (EM_PRODUCAO/AGUARDANDO/...)
+ * que o kanban calcula.
  */
-export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido', produto = null) {
+export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido', produto = null, statusOrdem = null) {
   if (!item?.idPedido || idOrdem == null) return null
   const codigo = pedido?.[campoPedido]
-  if (codigo == null || codigo === '') return null
-  return [Number(idOrdem), { pedido: String(codigo), produto: produto ?? null }]
+  const pedidoResolvido = codigo == null || codigo === '' ? null : String(codigo)
+  return [
+    Number(idOrdem),
+    {
+      pedido: pedidoResolvido,
+      // id interno do pedido no Nomus — vem direto de itensPedido[0], nunca precisa de
+      // busca nenhuma. Use isto (nao o `pedido` textual acima) pra agrupar/deduplicar por
+      // pedido sem depender da resolucao lenta do codigo (ver kanban.js / TelaKanban.jsx).
+      idPedido: Number(item.idPedido),
+      produto: produto ?? null,
+      statusOrdem: statusOrdem ?? null,
+    },
+  ]
 }
 
 let atualizandoEmFundo = null
@@ -110,9 +130,9 @@ export async function mapaPedidosPorOrdem() {
   const campoPedido = CAMPO_PEDIDO()
   const mapa = new Map()
 
-  // So usa o que JA esta em cache — nunca espera uma busca nova ao Nomus aqui. Ordem sem
-  // pedido cacheado ainda fica sem "Pedido"/produto no card desta vez, e aparece sozinha
-  // assim que o lote de fundo abaixo resolver ela.
+  // produto/statusOrdem vem da propria ordem — sempre entram no mapa na hora, mesmo que o
+  // codigo do pedido ainda nao esteja em cache (ele so preenche depois, via lote de fundo).
+  // NUNCA espera uma busca nova ao Nomus aqui.
   for (const ordem of ordens) {
     const item = ordem?.itensPedido?.[0]
     const idOrdem = ordem?.id ?? ordem?.idOrdem
@@ -121,9 +141,15 @@ export async function mapaPedidosPorOrdem() {
     const chave = String(item.idPedido)
     const emCache = cache.get(chave)
     const valido = emCache && Date.now() - emCache.buscadoEm < TTL_CACHE_MS()
-    if (!valido) continue
 
-    const entrada = entradaPedido(idOrdem, item, emCache.pedido, campoPedido, ordem?.descricaoProduto ?? null)
+    const entrada = entradaPedido(
+      idOrdem,
+      item,
+      valido ? emCache.pedido : null,
+      campoPedido,
+      ordem?.descricaoProduto ?? null,
+      ordem?.status ?? null,
+    )
     if (entrada) mapa.set(...entrada)
   }
 

@@ -90,6 +90,34 @@ export default function TelaKanban({ recarregarEm }) {
     return c
   }, [quadro])
 
+  // Pedidos LIBERADOS (material pronto, acionavel) com ZERO progresso: nenhuma das OS desse
+  // pedido saiu da fila invisivel ainda. Um pedido com varias OS so conta aqui se TODAS
+  // estiverem intocadas — uma unica OS com andamento (em qualquer coluna ou ja concluida)
+  // tira o pedido inteiro dessa contagem. "Liberada" e o status de requisicao de material da
+  // ordem (nao tem nada a ver com o status de producao) — exclui pedidos ainda em
+  // Confirmada/Requisitada, que nao estao prontos pra comecar de verdade.
+  const pedidosSemOperacao = useMemo(() => {
+    if (!quadro) return 0
+    // Agrupa por idPedido (id interno, sempre disponivel na hora) — nao pelo codigo textual
+    // "PD 01012", que so aparece depois que o lote de fundo resolve o pedido. Usar o texto
+    // aqui faria a maioria das ordens nao contar so por falta de tempo de cache, nao por
+    // realmente ja estarem em producao.
+    const comProgresso = new Set()
+    for (const coluna of quadro.colunas) {
+      for (const card of coluna.cards) if (card.idPedido != null) comProgresso.add(card.idPedido)
+    }
+    for (const card of quadro.concluidos ?? []) {
+      if (card.idPedido != null) comProgresso.add(card.idPedido)
+    }
+    const intocados = new Set()
+    for (const card of quadro.filaAguardando ?? []) {
+      if (card.idPedido != null && card.statusOrdem === 'Liberada' && !comProgresso.has(card.idPedido)) {
+        intocados.add(card.idPedido)
+      }
+    }
+    return intocados.size
+  }, [quadro])
+
   return (
     <main className="kanban">
       <div className="kanban__topo">
@@ -114,6 +142,10 @@ export default function TelaKanban({ recarregarEm }) {
           <div className="kpi kpi--fila">
             <span className="kpi__valor">{quadro?.filaAguardando?.length ?? 0}</span>
             <span className="kpi__rotulo">Aguardando 1º processo</span>
+          </div>
+          <div className="kpi kpi--fila">
+            <span className="kpi__valor">{pedidosSemOperacao}</span>
+            <span className="kpi__rotulo">Liberados sem produção</span>
           </div>
         </div>
 
