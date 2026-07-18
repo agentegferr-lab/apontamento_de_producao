@@ -149,6 +149,10 @@ export function montarKanban({ operacoes, apontamentos, emAndamento, pedidosPorO
       // Status de requisicao de material da ordem (Planejada/Confirmada/Liberada/...) — nao
       // confundir com `status` acima, que e o status de PRODUCAO calculado por este modulo.
       statusOrdem: pedidoInfo?.statusOrdem ?? null,
+      // Status do ITEM do pedido de VENDA (1=Aguardando liberacao, 2=Liberado — ver
+      // pedidos.js). Fonte de verdade pro KPI "liberado sem producao"; diferente de
+      // `statusOrdem` (requisicao de material da ordem) e de `status` (producao).
+      statusItemPedido: pedidoInfo?.statusItemPedido ?? null,
       descricao: referencia.descricao,
       operacao: referencia.operacao,
       idOperacaoOrdem: referencia.id,

@@ -24,6 +24,9 @@ const FILTROS = [
   { valor: 'CONCLUIDO', texto: 'Concluídas' },
 ]
 
+// statusItemPedido do pedido de VENDA (1=Aguardando liberacao, 2=Liberado — ver server/pedidos.js).
+const PEDIDO_ACIONAVEL = new Set([1, 2])
+
 /**
  * Cronometro do card. Produzindo, conta desde o inicio; parado, conta ha quanto tempo esta
  * parado — que e o numero que interessa a quem olha o quadro. Nas demais situacoes mostra o
@@ -90,12 +93,13 @@ export default function TelaKanban({ recarregarEm }) {
     return c
   }, [quadro])
 
-  // Pedidos LIBERADOS (material pronto, acionavel) com ZERO progresso: nenhuma das OS desse
-  // pedido saiu da fila invisivel ainda. Um pedido com varias OS so conta aqui se TODAS
-  // estiverem intocadas — uma unica OS com andamento (em qualquer coluna ou ja concluida)
-  // tira o pedido inteiro dessa contagem. "Liberada" e o status de requisicao de material da
-  // ordem (nao tem nada a ver com o status de producao) — exclui pedidos ainda em
-  // Confirmada/Requisitada, que nao estao prontos pra comecar de verdade.
+  // Pedidos de VENDA "Aguardando liberacao" ou "Liberado" (statusItemPedido 1 ou 2 — ver
+  // server/pedidos.js) com ZERO progresso: nenhuma das OS desse pedido saiu da fila
+  // invisivel ainda. Um pedido com varias OS so conta aqui se TODAS estiverem intocadas —
+  // uma unica OS com andamento (em qualquer coluna ou ja concluida) tira o pedido inteiro
+  // dessa contagem. Fonte confirmada contra a tela "Pedidos de venda" do Nomus (2026-07-18)
+  // — NAO e o status de requisicao de material da ordem de producao (esse era o campo
+  // antigo `statusOrdem`, que media outra coisa e subcontava).
   const pedidosSemOperacao = useMemo(() => {
     if (!quadro) return 0
     // Agrupa por idPedido (id interno, sempre disponivel na hora) — nao pelo codigo textual
@@ -111,7 +115,7 @@ export default function TelaKanban({ recarregarEm }) {
     }
     const intocados = new Set()
     for (const card of quadro.filaAguardando ?? []) {
-      if (card.idPedido != null && card.statusOrdem === 'Liberada' && !comProgresso.has(card.idPedido)) {
+      if (card.idPedido != null && PEDIDO_ACIONAVEL.has(card.statusItemPedido) && !comProgresso.has(card.idPedido)) {
         intocados.add(card.idPedido)
       }
     }

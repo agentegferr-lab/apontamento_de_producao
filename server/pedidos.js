@@ -77,6 +77,21 @@ async function buscarPedido(idPedido) {
 }
 
 /**
+ * Status do ITEM de pedido de venda (numero cru do Nomus). Confirmado contra o Nomus real
+ * em 2026-07-18 (telas "Pedidos de venda", filtro "Status do item de pedido"):
+ *   1 = Aguardando liberacao   (confirmado com PD 01320 e PD 01319 reais)
+ *   2 = Liberado               (inferido: e o grupo dominante — 332 de 396 itens da GFERRO
+ *                                no nosso cache — condizente com "maioria ja liberada";
+ *                                NAO temos um exemplo real confirmado desse codigo ainda)
+ * Os demais codigos vistos (4, 6, ...) nao foram decifrados — provavelmente
+ * Faturado/Entregue/Cancelado ou similar. So usar pra filtro de "aguardando ou liberado".
+ */
+export const STATUS_ITEM_PEDIDO = {
+  AGUARDANDO_LIBERACAO: 1,
+  LIBERADO: 2,
+}
+
+/**
  * Parte pura: dado UM item de itensPedido, decide a entrada do mapa. Separada do loop com
  * I/O pra dar pra testar sem mockar rede/disco.
  *
@@ -88,14 +103,20 @@ async function buscarPedido(idPedido) {
  * cards sem produto/status por um bom tempo, e um KPI que dependa de statusOrdem
  * (ver TelaKanban.jsx) contava quase tudo errado.
  *
- * `statusOrdem` e o status de requisicao de material da ordem (Planejada/Confirmada/
- * Liberada/...), nao tem nada a ver com o status de PRODUCAO (EM_PRODUCAO/AGUARDANDO/...)
- * que o kanban calcula.
+ * `statusOrdem` e o status de requisicao de material da ORDEM (Planejada/Confirmada/
+ * Liberada/...) — nao tem nada a ver com o status de PRODUCAO (EM_PRODUCAO/AGUARDANDO/...)
+ * calculado pelo kanban, NEM com `statusItemPedido` abaixo (que e do PEDIDO DE VENDA).
+ *
+ * `statusItemPedido` PRECISA do pedido resolvido (vive dentro de `pedido.itensPedido`, nao
+ * da ordem) — ao contrario de produto/statusOrdem, ele fica null ate o lote de fundo achar
+ * esse pedido especifico. Casa pelo campo `item` (ex. "00010"), que identifica QUAL item do
+ * pedido esta ordem representa — um pedido pode ter itens em status diferentes.
  */
 export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido', produto = null, statusOrdem = null) {
   if (!item?.idPedido || idOrdem == null) return null
   const codigo = pedido?.[campoPedido]
   const pedidoResolvido = codigo == null || codigo === '' ? null : String(codigo)
+  const itemPedido = pedido?.itensPedido?.find((ip) => ip.item === item.item)
   return [
     Number(idOrdem),
     {
@@ -106,6 +127,7 @@ export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido
       idPedido: Number(item.idPedido),
       produto: produto ?? null,
       statusOrdem: statusOrdem ?? null,
+      statusItemPedido: itemPedido?.status ?? null,
     },
   ]
 }
