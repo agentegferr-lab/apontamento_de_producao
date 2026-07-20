@@ -84,6 +84,40 @@ test('ignora componentes alternativos e listas de materiais nao-padrao', async (
   assert.deepEqual(item.materiais.map((m) => m.codigo), ['REAL'])
 })
 
+test('ignora componentes opcionais — CONFIRMADO real: produto com pintura lista todas as cores de tinta cadastradas como opcional=true, so uma e usada por pedido', async () => {
+  const deps = fakeNomus({
+    componentesPorProduto: {
+      1: [
+        {
+          alternativo: false,
+          opcional: false,
+          listaMateriais: { padrao: true, qtdeBase: '1' },
+          qtdeNecessaria: '1',
+          produtoComponente: { id: 1, codigo: 'CHAPA', descricao: 'CHAPA', produtoFantasma: false },
+        },
+        {
+          alternativo: false,
+          opcional: true, // menu de cor — nao deve entrar na soma
+          listaMateriais: { padrao: true, qtdeBase: '1' },
+          qtdeNecessaria: '0,2',
+          produtoComponente: { id: 2, codigo: 'TINTA_A', descricao: 'TINTA VERMELHA', produtoFantasma: false },
+        },
+        {
+          alternativo: false,
+          opcional: true,
+          listaMateriais: { padrao: true, qtdeBase: '1' },
+          qtdeNecessaria: '0,2',
+          produtoComponente: { id: 3, codigo: 'TINTA_B', descricao: 'TINTA AZUL', produtoFantasma: false },
+        },
+      ],
+    },
+    produtos: { 1: { siglaUnidadeMedida: 'M2' } },
+  })
+
+  const [item] = await materiaisParaItens([{ idProduto: 1, quantidade: '10' }], deps)
+  assert.deepEqual(item.materiais.map((m) => m.codigo), ['CHAPA'])
+})
+
 test('desce recursivamente por componente "fantasma" (semi-acabado) ate materia-prima real', async () => {
   const deps = fakeNomus({
     componentesPorProduto: {

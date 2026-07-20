@@ -25,9 +25,16 @@ function numero(valor) {
 }
 
 /**
- * So considera a lista de materiais PADRAO e componentes NAO alternativos — um produto
- * pode ter mais de uma receita cadastrada (ou um componente com substituto), e somar as
- * duas dobraria a conta de material.
+ * So considera a lista de materiais PADRAO, componentes NAO alternativos e NAO opcionais.
+ *
+ * `opcional: true` — CONFIRMADO contra o Nomus real em 2026-07-20 — e como o Nomus marca
+ * um MENU de escolha, nao um item que pode ou nao entrar: um produto "com pintura externa"
+ * lista as ~16 cores de tinta cadastradas, cada uma com a mesma quantidade e TODAS
+ * opcional=true — so uma e escolhida por pedido, mas essa escolha nao esta neste BOM
+ * generico do produto (fica no pedido em si, que nao consultamos aqui). Somar as 16 daria
+ * 16x a tinta de verdade usada. `alternativo`/`listaMateriais.padrao` seguem o mesmo
+ * raciocinio: um produto pode ter mais de uma receita ou substituto cadastrado, e somar
+ * mais de uma dobraria a conta.
  */
 async function explodirReceita(idProduto, multiplicador, acumulado, profundidade, deps) {
   if (profundidade > PROFUNDIDADE_MAXIMA || multiplicador <= 0) return
@@ -35,6 +42,7 @@ async function explodirReceita(idProduto, multiplicador, acumulado, profundidade
 
   for (const c of componentes) {
     if (c.alternativo) continue
+    if (c.opcional) continue
     if (c.listaMateriais && c.listaMateriais.padrao === false) continue
     const comp = c.produtoComponente
     if (!comp) continue
