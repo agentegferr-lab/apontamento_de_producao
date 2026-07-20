@@ -1205,6 +1205,79 @@ body {
   white-space: normal;
 }
 
+/* --- relatorio de impressao (Planejamento) -------------------------------------------- */
+/* So existe pra impressao: escondido na tela o tempo todo, so aparece dentro de
+   @media print (junto com esconder o resto da tela) quando o botao "Imprimir relatorio"
+   chama window.print() — quem imprime escolhe "Salvar como PDF" no dialogo do navegador,
+   sem precisar de nenhuma biblioteca de geracao de PDF no cliente. */
+.relatorio-impressao {
+  display: none;
+}
+@media print {
+  body {
+    overflow: visible;
+    background: #fff;
+  }
+  .app {
+    height: auto;
+    display: block;
+  }
+  .cabecalho {
+    display: none;
+  }
+  .planejamento {
+    display: block;
+    height: auto;
+    padding: 0;
+  }
+  .planejamento > *:not(.relatorio-impressao) {
+    display: none;
+  }
+  .relatorio-impressao {
+    display: block;
+    color: #000;
+  }
+}
+.relatorio-impressao__titulo {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+.relatorio-impressao__periodo {
+  margin: 0 0 24px;
+  font-size: 13px;
+  color: #444;
+}
+.relatorio-impressao__secao {
+  margin-bottom: 24px;
+}
+.relatorio-impressao__secao h2 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid #000;
+  padding-bottom: 4px;
+}
+.relatorio-impressao__dia {
+  margin-bottom: 14px;
+  break-inside: avoid;
+}
+.relatorio-impressao__dia h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+.relatorio-impressao table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.relatorio-impressao th,
+.relatorio-impressao td {
+  padding: 4px 6px;
+  text-align: left;
+  border-bottom: 1px solid #ccc;
+}
+
 /* --- telas estreitas (tablet retrato, monitores menores) ---------------------------- */
 @media (max-width: 720px) {
   .cabecalho {

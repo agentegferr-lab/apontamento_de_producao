@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import ModalDetalheCard from './ModalDetalheCard.jsx'
 import ModalDetalheDia from './ModalDetalheDia.jsx'
+import RelatorioImpressao from './RelatorioImpressao.jsx'
 import { formatarNumeroBr } from '../numero.js'
 import { agruparMaterial, formatarDataBr } from '../planejamentoCampos.js'
 
@@ -118,6 +119,20 @@ export default function TelaPlanejamento() {
 
   const dias = useMemo(() => gerarGradeMes(mesAtual.ano, mesAtual.mes), [mesAtual])
   const chaveHoje = useMemo(() => chaveData(hoje), [hoje])
+
+  // Pro relatorio de impressao: TODAS as ordens planejadas dentro do periodo filtrado,
+  // nao so as do mes visivel no momento — o filtro de periodo pode cobrir mais de um mes.
+  const itensRelatorio = useMemo(
+    () => plano.filter((item) => dentroDoPeriodo(item.data)).sort((a, b) => a.data.localeCompare(b.data)),
+    [plano, dentroDoPeriodo],
+  )
+  const periodoLabel = filtroPeriodo.inicio && filtroPeriodo.fim
+    ? `Período: ${formatarDataBr(filtroPeriodo.inicio)} até ${formatarDataBr(filtroPeriodo.fim)}`
+    : filtroPeriodo.inicio
+      ? `A partir de ${formatarDataBr(filtroPeriodo.inicio)}`
+      : filtroPeriodo.fim
+        ? `Até ${formatarDataBr(filtroPeriodo.fim)}`
+        : 'Todas as ordens planejadas'
 
   function abrirDetalheDaFila(card) {
     setDetalhe({ card, extra: null })
@@ -280,6 +295,9 @@ export default function TelaPlanejamento() {
             Limpar filtro
           </button>
         )}
+        <button className="botao botao--neutro botao--pequeno" onClick={() => window.print()}>
+          Imprimir relatório
+        </button>
       </div>
 
       {erro && (
@@ -419,6 +437,7 @@ export default function TelaPlanejamento() {
         onAbrirItem={abrirItemDoDia}
         onRemoverItem={removerCard}
       />
+      <RelatorioImpressao itens={itensRelatorio} periodoLabel={periodoLabel} />
     </main>
   )
 }
