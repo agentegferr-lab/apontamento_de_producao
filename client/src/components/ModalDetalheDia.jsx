@@ -1,5 +1,5 @@
-import { formatarNumeroBr } from '../numero.js'
-import { agruparMaterial, formatarDataBr } from '../planejamentoCampos.js'
+import { formatarNumeroBr, formatarMoedaBr, formatarMoedaNumero } from '../numero.js'
+import { agruparMaterial, formatarDataBr, somarValorUnico } from '../planejamentoCampos.js'
 
 const DIAS_SEMANA_EXTENSO = [
   'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado',
@@ -11,6 +11,7 @@ export default function ModalDetalheDia({ data, itens, onFechar, onAbrirItem, on
   const [ano, mes, dia] = data.split('-').map(Number)
   const diaSemana = DIAS_SEMANA_EXTENSO[new Date(ano, mes - 1, dia).getDay()]
   const materiais = agruparMaterial(itens)
+  const valorTotalDia = somarValorUnico(itens)
 
   return (
     <div className="modal" role="dialog" aria-modal="true" aria-label={`Planejamento de ${formatarDataBr(data)}`} onClick={onFechar}>
@@ -33,6 +34,9 @@ export default function ModalDetalheDia({ data, itens, onFechar, onAbrirItem, on
                     <span className="planejamento-card__os">{item.nomeOrdem}</span>
                     {item.pedido && <span className="ficha__pedido">{item.pedido}</span>}
                     {item.produto && <p className="planejamento-card__produto">{item.produto}</p>}
+                    {item.valorTotal != null && (
+                      <p className="planejamento-card__valor">{formatarMoedaBr(item.valorTotal)}</p>
+                    )}
                   </div>
                   <button
                     className="planejamento-card__remover"
@@ -49,6 +53,13 @@ export default function ModalDetalheDia({ data, itens, onFechar, onAbrirItem, on
             </ul>
           )}
         </section>
+
+        {valorTotalDia > 0 && (
+          <section className="detalhes-dia__secao">
+            <h3 className="detalhes-dia__subtitulo">Valor total do dia</h3>
+            <p className="detalhes-dia__valor-total">{formatarMoedaNumero(valorTotalDia)}</p>
+          </section>
+        )}
 
         {materiais.length > 0 && (
           <section className="detalhes-dia__secao">

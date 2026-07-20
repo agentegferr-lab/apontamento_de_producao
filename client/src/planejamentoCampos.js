@@ -1,3 +1,5 @@
+import { numeroBr } from './numero.js'
+
 /**
  * Soma a MATERIA-PRIMA (chapa, isopor, cola...) de todas as ordens de um dia — nao o
  * produto acabado de cada uma. `item.materiais` ja vem explodido e escalado pelo servidor
@@ -25,4 +27,22 @@ export function agruparMaterial(itens) {
 export function formatarDataBr(chave) {
   const [ano, mes, dia] = chave.split('-')
   return `${dia}/${mes}/${ano}`
+}
+
+/**
+ * Soma o valor TOTAL do pedido de um conjunto de ordens, sem contar o mesmo pedido duas
+ * vezes — `valorTotal` e do pedido inteiro (nao rateado por item, ver server/pedidos.js),
+ * entao se duas ordens do mesmo dia vierem do mesmo pedido, contar as duas somaria o valor
+ * do pedido em dobro. Ordens sem idPedido/valorTotal (ainda nao resolvidos, ver o lote de
+ * fundo em server/pedidos.js) simplesmente nao entram na soma.
+ */
+export function somarValorUnico(itens) {
+  const vistos = new Set()
+  let total = 0
+  for (const item of itens) {
+    if (item.idPedido == null || item.valorTotal == null || vistos.has(item.idPedido)) continue
+    vistos.add(item.idPedido)
+    total += numeroBr(item.valorTotal)
+  }
+  return total
 }

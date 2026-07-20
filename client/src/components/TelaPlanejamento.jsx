@@ -3,7 +3,7 @@ import { api } from '../api.js'
 import ModalDetalheCard from './ModalDetalheCard.jsx'
 import ModalDetalheDia from './ModalDetalheDia.jsx'
 import RelatorioImpressao from './RelatorioImpressao.jsx'
-import { formatarNumeroBr } from '../numero.js'
+import { formatarNumeroBr, formatarMoedaBr } from '../numero.js'
 import { agruparMaterial, formatarDataBr } from '../planejamentoCampos.js'
 
 const NOMES_MES = [
@@ -189,11 +189,13 @@ export default function TelaPlanejamento() {
           idOperacaoOrdem: c.idOperacaoOrdem,
           nomeOrdem: c.nomeOrdem,
           pedido: c.pedido,
+          idPedido: c.idPedido,
           idProduto: c.idProduto,
           produto: c.produto,
           codigoProduto: c.codigoProduto,
           quantidade: c.quantidade,
           unidadeMedida: c.unidadeMedida,
+          valorTotal: c.valorTotal,
           data: chave,
         })
         setPlano((p) => [...p, novo])
@@ -339,6 +341,9 @@ export default function TelaPlanejamento() {
                 <h3 className="planejamento-card__os">{c.nomeOrdem}</h3>
                 {c.pedido && <span className="ficha__pedido">{c.pedido}</span>}
                 {c.produto && <p className="planejamento-card__produto">{c.produto}</p>}
+                {c.valorTotal != null && (
+                  <p className="planejamento-card__valor">{formatarMoedaBr(c.valorTotal)}</p>
+                )}
               </article>
             ))}
           </div>
@@ -428,6 +433,7 @@ export default function TelaPlanejamento() {
         card={detalhe?.card}
         agora={agora}
         extra={detalhe?.extra}
+        mostrarValor
         onFechar={() => setDetalhe(null)}
       />
       <ModalDetalheDia

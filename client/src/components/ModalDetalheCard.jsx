@@ -7,8 +7,11 @@ import { formatarMoedaBr } from '../numero.js'
  * cards ja agendados, que so tem um retrato salvo — ai `status` vem ausente e as linhas
  * de producao somem sozinhas, ver os `&&` abaixo). `extra` deixa a tela que chama
  * acrescentar linhas proprias (ex.: "Data planejada" no Planejamento).
+ *
+ * `mostrarValor`: o valor do pedido so aparece no Planejamento, nao no Acompanhamento (a
+ * pedido do usuario) — como o modal e compartilhado pelas duas telas, quem chama decide.
  */
-export default function ModalDetalheCard({ card, agora, extra, onFechar }) {
+export default function ModalDetalheCard({ card, agora, extra, mostrarValor = false, onFechar }) {
   if (!card) return null
   const temStatusProducao = card.status in ROTULO_STATUS
 
@@ -69,7 +72,7 @@ export default function ModalDetalheCard({ card, agora, extra, onFechar }) {
               </dd>
             </div>
           )}
-          {card.valorTotal != null && (
+          {mostrarValor && card.valorTotal != null && (
             <div className="detalhes__linha">
               <dt className="detalhes__rotulo">Valor do pedido</dt>
               <dd>{formatarMoedaBr(card.valorTotal)}</dd>

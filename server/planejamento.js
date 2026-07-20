@@ -61,11 +61,13 @@ export const planejamento = {
     idOperacaoOrdem,
     nomeOrdem,
     pedido,
+    idPedido,
     idProduto,
     produto,
     codigoProduto,
     quantidade,
     unidadeMedida,
+    valorTotal,
     data,
   }) {
     const existente = itens.find((i) => Number(i.idOperacaoOrdem) === Number(idOperacaoOrdem))
@@ -77,6 +79,9 @@ export const planejamento = {
       idOperacaoOrdem: Number(idOperacaoOrdem),
       nomeOrdem,
       pedido: pedido ?? null,
+      // id interno do pedido no Nomus — usado pra NAO somar o mesmo pedido duas vezes quando
+      // mais de uma OS dele cai no mesmo dia (ver client/src/planejamentoCampos.js).
+      idPedido: idPedido != null ? Number(idPedido) : null,
       // id interno do PRODUTO no Nomus — usado pra explodir a lista de materiais (BOM) sob
       // demanda (ver server/materiais.js); nao persiste a receita em si, so este id.
       idProduto: idProduto != null ? Number(idProduto) : null,
@@ -84,6 +89,9 @@ export const planejamento = {
       codigoProduto: codigoProduto ?? null,
       quantidade: quantidade ?? null,
       unidadeMedida: unidadeMedida ?? null,
+      // Valor TOTAL do pedido (nao rateado por item) — cru do Nomus, retrato tirado na hora
+      // de agendar, igual quantidade/produto acima (ver comentario no topo do arquivo).
+      valorTotal: valorTotal ?? null,
       data,
       criadoEm: new Date().toISOString(),
     }

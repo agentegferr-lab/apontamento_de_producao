@@ -26,21 +26,25 @@ test('agendar cria um item novo e persiste', () => {
   assert.deepEqual(planejamento.listar().map((i) => i.id), [registro.id])
 })
 
-test('agendar guarda quantidade/unidade/codigoProduto/idProduto quando informados, null quando nao', () => {
+test('agendar guarda quantidade/unidade/codigoProduto/idProduto/idPedido/valorTotal quando informados, null quando nao', () => {
   const comQtde = planejamento.agendar({
     idOrdem: 10,
     idOperacaoOrdem: 5000,
     nomeOrdem: 'OS COM QTDE',
+    idPedido: 1290,
     idProduto: 8,
     codigoProduto: '0006',
     quantidade: '1.287,64',
     unidadeMedida: 'M2',
+    valorTotal: '1.805,61',
     data: '2026-08-20',
   })
+  assert.equal(comQtde.idPedido, 1290)
   assert.equal(comQtde.idProduto, 8)
   assert.equal(comQtde.codigoProduto, '0006')
   assert.equal(comQtde.quantidade, '1.287,64')
   assert.equal(comQtde.unidadeMedida, 'M2')
+  assert.equal(comQtde.valorTotal, '1.805,61')
 
   const semQtde = planejamento.agendar({
     idOrdem: 11,
@@ -48,10 +52,12 @@ test('agendar guarda quantidade/unidade/codigoProduto/idProduto quando informado
     nomeOrdem: 'OS SEM QTDE',
     data: '2026-08-20',
   })
+  assert.equal(semQtde.idPedido, null)
   assert.equal(semQtde.idProduto, null)
   assert.equal(semQtde.codigoProduto, null)
   assert.equal(semQtde.quantidade, null)
   assert.equal(semQtde.unidadeMedida, null)
+  assert.equal(semQtde.valorTotal, null)
 })
 
 test('agendar a mesma operacao de novo e idempotente (nao duplica)', () => {

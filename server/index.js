@@ -461,11 +461,13 @@ app.post(
       idOperacaoOrdem,
       nomeOrdem,
       pedido,
+      idPedido,
       idProduto,
       produto,
       codigoProduto,
       quantidade,
       unidadeMedida,
+      valorTotal,
       data,
     } = req.body ?? {}
     if (idOrdem == null || idOperacaoOrdem == null || !nomeOrdem) {
@@ -479,11 +481,13 @@ app.post(
       idOperacaoOrdem,
       nomeOrdem,
       pedido,
+      idPedido,
       idProduto,
       produto,
       codigoProduto,
       quantidade,
       unidadeMedida,
+      valorTotal,
       data,
     })
     const [comMateriais] = await materiaisParaItens([registro])
