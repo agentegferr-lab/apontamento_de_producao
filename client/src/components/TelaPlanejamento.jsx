@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
+import ModalDetalheCard from './ModalDetalheCard.jsx'
 
 const NOMES_MES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -34,6 +35,8 @@ export default function TelaPlanejamento() {
   const [busca, setBusca] = useState('')
   const [arrastando, setArrastando] = useState(null) // { tipo: 'fila'|'planejado', card|item }
   const [diaSobre, setDiaSobre] = useState(null) // chave do dia com highlight de drop
+  const [agora, setAgora] = useState(() => new Date())
+  const [detalhe, setDetalhe] = useState(null) // { card, extra } pro modal de detalhes
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -52,6 +55,12 @@ export default function TelaPlanejamento() {
   useEffect(() => {
     carregar()
   }, [carregar])
+
+  // So pro cronometro do modal de detalhes, quando o card clicado estiver em producao.
+  useEffect(() => {
+    const id = setInterval(() => setAgora(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
 
   const idsPlanejados = useMemo(() => new Set(plano.map((i) => i.idOperacaoOrdem)), [plano])
 
@@ -76,8 +85,50 @@ export default function TelaPlanejamento() {
     return mapa
   }, [plano])
 
+  // idOperacaoOrdem -> card completo (com status de producao), pra abrir o modal de
+  // detalhes de um item ja agendado com informacao atualizada quando disponivel — o
+  // registro do planejamento em si so guarda um retrato (nomeOrdem/pedido/produto).
+  const cardVivoPorOperacao = useMemo(() => {
+    const mapa = new Map()
+    if (!quadro) return mapa
+    for (const coluna of quadro.colunas) {
+      for (const card of coluna.cards) mapa.set(card.idOperacaoOrdem, card)
+    }
+    for (const card of quadro.concluidos ?? []) mapa.set(card.idOperacaoOrdem, card)
+    for (const card of quadro.filaAguardando ?? []) mapa.set(card.idOperacaoOrdem, card)
+    return mapa
+  }, [quadro])
+
   const dias = useMemo(() => gerarGradeMes(mesAtual.ano, mesAtual.mes), [mesAtual])
   const chaveHoje = useMemo(() => chaveData(hoje), [hoje])
+
+  const formatarDataBr = (chave) => {
+    const [ano, mes, dia] = chave.split('-')
+    return `${dia}/${mes}/${ano}`
+  }
+
+  function abrirDetalheDaFila(card) {
+    setDetalhe({ card, extra: null })
+  }
+
+  function abrirDetalhePlanejado(item) {
+    const vivo = cardVivoPorOperacao.get(item.idOperacaoOrdem)
+    const extra = (
+      <>
+        <div className="detalhes__linha">
+          <dt className="detalhes__rotulo">Data planejada</dt>
+          <dd>{formatarDataBr(item.data)}</dd>
+        </div>
+        <div className="detalhes__linha">
+          <dt className="detalhes__rotulo">Planejado em</dt>
+          <dd>{new Date(item.criadoEm).toLocaleString('pt-BR')}</dd>
+        </div>
+      </>
+    )
+    // Sem card vivo (ainda carregando, ou a operacao saiu do quadro por algum motivo), usa
+    // so o retrato salvo — o modal esconde sozinho as linhas de producao que faltarem.
+    setDetalhe({ card: vivo ?? item, extra })
+  }
 
   function mudarMes(delta) {
     setMesAtual(({ ano, mes }) => {
@@ -208,6 +259,7 @@ export default function TelaPlanejamento() {
                 draggable
                 onDragStart={() => setArrastando({ tipo: 'fila', card: c })}
                 onDragEnd={() => setArrastando(null)}
+                onClick={() => abrirDetalheDaFila(c)}
               >
                 <h3 className="planejamento-card__os">{c.nomeOrdem}</h3>
                 {c.pedido && <span className="ficha__pedido">{c.pedido}</span>}
@@ -254,6 +306,7 @@ export default function TelaPlanejamento() {
                       draggable
                       onDragStart={() => setArrastando({ tipo: 'planejado', item })}
                       onDragEnd={() => setArrastando(null)}
+                      onClick={() => abrirDetalhePlanejado(item)}
                       title={`${item.nomeOrdem}${item.produto ? ' · ' + item.produto : ''}`}
                     >
                       <span className="planejamento-card__os">{item.nomeOrdem}</span>
@@ -272,6 +325,13 @@ export default function TelaPlanejamento() {
           })}
         </div>
       </div>
+
+      <ModalDetalheCard
+        card={detalhe?.card}
+        agora={agora}
+        extra={detalhe?.extra}
+        onFechar={() => setDetalhe(null)}
+      />
     </main>
   )
 }

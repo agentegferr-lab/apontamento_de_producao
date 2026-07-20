@@ -459,6 +459,66 @@ body {
   padding: 0 12px;
 }
 
+/* --- detalhes do card (kanban) -------------------------------------------------------- */
+.ficha--clicavel {
+  cursor: pointer;
+}
+.ficha--clicavel:hover {
+  border-color: var(--preto);
+}
+.ficha--clicavel:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--amarelo);
+}
+.modal__caixa--detalhes {
+  width: min(520px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.detalhes__topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.detalhes__topo .modal__titulo {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+}
+.detalhes {
+  margin: 0;
+}
+.detalhes__linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--linha);
+}
+.detalhes__linha:first-child {
+  border-top: none;
+}
+.detalhes__rotulo {
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tinta-fraca);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.detalhes__linha dd {
+  margin: 0;
+  text-align: right;
+  font-size: 14px;
+}
+.detalhes__mono {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
 /* --- kanban ------------------------------------------------------------------------- */
 .kanban {
   flex: 1;

@@ -1,20 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
-import { formatarDuracao, parseLocalISO } from '../tempo.js'
-
-const ROTULO = {
-  EM_PRODUCAO: 'EM PRODUÇÃO',
-  PARADO: 'PARADO',
-  AGUARDANDO: 'AGUARDANDO',
-  CONCLUIDO: 'CONCLUÍDO',
-}
-
-const CLASSE = {
-  EM_PRODUCAO: 'etiqueta--producao',
-  PARADO: 'etiqueta--parado',
-  AGUARDANDO: 'etiqueta--aguardando',
-  CONCLUIDO: 'etiqueta--concluido',
-}
+import { ROTULO_STATUS, CLASSE_STATUS, tempoDoCard } from '../kanbanCampos.js'
+import ModalDetalheCard from './ModalDetalheCard.jsx'
 
 const FILTROS = [
   { valor: 'todas', texto: 'Todas as ordens' },
@@ -27,19 +14,6 @@ const FILTROS = [
 // statusItemPedido do pedido de VENDA (1=Aguardando liberacao, 2=Liberado — ver server/pedidos.js).
 const PEDIDO_ACIONAVEL = new Set([1, 2])
 
-/**
- * Cronometro do card. Produzindo, conta desde o inicio; parado, conta ha quanto tempo esta
- * parado — que e o numero que interessa a quem olha o quadro. Nas demais situacoes mostra o
- * tempo ja gravado no Nomus.
- */
-function tempoDoCard(card, agora) {
-  if ((card.status === 'EM_PRODUCAO' || card.status === 'PARADO') && card.dataHoraInicial) {
-    const inicio = parseLocalISO(card.dataHoraInicial)
-    if (inicio) return formatarDuracao(agora - inicio)
-  }
-  return card.tempoGravadoMs > 0 ? formatarDuracao(card.tempoGravadoMs) : '-'
-}
-
 export default function TelaKanban({ recarregarEm }) {
   const [quadro, setQuadro] = useState(null)
   const [erro, setErro] = useState(null)
@@ -47,6 +21,7 @@ export default function TelaKanban({ recarregarEm }) {
   const [filtro, setFiltro] = useState('todas')
   const [agora, setAgora] = useState(() => new Date())
   const [atualizadoEm, setAtualizadoEm] = useState(null)
+  const [detalhe, setDetalhe] = useState(null) // card clicado, pro modal de detalhes
 
   async function carregar() {
     setCarregando(true)
@@ -192,7 +167,20 @@ export default function TelaKanban({ recarregarEm }) {
               </header>
               <div className="coluna__cards">
                 {coluna.cards.map((card) => (
-                  <article className="ficha" key={`${card.idOrdem}-${card.idOperacaoOrdem}`}>
+                  <article
+                    className="ficha ficha--clicavel"
+                    key={`${card.idOrdem}-${card.idOperacaoOrdem}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setDetalhe(card)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setDetalhe(card)
+                      }
+                    }}
+                    aria-label={`Ver detalhes de ${card.nomeOrdem}`}
+                  >
                     <div className="ficha__cabecalho">
                       <h3 className="ficha__os">{card.nomeOrdem}</h3>
                       {/* Sem pedido quando a API nao o expoe — ver server/pedidos.js.
@@ -207,7 +195,7 @@ export default function TelaKanban({ recarregarEm }) {
                     </p>
                     {card.motivoParada && <p className="ficha__parada">⏸ {card.motivoParada}</p>}
                     <div className="ficha__rodape">
-                      <span className={`etiqueta ${CLASSE[card.status]}`}>{ROTULO[card.status]}</span>
+                      <span className={`etiqueta ${CLASSE_STATUS[card.status]}`}>{ROTULO_STATUS[card.status]}</span>
                       <span className="ficha__tempo">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                           <circle cx="12" cy="12" r="9" />
@@ -231,6 +219,8 @@ export default function TelaKanban({ recarregarEm }) {
           {atualizadoEm.toLocaleTimeString('pt-BR')}
         </p>
       )}
+
+      <ModalDetalheCard card={detalhe} agora={agora} onFechar={() => setDetalhe(null)} />
     </main>
   )
 }
