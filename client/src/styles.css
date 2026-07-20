@@ -1128,14 +1128,23 @@ body {
   justify-content: space-between;
   gap: 4px;
   padding: 3px 6px;
-  background: var(--amarelo-tenue);
-  border-color: var(--amarelo);
 }
 .planejamento-card--mini .planejamento-card__os {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 10px;
+}
+/* Ainda nao deu entrada em nenhum processo (amarelo) vs ja iniciado (verde) — mesmo
+   criterio de "fila invisivel" do kanban.js (ver TelaPlanejamento.jsx/statusIniciado).
+   Aplicado tanto nos cards da fila/calendario quanto nas linhas do modal do dia inteiro. */
+.planejamento-card--nao-iniciado {
+  background: var(--amarelo-tenue);
+  border-color: var(--amarelo);
+}
+.planejamento-card--iniciado {
+  background: var(--verde-claro);
+  border-color: var(--verde);
 }
 .planejamento-card__remover {
   flex-shrink: 0;
@@ -1211,6 +1220,15 @@ body {
 }
 .detalhes-dia__item:hover {
   background: var(--amarelo-tenue);
+}
+/* Especificidade maior que `.detalhes-dia__item` sozinho — senao o `background: var(--fundo)`
+   dele ganha de `.planejamento-card--nao-iniciado`/`--iniciado` (mesma especificidade, mas
+   `.detalhes-dia__item` vem depois no arquivo). */
+.detalhes-dia__item.planejamento-card--nao-iniciado {
+  background: var(--amarelo-tenue);
+}
+.detalhes-dia__item.planejamento-card--iniciado {
+  background: var(--verde-claro);
 }
 .detalhes-dia__item-texto {
   min-width: 0;

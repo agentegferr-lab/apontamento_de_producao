@@ -29,7 +29,16 @@ export default function ModalDetalheDia({ data, itens, onFechar, onAbrirItem, on
           {itens.length > 0 && (
             <ul className="detalhes-dia__lista">
               {itens.map((item) => (
-                <li key={item.id} className="detalhes-dia__item" onClick={() => onAbrirItem(item)}>
+                <li
+                  key={item.id}
+                  className={[
+                    'detalhes-dia__item',
+                    item.iniciado == null ? '' : item.iniciado ? 'planejamento-card--iniciado' : 'planejamento-card--nao-iniciado',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() => onAbrirItem(item)}
+                >
                   <div className="detalhes-dia__item-texto">
                     <span className="planejamento-card__os">{item.nomeOrdem}</span>
                     {item.pedido && <span className="ficha__pedido">{item.pedido}</span>}

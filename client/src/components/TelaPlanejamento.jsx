@@ -120,6 +120,21 @@ export default function TelaPlanejamento() {
   const dias = useMemo(() => gerarGradeMes(mesAtual.ano, mesAtual.mes), [mesAtual])
   const chaveHoje = useMemo(() => chaveData(hoje), [hoje])
 
+  /**
+   * true = ja deu entrada em algum processo (verde), false = ainda nao (amarelo), null =
+   * status desconhecido (quadro nao carregou ainda) — mesmo criterio que kanban.js usa pra
+   * decidir o que vai pra fila invisivel: AGUARDANDO com zero etapas concluidas e o unico
+   * caso "intocado". Uma ordem AGUARDANDO com etapas > 0 (concluiu uma, espera a proxima)
+   * ja conta como iniciada.
+   */
+  function statusIniciado(item) {
+    const vivo = cardVivoPorOperacao.get(item.idOperacaoOrdem)
+    if (!vivo) return null
+    return !(vivo.status === 'AGUARDANDO' && vivo.etapasConcluidas === 0)
+  }
+  const classeIniciado = (iniciado) =>
+    iniciado == null ? '' : iniciado ? 'planejamento-card--iniciado' : 'planejamento-card--nao-iniciado'
+
   // Pro relatorio de impressao: TODAS as ordens planejadas dentro do periodo filtrado,
   // nao so as do mes visivel no momento — o filtro de periodo pode cobrir mais de um mes.
   const itensRelatorio = useMemo(
@@ -332,7 +347,9 @@ export default function TelaPlanejamento() {
             {fila.map((c) => (
               <article
                 key={`${c.idOrdem}-${c.idOperacaoOrdem}`}
-                className="planejamento-card"
+                // A fila e por definicao so ordens intocadas (ver kanban.js/filaAguardando)
+                // — sempre "nao iniciado", sem precisar consultar o status ao vivo.
+                className="planejamento-card planejamento-card--nao-iniciado"
                 draggable
                 onDragStart={() => setArrastando({ tipo: 'fila', card: c })}
                 onDragEnd={() => setArrastando(null)}
@@ -386,7 +403,7 @@ export default function TelaPlanejamento() {
                     {itensDoDia.map((item) => (
                       <article
                         key={item.id}
-                        className="planejamento-card planejamento-card--mini"
+                        className={`planejamento-card planejamento-card--mini ${classeIniciado(statusIniciado(item))}`}
                         draggable
                         onDragStart={() => setArrastando({ tipo: 'planejado', item })}
                         onDragEnd={() => setArrastando(null)}
@@ -438,7 +455,11 @@ export default function TelaPlanejamento() {
       />
       <ModalDetalheDia
         data={diaDetalhe}
-        itens={diaDetalhe ? (planoPorDia.get(diaDetalhe) ?? []) : []}
+        itens={
+          diaDetalhe
+            ? (planoPorDia.get(diaDetalhe) ?? []).map((item) => ({ ...item, iniciado: statusIniciado(item) }))
+            : []
+        }
         onFechar={() => setDiaDetalhe(null)}
         onAbrirItem={abrirItemDoDia}
         onRemoverItem={removerCard}
