@@ -900,6 +900,35 @@ body {
   letter-spacing: 0.3px;
 }
 
+.planejamento__filtro {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.planejamento__filtro-rotulo {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--tinta-fraca);
+  text-transform: uppercase;
+  font-size: 12px;
+}
+.planejamento__filtro-data {
+  height: 36px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+.planejamento__filtro-data:focus {
+  outline: none;
+  border-color: var(--preto);
+  box-shadow: 0 0 0 3px var(--amarelo);
+}
+
 .planejamento__corpo {
   flex: 1;
   min-height: 0;
@@ -1022,6 +1051,9 @@ body {
 }
 .planejamento__dia--fora .planejamento__numero-dia {
   color: var(--tinta-tenue);
+}
+.planejamento__dia--filtrado-fora {
+  opacity: 0.35;
 }
 .planejamento__dia--hoje {
   border-color: var(--amarelo);

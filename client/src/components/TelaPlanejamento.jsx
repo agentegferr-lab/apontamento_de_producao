@@ -42,6 +42,7 @@ export default function TelaPlanejamento() {
   const [detalhe, setDetalhe] = useState(null) // { card, extra } pro modal de detalhes
   const [modo, setModo] = useState('cards') // 'cards' | 'material'
   const [diaDetalhe, setDiaDetalhe] = useState(null) // chave do dia (AAAA-MM-DD) pro modal do dia inteiro
+  const [filtroPeriodo, setFiltroPeriodo] = useState({ inicio: '', fim: '' }) // filtra as ordens JA agendadas
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -89,6 +90,17 @@ export default function TelaPlanejamento() {
     }
     return mapa
   }, [plano])
+
+  // Filtra quais ordens JA AGENDADAS aparecem na grade — a chave do dia e AAAA-MM-DD,
+  // entao comparar como texto basta (ordena igual a data). So esconde da GRADE: clicar no
+  // dia (ModalDetalheDia) sempre mostra o conteudo real, filtrado ou nao, pra nao confundir
+  // "nao ha nada aqui" com "isto esta escondido pelo filtro".
+  const filtroAtivo = Boolean(filtroPeriodo.inicio || filtroPeriodo.fim)
+  const dentroDoPeriodo = useCallback(
+    (chave) =>
+      (!filtroPeriodo.inicio || chave >= filtroPeriodo.inicio) && (!filtroPeriodo.fim || chave <= filtroPeriodo.fim),
+    [filtroPeriodo],
+  )
 
   // idOperacaoOrdem -> card completo (com status de producao), pra abrir o modal de
   // detalhes de um item ja agendado com informacao atualizada quando disponivel — o
@@ -242,6 +254,34 @@ export default function TelaPlanejamento() {
         </div>
       </div>
 
+      <div className="planejamento__filtro">
+        <label className="planejamento__filtro-rotulo" htmlFor="planejamento-filtro-inicio">
+          Período
+        </label>
+        <input
+          id="planejamento-filtro-inicio"
+          className="planejamento__filtro-data"
+          type="date"
+          value={filtroPeriodo.inicio}
+          onChange={(e) => setFiltroPeriodo((f) => ({ ...f, inicio: e.target.value }))}
+        />
+        <span>até</span>
+        <input
+          className="planejamento__filtro-data"
+          type="date"
+          value={filtroPeriodo.fim}
+          onChange={(e) => setFiltroPeriodo((f) => ({ ...f, fim: e.target.value }))}
+        />
+        {filtroAtivo && (
+          <button
+            className="botao botao--neutro botao--pequeno"
+            onClick={() => setFiltroPeriodo({ inicio: '', fim: '' })}
+          >
+            Limpar filtro
+          </button>
+        )}
+      </div>
+
       {erro && (
         <p className="aviso aviso--erro" role="alert">
           {erro}
@@ -295,7 +335,8 @@ export default function TelaPlanejamento() {
           {dias.map((dia) => {
             const chave = chaveData(dia)
             const doMes = dia.getMonth() === mesAtual.mes
-            const itensDoDia = planoPorDia.get(chave) ?? []
+            const dentroDoFiltro = dentroDoPeriodo(chave)
+            const itensDoDia = dentroDoFiltro ? (planoPorDia.get(chave) ?? []) : []
             return (
               <div
                 key={chave}
@@ -304,6 +345,7 @@ export default function TelaPlanejamento() {
                   !doMes && 'planejamento__dia--fora',
                   chave === chaveHoje && 'planejamento__dia--hoje',
                   diaSobre === chave && 'planejamento__dia--alvo',
+                  filtroAtivo && !dentroDoFiltro && 'planejamento__dia--filtrado-fora',
                 ]
                   .filter(Boolean)
                   .join(' ')}
