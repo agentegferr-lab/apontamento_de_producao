@@ -56,7 +56,18 @@ export const planejamento = {
    * Agenda uma operacao pra um dia. Idempotente por idOperacaoOrdem: soltar a mesma ordem
    * de novo (ex.: duplo evento de drop) so devolve o registro ja existente, sem duplicar.
    */
-  agendar({ idOrdem, idOperacaoOrdem, nomeOrdem, pedido, produto, codigoProduto, quantidade, unidadeMedida, data }) {
+  agendar({
+    idOrdem,
+    idOperacaoOrdem,
+    nomeOrdem,
+    pedido,
+    idProduto,
+    produto,
+    codigoProduto,
+    quantidade,
+    unidadeMedida,
+    data,
+  }) {
     const existente = itens.find((i) => Number(i.idOperacaoOrdem) === Number(idOperacaoOrdem))
     if (existente) return existente
 
@@ -66,6 +77,9 @@ export const planejamento = {
       idOperacaoOrdem: Number(idOperacaoOrdem),
       nomeOrdem,
       pedido: pedido ?? null,
+      // id interno do PRODUTO no Nomus — usado pra explodir a lista de materiais (BOM) sob
+      // demanda (ver server/materiais.js); nao persiste a receita em si, so este id.
+      idProduto: idProduto != null ? Number(idProduto) : null,
       produto: produto ?? null,
       codigoProduto: codigoProduto ?? null,
       quantidade: quantidade ?? null,

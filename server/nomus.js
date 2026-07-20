@@ -339,6 +339,32 @@ export const nomus = {
     )
   },
 
+  /**
+   * Um produto por id (dados comerciais/fiscais — inclui `siglaUnidadeMedida`, que a lista
+   * de materiais abaixo nao devolve por componente). TTL longo: um produto quase nao muda.
+   */
+  async produtoPorId(idProduto) {
+    return nomus.porId('/produtos', idProduto)
+  },
+
+  /**
+   * Componentes da lista de materiais (BOM) de UM produto pai — CONFIRMADO contra o Nomus
+   * real em 2026-07-20 (endpoint "Lista de materiais" / "Componentes da lista de
+   * materiais" da documentacao Nomus): GET /componentesListaMateriais?query=produtoPai.id=N
+   * devolve os componentes diretos (materia-prima ou semi-acabado) e a quantidade
+   * necessaria de cada um pra produzir `listaMateriais.qtdeBase` unidades do pai. Um
+   * componente com `produtoComponente.produtoFantasma=true` e ele mesmo uma lista de
+   * materiais (semi-acabado) — quem consome isto precisa descer recursivamente (ver
+   * server/materiais.js). TTL longo: uma receita de produto quase nunca muda.
+   */
+  async componentesDeProduto(idProduto) {
+    return comCache(
+      `componentesListaMateriais:${idProduto}`,
+      () => requisitarPaginado('/componentesListaMateriais', { query: { query: `produtoPai.id=${idProduto}` } }),
+      24 * 60 * 60 * 1000,
+    )
+  },
+
   /** O que ja foi gravado no Nomus. Define quais etapas contam como concluidas. */
   async apontamentos() {
     return comCache('apontamentos', () => requisitarPaginado('/apontamentos'))

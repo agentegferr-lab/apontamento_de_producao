@@ -9,6 +9,7 @@ import { montarKanban } from './kanban.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
 import { mapaPedidosPorOrdem } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
+import { materiaisParaItens } from './materiais.js'
 
 try {
   validarConfig()
@@ -441,13 +442,32 @@ app.get(
 
 // --- Planejamento (PCP) ----------------------------------------------------------------
 // So nosso, nunca vai pro Nomus — ver server/planejamento.js.
-app.get('/api/planejamento', (_req, res) => res.json(planejamento.listar()))
+// Cada item volta com `materiais` (materia-prima explodida da lista de materiais do Nomus,
+// ja escalada pela quantidade planejada — ver server/materiais.js) SEMPRE recalculado na
+// hora, nunca persistido: assim mover um card de dia (troca so a `data`) refaz a soma do
+// dia novo automaticamente, sem guardar um numero que possa ficar desatualizado.
+app.get(
+  '/api/planejamento',
+  asyncRoute(async (_req, res) => {
+    res.json(await materiaisParaItens(planejamento.listar()))
+  }),
+)
 
 app.post(
   '/api/planejamento',
   asyncRoute(async (req, res) => {
-    const { idOrdem, idOperacaoOrdem, nomeOrdem, pedido, produto, codigoProduto, quantidade, unidadeMedida, data } =
-      req.body ?? {}
+    const {
+      idOrdem,
+      idOperacaoOrdem,
+      nomeOrdem,
+      pedido,
+      idProduto,
+      produto,
+      codigoProduto,
+      quantidade,
+      unidadeMedida,
+      data,
+    } = req.body ?? {}
     if (idOrdem == null || idOperacaoOrdem == null || !nomeOrdem) {
       throw new AppError('idOrdem, idOperacaoOrdem e nomeOrdem sao obrigatorios.', 400)
     }
@@ -459,13 +479,15 @@ app.post(
       idOperacaoOrdem,
       nomeOrdem,
       pedido,
+      idProduto,
       produto,
       codigoProduto,
       quantidade,
       unidadeMedida,
       data,
     })
-    res.status(201).json(registro)
+    const [comMateriais] = await materiaisParaItens([registro])
+    res.status(201).json(comMateriais)
   }),
 )
 
@@ -478,7 +500,8 @@ app.patch(
     }
     const registro = planejamento.mover(req.params.id, data)
     if (!registro) throw new AppError('Item de planejamento nao encontrado.', 404)
-    res.json(registro)
+    const [comMateriais] = await materiaisParaItens([registro])
+    res.json(comMateriais)
   }),
 )
 

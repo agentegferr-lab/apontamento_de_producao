@@ -95,7 +95,7 @@ export const STATUS_ITEM_PEDIDO = {
  * Parte pura: dado UM item de itensPedido, decide a entrada do mapa. Separada do loop com
  * I/O pra dar pra testar sem mockar rede/disco.
  *
- * `camposOrdem` (produto, codigoProduto, quantidade, unidadeMedida, statusOrdem) vem de
+ * `camposOrdem` (idProduto, produto, codigoProduto, quantidade, unidadeMedida, statusOrdem) vem de
  * campos da PROPRIA ordem (nao do pedido) — nao custam chamada extra ao Nomus, e por isso
  * NAO dependem do pedido ja ter resolvido: a entrada sempre existe com eles prontos, mesmo
  * que `pedido` ainda esteja null esperando o lote de fundo. Antes esses campos ficavam
@@ -128,6 +128,7 @@ export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido
       // busca nenhuma. Use isto (nao o `pedido` textual acima) pra agrupar/deduplicar por
       // pedido sem depender da resolucao lenta do codigo (ver kanban.js / TelaKanban.jsx).
       idPedido: Number(item.idPedido),
+      idProduto: camposOrdem.idProduto ?? null,
       produto: camposOrdem.produto ?? null,
       codigoProduto: camposOrdem.codigoProduto ?? null,
       quantidade: camposOrdem.quantidade ?? null,
@@ -171,6 +172,7 @@ export async function mapaPedidosPorOrdem() {
     const valido = emCache && Date.now() - emCache.buscadoEm < TTL_CACHE_MS()
 
     const entrada = entradaPedido(idOrdem, item, valido ? emCache.pedido : null, campoPedido, {
+      idProduto: ordem?.idProduto ?? null,
       produto: ordem?.descricaoProduto ?? null,
       codigoProduto: ordem?.codigoProduto ?? null,
       quantidade: ordem?.qtde ?? null,

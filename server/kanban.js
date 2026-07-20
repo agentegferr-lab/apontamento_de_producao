@@ -145,6 +145,9 @@ export function montarKanban({ operacoes, apontamentos, emAndamento, pedidosPorO
       // ordem, sem depender da busca lenta ao Nomus. Usar isto pra agrupar/deduplicar por
       // pedido (ver TelaKanban.jsx); `pedido` textual e so pra exibicao.
       idPedido: pedidoInfo?.idPedido ?? null,
+      // id interno do PRODUTO no Nomus (nao o codigo textual abaixo) — usado pra explodir a
+      // lista de materiais (BOM) na tela de Planejamento (ver server/materiais.js).
+      idProduto: pedidoInfo?.idProduto ?? null,
       produto: pedidoInfo?.produto ?? null,
       codigoProduto: pedidoInfo?.codigoProduto ?? null,
       // Cru do Nomus (ex. "1.287,64" — ponto de milhar, virgula decimal). Quem soma/formata

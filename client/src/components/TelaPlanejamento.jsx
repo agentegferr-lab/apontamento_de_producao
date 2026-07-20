@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import ModalDetalheCard from './ModalDetalheCard.jsx'
-import { numeroBr, formatarNumeroBr } from '../numero.js'
+import { formatarNumeroBr } from '../numero.js'
 
 const NOMES_MES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -22,24 +22,24 @@ function gerarGradeMes(ano, mes) {
 }
 
 /**
- * Soma a quantidade dos itens de um dia, agrupada por produto — nao da pra somar telha
- * com metro quadrado numa unica conta, entao agrupa por codigoProduto (estavel; cai pro
- * texto do produto so se a ordem nao tiver o codigo) e mostra cada grupo com sua propria
- * unidade de medida.
+ * Soma a MATERIA-PRIMA (chapa, isopor, cola...) de todas as ordens de um dia — nao o
+ * produto acabado de cada uma. `item.materiais` ja vem explodido e escalado pelo servidor
+ * a partir da lista de materiais (BOM) do Nomus (ver server/materiais.js); aqui so agrupa
+ * por codigo do material entre as varias ordens do dia e soma.
  */
 function agruparMaterial(itens) {
   const grupos = new Map()
   for (const item of itens) {
-    const chave = item.codigoProduto || item.produto || item.nomeOrdem
-    if (!chave) continue
-    const atual = grupos.get(chave) ?? {
-      chave,
-      produto: item.produto || item.nomeOrdem,
-      unidadeMedida: item.unidadeMedida || '',
-      quantidade: 0,
+    for (const m of item.materiais ?? []) {
+      const atual = grupos.get(m.codigo) ?? {
+        chave: m.codigo,
+        produto: m.descricao,
+        unidadeMedida: m.unidadeMedida || '',
+        quantidade: 0,
+      }
+      atual.quantidade += m.quantidade
+      grupos.set(m.codigo, atual)
     }
-    atual.quantidade += numeroBr(item.quantidade)
-    grupos.set(chave, atual)
   }
   return [...grupos.values()].sort((a, b) => a.produto.localeCompare(b.produto))
 }
@@ -180,6 +180,7 @@ export default function TelaPlanejamento() {
           idOperacaoOrdem: c.idOperacaoOrdem,
           nomeOrdem: c.nomeOrdem,
           pedido: c.pedido,
+          idProduto: c.idProduto,
           produto: c.produto,
           codigoProduto: c.codigoProduto,
           quantidade: c.quantidade,

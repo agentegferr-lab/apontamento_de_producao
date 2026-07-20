@@ -7,6 +7,7 @@ const item = { id: 2717, idPedido: 1279, item: '00010', nomeCliente: 'CESAR EDUA
 const pedido = { id: 1279, codigoPedido: 'PD 01294' }
 
 const CAMPOS_VAZIOS = {
+  idProduto: null,
   produto: null,
   codigoProduto: null,
   quantidade: null,
@@ -16,6 +17,7 @@ const CAMPOS_VAZIOS = {
 
 test('monta a entrada [idOrdem, {pedido, idPedido, ...camposOrdem, statusItemPedido}] a partir do item, do pedido resolvido e dos campos da ordem', () => {
   const entrada = entradaPedido(1579, item, pedido, undefined, {
+    idProduto: 8,
     produto: 'TELHA SANDUICHE TR40',
     codigoProduto: '0006',
     quantidade: '1.287,64',
@@ -27,6 +29,7 @@ test('monta a entrada [idOrdem, {pedido, idPedido, ...camposOrdem, statusItemPed
     {
       pedido: 'PD 01294',
       idPedido: 1279,
+      idProduto: 8,
       produto: 'TELHA SANDUICHE TR40',
       codigoProduto: '0006',
       quantidade: '1.287,64',
@@ -39,6 +42,7 @@ test('monta a entrada [idOrdem, {pedido, idPedido, ...camposOrdem, statusItemPed
 
 test('sem camposOrdem informado, todos os campos da ordem ficam null', () => {
   const entrada = entradaPedido(1579, item, pedido)
+  assert.equal(entrada[1].idProduto, null)
   assert.equal(entrada[1].produto, null)
   assert.equal(entrada[1].codigoProduto, null)
   assert.equal(entrada[1].quantidade, null)
