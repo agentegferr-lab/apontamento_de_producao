@@ -58,4 +58,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ codigoOrdem, codigoProcesso }),
     }),
+  planejamento: () => chamar('/api/planejamento'),
+  agendar: (dados) => chamar('/api/planejamento', { method: 'POST', body: JSON.stringify(dados) }),
+  moverPlanejado: (id, data) =>
+    chamar(`/api/planejamento/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ data }) }),
+  removerPlanejado: (id) => chamar(`/api/planejamento/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 }

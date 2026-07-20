@@ -8,6 +8,7 @@ import { andamento, PRODUZINDO, PAUSADO } from './andamento.js'
 import { montarKanban } from './kanban.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
 import { mapaPedidosPorOrdem } from './pedidos.js'
+import { planejamento, REGEX_DATA } from './planejamento.js'
 
 try {
   validarConfig()
@@ -435,6 +436,48 @@ app.get(
       pedidosPorOrdem,
     })
     res.json({ ...quadro, atualizadoEm: new Date().toISOString() })
+  }),
+)
+
+// --- Planejamento (PCP) ----------------------------------------------------------------
+// So nosso, nunca vai pro Nomus — ver server/planejamento.js.
+app.get('/api/planejamento', (_req, res) => res.json(planejamento.listar()))
+
+app.post(
+  '/api/planejamento',
+  asyncRoute(async (req, res) => {
+    const { idOrdem, idOperacaoOrdem, nomeOrdem, pedido, produto, data } = req.body ?? {}
+    if (idOrdem == null || idOperacaoOrdem == null || !nomeOrdem) {
+      throw new AppError('idOrdem, idOperacaoOrdem e nomeOrdem sao obrigatorios.', 400)
+    }
+    if (!REGEX_DATA.test(data ?? '')) {
+      throw new AppError('data precisa estar no formato AAAA-MM-DD.', 400)
+    }
+    const registro = planejamento.agendar({ idOrdem, idOperacaoOrdem, nomeOrdem, pedido, produto, data })
+    res.status(201).json(registro)
+  }),
+)
+
+app.patch(
+  '/api/planejamento/:id',
+  asyncRoute(async (req, res) => {
+    const { data } = req.body ?? {}
+    if (!REGEX_DATA.test(data ?? '')) {
+      throw new AppError('data precisa estar no formato AAAA-MM-DD.', 400)
+    }
+    const registro = planejamento.mover(req.params.id, data)
+    if (!registro) throw new AppError('Item de planejamento nao encontrado.', 404)
+    res.json(registro)
+  }),
+)
+
+app.delete(
+  '/api/planejamento/:id',
+  asyncRoute(async (req, res) => {
+    if (!planejamento.remover(req.params.id)) {
+      throw new AppError('Item de planejamento nao encontrado.', 404)
+    }
+    res.status(204).end()
   }),
 )
 

@@ -1,0 +1,277 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { api } from '../api.js'
+
+const NOMES_MES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+]
+const DIAS_SEMANA = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB']
+
+function chaveData(data) {
+  const p = (n) => String(n).padStart(2, '0')
+  return `${data.getFullYear()}-${p(data.getMonth() + 1)}-${p(data.getDate())}`
+}
+
+/** 6 semanas (42 dias) sempre, comecando no domingo antes (ou igual a) o dia 1 do mes. */
+function gerarGradeMes(ano, mes) {
+  const primeiroDia = new Date(ano, mes, 1)
+  const inicio = new Date(ano, mes, 1 - primeiroDia.getDay())
+  return Array.from({ length: 42 }, (_, i) => new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + i))
+}
+
+/**
+ * Calendario de planejamento do PCP: arrasta ordens da fila (que ainda nao comecaram nenhum
+ * processo, ver kanban.js/filaAguardando) pra um dia do mes. So local — nunca toca o Nomus,
+ * ver server/planejamento.js.
+ */
+export default function TelaPlanejamento() {
+  const hoje = useMemo(() => new Date(), [])
+  const [mesAtual, setMesAtual] = useState({ ano: hoje.getFullYear(), mes: hoje.getMonth() })
+  const [quadro, setQuadro] = useState(null)
+  const [plano, setPlano] = useState([])
+  const [carregando, setCarregando] = useState(false)
+  const [erro, setErro] = useState(null)
+  const [busca, setBusca] = useState('')
+  const [arrastando, setArrastando] = useState(null) // { tipo: 'fila'|'planejado', card|item }
+  const [diaSobre, setDiaSobre] = useState(null) // chave do dia com highlight de drop
+
+  const carregar = useCallback(async () => {
+    setCarregando(true)
+    try {
+      const [k, p] = await Promise.all([api.kanban(), api.planejamento()])
+      setQuadro(k)
+      setPlano(p)
+      setErro(null)
+    } catch (e) {
+      setErro(e.message)
+    } finally {
+      setCarregando(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    carregar()
+  }, [carregar])
+
+  const idsPlanejados = useMemo(() => new Set(plano.map((i) => i.idOperacaoOrdem)), [plano])
+
+  const fila = useMemo(() => {
+    const todos = (quadro?.filaAguardando ?? []).filter((c) => !idsPlanejados.has(c.idOperacaoOrdem))
+    const alvo = busca.trim().toLowerCase()
+    if (!alvo) return todos
+    return todos.filter(
+      (c) =>
+        c.nomeOrdem?.toLowerCase().includes(alvo) ||
+        c.pedido?.toLowerCase().includes(alvo) ||
+        c.produto?.toLowerCase().includes(alvo),
+    )
+  }, [quadro, idsPlanejados, busca])
+
+  const planoPorDia = useMemo(() => {
+    const mapa = new Map()
+    for (const item of plano) {
+      if (!mapa.has(item.data)) mapa.set(item.data, [])
+      mapa.get(item.data).push(item)
+    }
+    return mapa
+  }, [plano])
+
+  const dias = useMemo(() => gerarGradeMes(mesAtual.ano, mesAtual.mes), [mesAtual])
+  const chaveHoje = useMemo(() => chaveData(hoje), [hoje])
+
+  function mudarMes(delta) {
+    setMesAtual(({ ano, mes }) => {
+      const d = new Date(ano, mes + delta, 1)
+      return { ano: d.getFullYear(), mes: d.getMonth() }
+    })
+  }
+
+  function irParaHoje() {
+    setMesAtual({ ano: hoje.getFullYear(), mes: hoje.getMonth() })
+  }
+
+  async function soltarEmDia(chave) {
+    const alvo = arrastando
+    setArrastando(null)
+    setDiaSobre(null)
+    if (!alvo) return
+
+    if (alvo.tipo === 'fila') {
+      const c = alvo.card
+      try {
+        const novo = await api.agendar({
+          idOrdem: c.idOrdem,
+          idOperacaoOrdem: c.idOperacaoOrdem,
+          nomeOrdem: c.nomeOrdem,
+          pedido: c.pedido,
+          produto: c.produto,
+          data: chave,
+        })
+        setPlano((p) => [...p, novo])
+      } catch (e) {
+        setErro(e.message)
+      }
+    } else {
+      const item = alvo.item
+      if (item.data === chave) return
+      try {
+        const atualizado = await api.moverPlanejado(item.id, chave)
+        setPlano((p) => p.map((x) => (x.id === item.id ? atualizado : x)))
+      } catch (e) {
+        setErro(e.message)
+      }
+    }
+  }
+
+  async function soltarNaFila() {
+    const alvo = arrastando
+    setArrastando(null)
+    setDiaSobre(null)
+    if (alvo?.tipo !== 'planejado') return
+    try {
+      await api.removerPlanejado(alvo.item.id)
+      setPlano((p) => p.filter((x) => x.id !== alvo.item.id))
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
+
+  async function removerCard(item, evento) {
+    evento.stopPropagation()
+    try {
+      await api.removerPlanejado(item.id)
+      setPlano((p) => p.filter((x) => x.id !== item.id))
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
+
+  return (
+    <main className="planejamento">
+      <div className="planejamento__topo">
+        <div>
+          <h1 className="planejamento__titulo">PLANEJAMENTO DA PRODUÇÃO</h1>
+          <p className="planejamento__subtitulo">
+            Arraste as ordens da fila para o dia em que devem começar a ser produzidas.
+          </p>
+        </div>
+        <div className="planejamento__navegacao">
+          <button className="botao botao--neutro botao--pequeno" onClick={() => mudarMes(-1)}>
+            ‹
+          </button>
+          <span className="planejamento__mes">
+            {NOMES_MES[mesAtual.mes]} {mesAtual.ano}
+          </span>
+          <button className="botao botao--neutro botao--pequeno" onClick={() => mudarMes(1)}>
+            ›
+          </button>
+          <button className="botao botao--neutro botao--pequeno" onClick={irParaHoje}>
+            Hoje
+          </button>
+          <button className="botao botao--neutro botao--pequeno" onClick={carregar} disabled={carregando}>
+            {carregando ? 'Atualizando...' : 'Atualizar'}
+          </button>
+        </div>
+      </div>
+
+      {erro && (
+        <p className="aviso aviso--erro" role="alert">
+          {erro}
+        </p>
+      )}
+
+      <div className="planejamento__corpo">
+        <aside
+          className={`planejamento__fila ${arrastando?.tipo === 'planejado' ? 'planejamento__fila--alvo' : ''}`}
+          onDragOver={(e) => {
+            if (arrastando?.tipo === 'planejado') e.preventDefault()
+          }}
+          onDrop={soltarNaFila}
+        >
+          <h2 className="planejamento__fila-titulo">
+            Aguardando 1º processo <span className="coluna__contador">{fila.length}</span>
+          </h2>
+          <input
+            className="planejamento__busca"
+            type="text"
+            placeholder="Buscar OS, pedido ou produto..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+          <div className="planejamento__fila-lista">
+            {!quadro && <p className="coluna__vazia">Carregando...</p>}
+            {quadro && fila.length === 0 && <p className="coluna__vazia">Nada aqui</p>}
+            {fila.map((c) => (
+              <article
+                key={`${c.idOrdem}-${c.idOperacaoOrdem}`}
+                className="planejamento-card"
+                draggable
+                onDragStart={() => setArrastando({ tipo: 'fila', card: c })}
+                onDragEnd={() => setArrastando(null)}
+              >
+                <h3 className="planejamento-card__os">{c.nomeOrdem}</h3>
+                {c.pedido && <span className="ficha__pedido">{c.pedido}</span>}
+                {c.produto && <p className="planejamento-card__produto">{c.produto}</p>}
+              </article>
+            ))}
+          </div>
+        </aside>
+
+        <div className="planejamento__grade">
+          {DIAS_SEMANA.map((d) => (
+            <div className="planejamento__cabecalho-dia" key={d}>
+              {d}
+            </div>
+          ))}
+          {dias.map((dia) => {
+            const chave = chaveData(dia)
+            const doMes = dia.getMonth() === mesAtual.mes
+            const itensDoDia = planoPorDia.get(chave) ?? []
+            return (
+              <div
+                key={chave}
+                className={[
+                  'planejamento__dia',
+                  !doMes && 'planejamento__dia--fora',
+                  chave === chaveHoje && 'planejamento__dia--hoje',
+                  diaSobre === chave && 'planejamento__dia--alvo',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  if (diaSobre !== chave) setDiaSobre(chave)
+                }}
+                onDragLeave={() => setDiaSobre((atual) => (atual === chave ? null : atual))}
+                onDrop={() => soltarEmDia(chave)}
+              >
+                <span className="planejamento__numero-dia">{dia.getDate()}</span>
+                <div className="planejamento__dia-cards">
+                  {itensDoDia.map((item) => (
+                    <article
+                      key={item.id}
+                      className="planejamento-card planejamento-card--mini"
+                      draggable
+                      onDragStart={() => setArrastando({ tipo: 'planejado', item })}
+                      onDragEnd={() => setArrastando(null)}
+                      title={`${item.nomeOrdem}${item.produto ? ' · ' + item.produto : ''}`}
+                    >
+                      <span className="planejamento-card__os">{item.nomeOrdem}</span>
+                      <button
+                        className="planejamento-card__remover"
+                        onClick={(e) => removerCard(item, e)}
+                        aria-label={`Remover ${item.nomeOrdem} do planejamento`}
+                      >
+                        ×
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </main>
+  )
+}

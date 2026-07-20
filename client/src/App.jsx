@@ -4,6 +4,7 @@ import Logo from './components/Logo.jsx'
 import Relogio from './components/Relogio.jsx'
 import TelaLeitura from './components/TelaLeitura.jsx'
 import TelaKanban from './components/TelaKanban.jsx'
+import TelaPlanejamento from './components/TelaPlanejamento.jsx'
 
 export default function App() {
   const [tela, setTela] = useState('leitura')
@@ -69,16 +70,20 @@ export default function App() {
           >
             Acompanhamento
           </button>
+          <button
+            className={`aba ${tela === 'planejamento' ? 'aba--ativa' : ''}`}
+            onClick={() => setTela('planejamento')}
+          >
+            Planejamento
+          </button>
         </nav>
 
         <Relogio />
       </header>
 
-      {tela === 'leitura' ? (
-        <TelaLeitura terminal={terminal} onMudouAndamento={aoMudarAndamento} />
-      ) : (
-        <TelaKanban recarregarEm={versaoAndamento} />
-      )}
+      {tela === 'leitura' && <TelaLeitura terminal={terminal} onMudouAndamento={aoMudarAndamento} />}
+      {tela === 'kanban' && <TelaKanban recarregarEm={versaoAndamento} />}
+      {tela === 'planejamento' && <TelaPlanejamento />}
     </div>
   )
 }

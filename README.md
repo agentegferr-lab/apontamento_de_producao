@@ -61,6 +61,25 @@ Só esses três status são derivávies da API hoje. Status como `EM TRANSPORTE`
 
 ---
 
+## Planejamento (PCP)
+
+Terceira aba do terminal: um calendário mensal onde o PCP arrasta ordens da fila invisível
+(`filaAguardando`, ver acima) para o dia em que devem começar a ser produzidas.
+
+- **É só nosso — nunca toca o Nomus.** Guardado em `dados/planejamento.json`
+  (`server/planejamento.js`), no mesmo padrão de `andamento.js`: array em memória,
+  persistido em disco a cada escrita, atômico (grava em `.tmp` e renomeia). Não existe
+  campo confirmado na API do Nomus para "data planejada de início" que aceite escrita (ver
+  o incidente do "reporte da produção" — nem tudo que a tela mostra tem endpoint de API).
+- Cada item guarda um **retrato** da ordem no momento de agendar (`nomeOrdem`, `pedido`,
+  `produto`) — se a ordem começar a ser produzida de verdade depois, o card no calendário
+  não desaparece nem quebra sozinho; quem tira do calendário é o PCP, arrastando de volta
+  pra fila ou clicando no "×".
+- Arrastar e soltar é feito com a API nativa de Drag and Drop do HTML5 (sem biblioteca
+  nova). Idempotente por `idOperacaoOrdem`: soltar a mesma ordem duas vezes não duplica.
+
+---
+
 ## Identidade
 
 Barra preta com **GFERRO** em amarelo (`#f5d211`), sem arquivo de imagem. No resto da tela o
