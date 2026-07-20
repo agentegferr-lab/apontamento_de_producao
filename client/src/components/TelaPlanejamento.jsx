@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import ModalDetalheCard from './ModalDetalheCard.jsx'
+import { numeroBr, formatarNumeroBr } from '../numero.js'
 
 const NOMES_MES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -21,6 +22,29 @@ function gerarGradeMes(ano, mes) {
 }
 
 /**
+ * Soma a quantidade dos itens de um dia, agrupada por produto — nao da pra somar telha
+ * com metro quadrado numa unica conta, entao agrupa por codigoProduto (estavel; cai pro
+ * texto do produto so se a ordem nao tiver o codigo) e mostra cada grupo com sua propria
+ * unidade de medida.
+ */
+function agruparMaterial(itens) {
+  const grupos = new Map()
+  for (const item of itens) {
+    const chave = item.codigoProduto || item.produto || item.nomeOrdem
+    if (!chave) continue
+    const atual = grupos.get(chave) ?? {
+      chave,
+      produto: item.produto || item.nomeOrdem,
+      unidadeMedida: item.unidadeMedida || '',
+      quantidade: 0,
+    }
+    atual.quantidade += numeroBr(item.quantidade)
+    grupos.set(chave, atual)
+  }
+  return [...grupos.values()].sort((a, b) => a.produto.localeCompare(b.produto))
+}
+
+/**
  * Calendario de planejamento do PCP: arrasta ordens da fila (que ainda nao comecaram nenhum
  * processo, ver kanban.js/filaAguardando) pra um dia do mes. So local — nunca toca o Nomus,
  * ver server/planejamento.js.
@@ -37,6 +61,7 @@ export default function TelaPlanejamento() {
   const [diaSobre, setDiaSobre] = useState(null) // chave do dia com highlight de drop
   const [agora, setAgora] = useState(() => new Date())
   const [detalhe, setDetalhe] = useState(null) // { card, extra } pro modal de detalhes
+  const [modo, setModo] = useState('cards') // 'cards' | 'material'
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -156,6 +181,9 @@ export default function TelaPlanejamento() {
           nomeOrdem: c.nomeOrdem,
           pedido: c.pedido,
           produto: c.produto,
+          codigoProduto: c.codigoProduto,
+          quantidade: c.quantidade,
+          unidadeMedida: c.unidadeMedida,
           data: chave,
         })
         setPlano((p) => [...p, novo])
@@ -207,6 +235,12 @@ export default function TelaPlanejamento() {
           </p>
         </div>
         <div className="planejamento__navegacao">
+          <button
+            className={`botao botao--pequeno ${modo === 'material' ? 'botao--ativo' : 'botao--neutro'}`}
+            onClick={() => setModo((m) => (m === 'cards' ? 'material' : 'cards'))}
+          >
+            {modo === 'material' ? 'Ver ordens' : 'Ver material do dia'}
+          </button>
           <button className="botao botao--neutro botao--pequeno" onClick={() => mudarMes(-1)}>
             ‹
           </button>
@@ -298,28 +332,45 @@ export default function TelaPlanejamento() {
                 onDrop={() => soltarEmDia(chave)}
               >
                 <span className="planejamento__numero-dia">{dia.getDate()}</span>
-                <div className="planejamento__dia-cards">
-                  {itensDoDia.map((item) => (
-                    <article
-                      key={item.id}
-                      className="planejamento-card planejamento-card--mini"
-                      draggable
-                      onDragStart={() => setArrastando({ tipo: 'planejado', item })}
-                      onDragEnd={() => setArrastando(null)}
-                      onClick={() => abrirDetalhePlanejado(item)}
-                      title={`${item.nomeOrdem}${item.produto ? ' · ' + item.produto : ''}`}
-                    >
-                      <span className="planejamento-card__os">{item.nomeOrdem}</span>
-                      <button
-                        className="planejamento-card__remover"
-                        onClick={(e) => removerCard(item, e)}
-                        aria-label={`Remover ${item.nomeOrdem} do planejamento`}
+                {modo === 'cards' ? (
+                  <div className="planejamento__dia-cards">
+                    {itensDoDia.map((item) => (
+                      <article
+                        key={item.id}
+                        className="planejamento-card planejamento-card--mini"
+                        draggable
+                        onDragStart={() => setArrastando({ tipo: 'planejado', item })}
+                        onDragEnd={() => setArrastando(null)}
+                        onClick={() => abrirDetalhePlanejado(item)}
+                        title={`${item.nomeOrdem}${item.produto ? ' · ' + item.produto : ''}`}
                       >
-                        ×
-                      </button>
-                    </article>
-                  ))}
-                </div>
+                        <span className="planejamento-card__os">{item.nomeOrdem}</span>
+                        <button
+                          className="planejamento-card__remover"
+                          onClick={(e) => removerCard(item, e)}
+                          aria-label={`Remover ${item.nomeOrdem} do planejamento`}
+                        >
+                          ×
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="planejamento__dia-material">
+                    {agruparMaterial(itensDoDia).map((g) => (
+                      <p
+                        key={g.chave}
+                        className="planejamento__material-linha"
+                        title={`${g.produto} — ${formatarNumeroBr(g.quantidade)} ${g.unidadeMedida}`}
+                      >
+                        <span className="planejamento__material-qtd">{formatarNumeroBr(g.quantidade)}</span>
+                        <span className="planejamento__material-nome">
+                          {g.unidadeMedida} · {g.produto}
+                        </span>
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}

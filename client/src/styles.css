@@ -348,6 +348,12 @@ body {
   padding: 0 16px;
   font-size: 15px;
 }
+.botao--ativo {
+  color: var(--preto);
+  background: var(--amarelo);
+  font-weight: 700;
+  letter-spacing: 0;
+}
 
 /* --- avisos ------------------------------------------------------------------------- */
 .aviso {
@@ -1037,6 +1043,36 @@ body {
   flex-direction: column;
   gap: 3px;
   overflow-y: auto;
+}
+.planejamento__dia-material {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+}
+.planejamento__material-linha {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 3px 4px;
+  background: var(--fundo);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.planejamento__material-qtd {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.planejamento__material-nome {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  color: var(--tinta-fraca);
 }
 .planejamento-card--mini {
   flex-shrink: 0;

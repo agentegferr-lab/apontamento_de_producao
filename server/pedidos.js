@@ -95,24 +95,27 @@ export const STATUS_ITEM_PEDIDO = {
  * Parte pura: dado UM item de itensPedido, decide a entrada do mapa. Separada do loop com
  * I/O pra dar pra testar sem mockar rede/disco.
  *
- * `produto` e `statusOrdem` vem de campos da propria ordem (nao do pedido) — nao custam
- * chamada extra ao Nomus, e por isso NAO dependem do pedido ja ter resolvido: a entrada
- * sempre existe (com produto/statusOrdem prontos) mesmo que `pedido` ainda esteja null
- * esperando o lote de fundo. Antes os tres campos ficavam presos atras da resolucao do
- * pedido (que pode levar varios ciclos numa empresa grande) — isso deixava a maioria dos
- * cards sem produto/status por um bom tempo, e um KPI que dependa de statusOrdem
- * (ver TelaKanban.jsx) contava quase tudo errado.
+ * `camposOrdem` (produto, codigoProduto, quantidade, unidadeMedida, statusOrdem) vem de
+ * campos da PROPRIA ordem (nao do pedido) — nao custam chamada extra ao Nomus, e por isso
+ * NAO dependem do pedido ja ter resolvido: a entrada sempre existe com eles prontos, mesmo
+ * que `pedido` ainda esteja null esperando o lote de fundo. Antes esses campos ficavam
+ * presos atras da resolucao do pedido (que pode levar varios ciclos numa empresa grande) —
+ * isso deixava a maioria dos cards sem produto/status por um bom tempo, e um KPI que
+ * dependa de statusOrdem (ver TelaKanban.jsx) contava quase tudo errado.
+ *
+ * `quantidade`/`unidadeMedida` vem cru do Nomus (ex. "1.287,64", separador de milhar com
+ * ponto e decimal com virgula) — quem soma/formata e o cliente (ver client/src/numero.js).
  *
  * `statusOrdem` e o status de requisicao de material da ORDEM (Planejada/Confirmada/
  * Liberada/...) — nao tem nada a ver com o status de PRODUCAO (EM_PRODUCAO/AGUARDANDO/...)
  * calculado pelo kanban, NEM com `statusItemPedido` abaixo (que e do PEDIDO DE VENDA).
  *
  * `statusItemPedido` PRECISA do pedido resolvido (vive dentro de `pedido.itensPedido`, nao
- * da ordem) — ao contrario de produto/statusOrdem, ele fica null ate o lote de fundo achar
- * esse pedido especifico. Casa pelo campo `item` (ex. "00010"), que identifica QUAL item do
- * pedido esta ordem representa — um pedido pode ter itens em status diferentes.
+ * da ordem) — ao contrario dos campos de `camposOrdem`, ele fica null ate o lote de fundo
+ * achar esse pedido especifico. Casa pelo campo `item` (ex. "00010"), que identifica QUAL
+ * item do pedido esta ordem representa — um pedido pode ter itens em status diferentes.
  */
-export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido', produto = null, statusOrdem = null) {
+export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido', camposOrdem = {}) {
   if (!item?.idPedido || idOrdem == null) return null
   const codigo = pedido?.[campoPedido]
   const pedidoResolvido = codigo == null || codigo === '' ? null : String(codigo)
@@ -125,8 +128,11 @@ export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido
       // busca nenhuma. Use isto (nao o `pedido` textual acima) pra agrupar/deduplicar por
       // pedido sem depender da resolucao lenta do codigo (ver kanban.js / TelaKanban.jsx).
       idPedido: Number(item.idPedido),
-      produto: produto ?? null,
-      statusOrdem: statusOrdem ?? null,
+      produto: camposOrdem.produto ?? null,
+      codigoProduto: camposOrdem.codigoProduto ?? null,
+      quantidade: camposOrdem.quantidade ?? null,
+      unidadeMedida: camposOrdem.unidadeMedida ?? null,
+      statusOrdem: camposOrdem.statusOrdem ?? null,
       statusItemPedido: itemPedido?.status ?? null,
     },
   ]
@@ -164,14 +170,13 @@ export async function mapaPedidosPorOrdem() {
     const emCache = cache.get(chave)
     const valido = emCache && Date.now() - emCache.buscadoEm < TTL_CACHE_MS()
 
-    const entrada = entradaPedido(
-      idOrdem,
-      item,
-      valido ? emCache.pedido : null,
-      campoPedido,
-      ordem?.descricaoProduto ?? null,
-      ordem?.status ?? null,
-    )
+    const entrada = entradaPedido(idOrdem, item, valido ? emCache.pedido : null, campoPedido, {
+      produto: ordem?.descricaoProduto ?? null,
+      codigoProduto: ordem?.codigoProduto ?? null,
+      quantidade: ordem?.qtde ?? null,
+      unidadeMedida: ordem?.unidadeMedida ?? null,
+      statusOrdem: ordem?.status ?? null,
+    })
     if (entrada) mapa.set(...entrada)
   }
 

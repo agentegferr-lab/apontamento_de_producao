@@ -146,6 +146,11 @@ export function montarKanban({ operacoes, apontamentos, emAndamento, pedidosPorO
       // pedido (ver TelaKanban.jsx); `pedido` textual e so pra exibicao.
       idPedido: pedidoInfo?.idPedido ?? null,
       produto: pedidoInfo?.produto ?? null,
+      codigoProduto: pedidoInfo?.codigoProduto ?? null,
+      // Cru do Nomus (ex. "1.287,64" — ponto de milhar, virgula decimal). Quem soma/formata
+      // e o cliente, ver client/src/numero.js.
+      quantidade: pedidoInfo?.quantidade ?? null,
+      unidadeMedida: pedidoInfo?.unidadeMedida ?? null,
       // Status de requisicao de material da ordem (Planejada/Confirmada/Liberada/...) — nao
       // confundir com `status` acima, que e o status de PRODUCAO calculado por este modulo.
       statusOrdem: pedidoInfo?.statusOrdem ?? null,

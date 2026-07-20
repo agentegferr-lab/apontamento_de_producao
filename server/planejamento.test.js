@@ -26,6 +26,31 @@ test('agendar cria um item novo e persiste', () => {
   assert.deepEqual(planejamento.listar().map((i) => i.id), [registro.id])
 })
 
+test('agendar guarda quantidade/unidade/codigoProduto quando informados, null quando nao', () => {
+  const comQtde = planejamento.agendar({
+    idOrdem: 10,
+    idOperacaoOrdem: 5000,
+    nomeOrdem: 'OS COM QTDE',
+    codigoProduto: '0006',
+    quantidade: '1.287,64',
+    unidadeMedida: 'M2',
+    data: '2026-08-20',
+  })
+  assert.equal(comQtde.codigoProduto, '0006')
+  assert.equal(comQtde.quantidade, '1.287,64')
+  assert.equal(comQtde.unidadeMedida, 'M2')
+
+  const semQtde = planejamento.agendar({
+    idOrdem: 11,
+    idOperacaoOrdem: 5001,
+    nomeOrdem: 'OS SEM QTDE',
+    data: '2026-08-20',
+  })
+  assert.equal(semQtde.codigoProduto, null)
+  assert.equal(semQtde.quantidade, null)
+  assert.equal(semQtde.unidadeMedida, null)
+})
+
 test('agendar a mesma operacao de novo e idempotente (nao duplica)', () => {
   const antes = planejamento.listar().length
   const primeiro = planejamento.agendar({

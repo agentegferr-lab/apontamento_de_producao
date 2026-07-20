@@ -56,7 +56,7 @@ export const planejamento = {
    * Agenda uma operacao pra um dia. Idempotente por idOperacaoOrdem: soltar a mesma ordem
    * de novo (ex.: duplo evento de drop) so devolve o registro ja existente, sem duplicar.
    */
-  agendar({ idOrdem, idOperacaoOrdem, nomeOrdem, pedido, produto, data }) {
+  agendar({ idOrdem, idOperacaoOrdem, nomeOrdem, pedido, produto, codigoProduto, quantidade, unidadeMedida, data }) {
     const existente = itens.find((i) => Number(i.idOperacaoOrdem) === Number(idOperacaoOrdem))
     if (existente) return existente
 
@@ -67,6 +67,9 @@ export const planejamento = {
       nomeOrdem,
       pedido: pedido ?? null,
       produto: produto ?? null,
+      codigoProduto: codigoProduto ?? null,
+      quantidade: quantidade ?? null,
+      unidadeMedida: unidadeMedida ?? null,
       data,
       criadoEm: new Date().toISOString(),
     }

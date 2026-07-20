@@ -60,6 +60,14 @@ export default function ModalDetalheCard({ card, agora, extra, onFechar }) {
               <dd>{card.produto}</dd>
             </div>
           )}
+          {card.quantidade != null && (
+            <div className="detalhes__linha">
+              <dt className="detalhes__rotulo">Quantidade</dt>
+              <dd>
+                {card.quantidade} {card.unidadeMedida}
+              </dd>
+            </div>
+          )}
           {card.operadorAtual && (
             <div className="detalhes__linha">
               <dt className="detalhes__rotulo">Operador</dt>

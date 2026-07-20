@@ -446,14 +446,25 @@ app.get('/api/planejamento', (_req, res) => res.json(planejamento.listar()))
 app.post(
   '/api/planejamento',
   asyncRoute(async (req, res) => {
-    const { idOrdem, idOperacaoOrdem, nomeOrdem, pedido, produto, data } = req.body ?? {}
+    const { idOrdem, idOperacaoOrdem, nomeOrdem, pedido, produto, codigoProduto, quantidade, unidadeMedida, data } =
+      req.body ?? {}
     if (idOrdem == null || idOperacaoOrdem == null || !nomeOrdem) {
       throw new AppError('idOrdem, idOperacaoOrdem e nomeOrdem sao obrigatorios.', 400)
     }
     if (!REGEX_DATA.test(data ?? '')) {
       throw new AppError('data precisa estar no formato AAAA-MM-DD.', 400)
     }
-    const registro = planejamento.agendar({ idOrdem, idOperacaoOrdem, nomeOrdem, pedido, produto, data })
+    const registro = planejamento.agendar({
+      idOrdem,
+      idOperacaoOrdem,
+      nomeOrdem,
+      pedido,
+      produto,
+      codigoProduto,
+      quantidade,
+      unidadeMedida,
+      data,
+    })
     res.status(201).json(registro)
   }),
 )
