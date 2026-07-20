@@ -1013,6 +1013,7 @@ body {
   background: var(--papel);
   border: 1px solid var(--linha);
   border-radius: 8px;
+  cursor: pointer;
   transition: border-color 0.1s, background-color 0.1s;
 }
 .planejamento__dia--fora {
@@ -1108,6 +1109,68 @@ body {
 .planejamento-card__remover:hover {
   background: var(--vermelho);
   color: #fff;
+}
+
+/* --- modal do dia inteiro (Planejamento) --------------------------------------------- */
+.modal__caixa--dia {
+  width: min(520px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.detalhes-dia__secao {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--linha);
+}
+.detalhes-dia__secao:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.detalhes-dia__subtitulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tinta-fraca);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.detalhes-dia__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.detalhes-dia__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--fundo);
+  border-radius: var(--raio);
+  cursor: pointer;
+}
+.detalhes-dia__item:hover {
+  background: var(--amarelo-tenue);
+}
+.detalhes-dia__item-texto {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.detalhes-dia__lista--material {
+  gap: 4px;
+}
+.detalhes-dia__lista--material .planejamento__material-linha {
+  padding: 6px 8px;
+}
+.detalhes-dia__lista--material .planejamento__material-nome {
+  white-space: normal;
 }
 
 /* --- telas estreitas (tablet retrato, monitores menores) ---------------------------- */

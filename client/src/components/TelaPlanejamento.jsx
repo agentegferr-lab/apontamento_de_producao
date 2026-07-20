@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import ModalDetalheCard from './ModalDetalheCard.jsx'
+import ModalDetalheDia from './ModalDetalheDia.jsx'
 import { formatarNumeroBr } from '../numero.js'
+import { agruparMaterial, formatarDataBr } from '../planejamentoCampos.js'
 
 const NOMES_MES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -22,29 +24,6 @@ function gerarGradeMes(ano, mes) {
 }
 
 /**
- * Soma a MATERIA-PRIMA (chapa, isopor, cola...) de todas as ordens de um dia — nao o
- * produto acabado de cada uma. `item.materiais` ja vem explodido e escalado pelo servidor
- * a partir da lista de materiais (BOM) do Nomus (ver server/materiais.js); aqui so agrupa
- * por codigo do material entre as varias ordens do dia e soma.
- */
-function agruparMaterial(itens) {
-  const grupos = new Map()
-  for (const item of itens) {
-    for (const m of item.materiais ?? []) {
-      const atual = grupos.get(m.codigo) ?? {
-        chave: m.codigo,
-        produto: m.descricao,
-        unidadeMedida: m.unidadeMedida || '',
-        quantidade: 0,
-      }
-      atual.quantidade += m.quantidade
-      grupos.set(m.codigo, atual)
-    }
-  }
-  return [...grupos.values()].sort((a, b) => a.produto.localeCompare(b.produto))
-}
-
-/**
  * Calendario de planejamento do PCP: arrasta ordens da fila (que ainda nao comecaram nenhum
  * processo, ver kanban.js/filaAguardando) pra um dia do mes. So local — nunca toca o Nomus,
  * ver server/planejamento.js.
@@ -62,6 +41,7 @@ export default function TelaPlanejamento() {
   const [agora, setAgora] = useState(() => new Date())
   const [detalhe, setDetalhe] = useState(null) // { card, extra } pro modal de detalhes
   const [modo, setModo] = useState('cards') // 'cards' | 'material'
+  const [diaDetalhe, setDiaDetalhe] = useState(null) // chave do dia (AAAA-MM-DD) pro modal do dia inteiro
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -127,11 +107,6 @@ export default function TelaPlanejamento() {
   const dias = useMemo(() => gerarGradeMes(mesAtual.ano, mesAtual.mes), [mesAtual])
   const chaveHoje = useMemo(() => chaveData(hoje), [hoje])
 
-  const formatarDataBr = (chave) => {
-    const [ano, mes, dia] = chave.split('-')
-    return `${dia}/${mes}/${ano}`
-  }
-
   function abrirDetalheDaFila(card) {
     setDetalhe({ card, extra: null })
   }
@@ -153,6 +128,13 @@ export default function TelaPlanejamento() {
     // Sem card vivo (ainda carregando, ou a operacao saiu do quadro por algum motivo), usa
     // so o retrato salvo — o modal esconde sozinho as linhas de producao que faltarem.
     setDetalhe({ card: vivo ?? item, extra })
+  }
+
+  // Clicar numa ordem dentro do modal do dia inteiro troca pro modal de detalhe daquela
+  // ordem especifica (fecha o do dia, abre o da ordem) — os dois nunca ficam abertos juntos.
+  function abrirItemDoDia(item) {
+    setDiaDetalhe(null)
+    abrirDetalhePlanejado(item)
   }
 
   function mudarMes(delta) {
@@ -331,6 +313,7 @@ export default function TelaPlanejamento() {
                 }}
                 onDragLeave={() => setDiaSobre((atual) => (atual === chave ? null : atual))}
                 onDrop={() => soltarEmDia(chave)}
+                onClick={() => setDiaDetalhe(chave)}
               >
                 <span className="planejamento__numero-dia">{dia.getDate()}</span>
                 {modo === 'cards' ? (
@@ -342,7 +325,10 @@ export default function TelaPlanejamento() {
                         draggable
                         onDragStart={() => setArrastando({ tipo: 'planejado', item })}
                         onDragEnd={() => setArrastando(null)}
-                        onClick={() => abrirDetalhePlanejado(item)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          abrirDetalhePlanejado(item)
+                        }}
                         title={`${item.nomeOrdem}${item.produto ? ' · ' + item.produto : ''}`}
                       >
                         <span className="planejamento-card__os">{item.nomeOrdem}</span>
@@ -383,6 +369,13 @@ export default function TelaPlanejamento() {
         agora={agora}
         extra={detalhe?.extra}
         onFechar={() => setDetalhe(null)}
+      />
+      <ModalDetalheDia
+        data={diaDetalhe}
+        itens={diaDetalhe ? (planoPorDia.get(diaDetalhe) ?? []) : []}
+        onFechar={() => setDiaDetalhe(null)}
+        onAbrirItem={abrirItemDoDia}
+        onRemoverItem={removerCard}
       />
     </main>
   )
