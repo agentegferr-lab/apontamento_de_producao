@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import { ROTULO_STATUS, CLASSE_STATUS, tempoDoCard } from '../kanbanCampos.js'
 import ModalDetalheCard from './ModalDetalheCard.jsx'
+import { formatarMoedaBr } from '../numero.js'
 
 const FILTROS = [
   { valor: 'todas', texto: 'Todas as ordens' },
@@ -187,6 +188,7 @@ export default function TelaKanban({ recarregarEm }) {
                           card.pedido ja vem como "PD 01196", sem precisar do prefixo aqui. */}
                       {card.pedido && <span className="ficha__pedido">{card.pedido}</span>}
                     </div>
+                    {card.valorTotal != null && <p className="ficha__valor">{formatarMoedaBr(card.valorTotal)}</p>}
                     {card.produto && <p className="ficha__produto">{card.produto}</p>}
                     <p className="ficha__descricao">{card.descricao || 'Sem descrição'}</p>
                     <p className="ficha__etapas">

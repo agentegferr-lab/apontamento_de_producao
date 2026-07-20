@@ -13,3 +13,11 @@ export function numeroBr(texto) {
 export function formatarNumeroBr(numero) {
   return numero.toLocaleString('pt-BR', { maximumFractionDigits: 2 })
 }
+
+/** Texto cru do Nomus (ex. "1.805,61") -> "R$ 1.805,61" pra exibir. */
+export function formatarMoedaBr(texto) {
+  return numeroBr(texto).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  })
+}

@@ -161,6 +161,8 @@ export function montarKanban({ operacoes, apontamentos, emAndamento, pedidosPorO
       // pedidos.js). Fonte de verdade pro KPI "liberado sem producao"; diferente de
       // `statusOrdem` (requisicao de material da ordem) e de `status` (producao).
       statusItemPedido: pedidoInfo?.statusItemPedido ?? null,
+      // Valor TOTAL do pedido (nao so do item desta OS) — cru do Nomus, ver pedidos.js.
+      valorTotal: pedidoInfo?.valorTotal ?? null,
       descricao: referencia.descricao,
       operacao: referencia.operacao,
       idOperacaoOrdem: referencia.id,

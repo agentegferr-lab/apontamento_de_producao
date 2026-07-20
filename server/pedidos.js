@@ -110,10 +110,13 @@ export const STATUS_ITEM_PEDIDO = {
  * Liberada/...) — nao tem nada a ver com o status de PRODUCAO (EM_PRODUCAO/AGUARDANDO/...)
  * calculado pelo kanban, NEM com `statusItemPedido` abaixo (que e do PEDIDO DE VENDA).
  *
- * `statusItemPedido` PRECISA do pedido resolvido (vive dentro de `pedido.itensPedido`, nao
- * da ordem) — ao contrario dos campos de `camposOrdem`, ele fica null ate o lote de fundo
- * achar esse pedido especifico. Casa pelo campo `item` (ex. "00010"), que identifica QUAL
- * item do pedido esta ordem representa — um pedido pode ter itens em status diferentes.
+ * `statusItemPedido` e `valorTotal` PRECISAM do pedido resolvido (vivem no proprio objeto
+ * `pedido`, nao na ordem) — ao contrario dos campos de `camposOrdem`, ficam null ate o lote
+ * de fundo achar esse pedido especifico. `statusItemPedido` casa pelo campo `item` (ex.
+ * "00010"), que identifica QUAL item do pedido esta ordem representa — um pedido pode ter
+ * itens em status diferentes. `valorTotal` e do PEDIDO INTEIRO (nao so do item desta OS) —
+ * se o pedido tiver mais de um item/OS, o mesmo valor aparece em cada uma; escolhido assim
+ * de proposito (mais simples que ratear por item) a pedido do usuario.
  */
 export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido', camposOrdem = {}) {
   if (!item?.idPedido || idOrdem == null) return null
@@ -135,6 +138,8 @@ export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido
       unidadeMedida: camposOrdem.unidadeMedida ?? null,
       statusOrdem: camposOrdem.statusOrdem ?? null,
       statusItemPedido: itemPedido?.status ?? null,
+      // Cru do Nomus (ex. "1.805,61" — ponto de milhar, virgula decimal), igual quantidade.
+      valorTotal: pedido?.valorTotal ?? null,
     },
   ]
 }

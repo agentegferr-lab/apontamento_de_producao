@@ -1,4 +1,5 @@
 import { ROTULO_STATUS, CLASSE_STATUS, tempoDoCard } from '../kanbanCampos.js'
+import { formatarMoedaBr } from '../numero.js'
 
 /**
  * Modal de detalhes de uma ordem — usado tanto no Acompanhamento (cards com status de
@@ -66,6 +67,12 @@ export default function ModalDetalheCard({ card, agora, extra, onFechar }) {
               <dd>
                 {card.quantidade} {card.unidadeMedida}
               </dd>
+            </div>
+          )}
+          {card.valorTotal != null && (
+            <div className="detalhes__linha">
+              <dt className="detalhes__rotulo">Valor do pedido</dt>
+              <dd>{formatarMoedaBr(card.valorTotal)}</dd>
             </div>
           )}
           {card.operadorAtual && (

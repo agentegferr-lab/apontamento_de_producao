@@ -15,8 +15,8 @@ const CAMPOS_VAZIOS = {
   statusOrdem: null,
 }
 
-test('monta a entrada [idOrdem, {pedido, idPedido, ...camposOrdem, statusItemPedido}] a partir do item, do pedido resolvido e dos campos da ordem', () => {
-  const entrada = entradaPedido(1579, item, pedido, undefined, {
+test('monta a entrada [idOrdem, {pedido, idPedido, ...camposOrdem, statusItemPedido, valorTotal}] a partir do item, do pedido resolvido e dos campos da ordem', () => {
+  const entrada = entradaPedido(1579, item, { ...pedido, valorTotal: '1.805,61' }, undefined, {
     idProduto: 8,
     produto: 'TELHA SANDUICHE TR40',
     codigoProduto: '0006',
@@ -36,6 +36,7 @@ test('monta a entrada [idOrdem, {pedido, idPedido, ...camposOrdem, statusItemPed
       unidadeMedida: 'M2',
       statusOrdem: 'Liberada',
       statusItemPedido: null,
+      valorTotal: '1.805,61',
     },
   ])
 })
@@ -48,6 +49,11 @@ test('sem camposOrdem informado, todos os campos da ordem ficam null', () => {
   assert.equal(entrada[1].quantidade, null)
   assert.equal(entrada[1].unidadeMedida, null)
   assert.equal(entrada[1].statusOrdem, null)
+})
+
+test('valorTotal e do pedido inteiro (nao do item), null se o pedido nao tiver o campo', () => {
+  assert.equal(entradaPedido(1579, item, { ...pedido, valorTotal: '1.805,61' })[1].valorTotal, '1.805,61')
+  assert.equal(entradaPedido(1579, item, pedido)[1].valorTotal, null)
 })
 
 test('statusItemPedido casa pelo campo `item` (ex. "00010") dentro de pedido.itensPedido', () => {
@@ -82,11 +88,11 @@ test('pedido nao resolvido (sem o campo esperado, ou nulo): gera entrada com ped
   // pedido (statusItemPedido PRECISA do pedido resolvido, diferente dos campos da ordem).
   assert.deepEqual(entradaPedido(1579, item, { id: 1279 }), [
     1579,
-    { pedido: null, idPedido: 1279, ...CAMPOS_VAZIOS, statusItemPedido: null },
+    { pedido: null, idPedido: 1279, ...CAMPOS_VAZIOS, statusItemPedido: null, valorTotal: null },
   ])
   assert.deepEqual(entradaPedido(1579, item, null), [
     1579,
-    { pedido: null, idPedido: 1279, ...CAMPOS_VAZIOS, statusItemPedido: null },
+    { pedido: null, idPedido: 1279, ...CAMPOS_VAZIOS, statusItemPedido: null, valorTotal: null },
   ])
 })
 
@@ -94,6 +100,6 @@ test('campo do pedido e configuravel (NOMUS_CAMPO_PEDIDO)', () => {
   const entrada = entradaPedido(1579, item, { numeroPedido: 'PV-2026-0431' }, 'numeroPedido')
   assert.deepEqual(entrada, [
     1579,
-    { pedido: 'PV-2026-0431', idPedido: 1279, ...CAMPOS_VAZIOS, statusItemPedido: null },
+    { pedido: 'PV-2026-0431', idPedido: 1279, ...CAMPOS_VAZIOS, statusItemPedido: null, valorTotal: null },
   ])
 })
