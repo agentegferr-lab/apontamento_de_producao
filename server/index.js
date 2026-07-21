@@ -9,6 +9,7 @@ import { montarKanban } from './kanban.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
 import { mapaPedidosPorOrdem } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
+import { pedidosOcultos } from './pedidosOcultos.js'
 import { materiaisParaItens } from './materiais.js'
 import { sugerirPlanejamento } from './ia.js'
 
@@ -434,6 +435,7 @@ async function montarQuadroAtual() {
     apontamentos,
     emAndamento: andamento.listar(),
     pedidosPorOrdem,
+    pedidosOcultos: pedidosOcultos.codigos(),
   })
 }
 
@@ -442,6 +444,36 @@ app.get(
   asyncRoute(async (_req, res) => {
     const quadro = await montarQuadroAtual()
     res.json({ ...quadro, atualizadoEm: new Date().toISOString() })
+  }),
+)
+
+// Pedidos escondidos do kanban a pedido do usuario (ver server/pedidosOcultos.js) — reversivel,
+// nao mexe no Nomus. `codigo` e o numero normalizado (ex.: "PD 01038" -> "1038").
+app.get(
+  '/api/pedidos-ocultos',
+  asyncRoute(async (_req, res) => {
+    res.json(pedidosOcultos.listar())
+  }),
+)
+
+app.post(
+  '/api/pedidos-ocultos',
+  asyncRoute(async (req, res) => {
+    const { pedido } = req.body ?? {}
+    if (!pedido) throw new AppError('pedido e obrigatorio.', 400)
+    const registro = pedidosOcultos.ocultar(pedido)
+    if (!registro) throw new AppError('pedido invalido.', 400)
+    res.status(201).json(registro)
+  }),
+)
+
+app.delete(
+  '/api/pedidos-ocultos/:codigo',
+  asyncRoute(async (req, res) => {
+    if (!pedidosOcultos.mostrar(req.params.codigo)) {
+      throw new AppError('Pedido oculto nao encontrado.', 404)
+    }
+    res.status(204).end()
   }),
 )
 

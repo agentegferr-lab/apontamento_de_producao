@@ -65,4 +65,5 @@ export const api = {
   removerPlanejado: (id) => chamar(`/api/planejamento/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   sugerirPlanejamento: (dados) =>
     chamar('/api/planejamento/sugestao', { method: 'POST', body: JSON.stringify(dados) }),
+  ocultarPedido: (pedido) => chamar('/api/pedidos-ocultos', { method: 'POST', body: JSON.stringify({ pedido }) }),
 }

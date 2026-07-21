@@ -10,8 +10,11 @@ import { formatarMoedaBr } from '../numero.js'
  *
  * `mostrarValor`: o valor do pedido so aparece no Planejamento, nao no Acompanhamento (a
  * pedido do usuario) — como o modal e compartilhado pelas duas telas, quem chama decide.
+ *
+ * `onOcultarPedido`: so o Acompanhamento passa isto (ver TelaKanban.jsx) — oculta o pedido
+ * inteiro do kanban (ver server/pedidosOcultos.js). Ausente no Planejamento de proposito.
  */
-export default function ModalDetalheCard({ card, agora, extra, mostrarValor = false, onFechar }) {
+export default function ModalDetalheCard({ card, agora, extra, mostrarValor = false, onOcultarPedido, onFechar }) {
   if (!card) return null
   const temStatusProducao = card.status in ROTULO_STATUS
 
@@ -106,6 +109,11 @@ export default function ModalDetalheCard({ card, agora, extra, mostrarValor = fa
         </dl>
 
         <div className="modal__acoes">
+          {onOcultarPedido && card.pedido && (
+            <button className="botao botao--perigo botao--pequeno" onClick={() => onOcultarPedido(card)}>
+              Ocultar pedido do quadro
+            </button>
+          )}
           <button className="botao botao--neutro" onClick={onFechar}>
             Fechar
           </button>

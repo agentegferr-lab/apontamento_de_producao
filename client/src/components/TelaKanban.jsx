@@ -23,6 +23,16 @@ export default function TelaKanban({ recarregarEm }) {
   const [atualizadoEm, setAtualizadoEm] = useState(null)
   const [detalhe, setDetalhe] = useState(null) // card clicado, pro modal de detalhes
 
+  async function ocultarPedido(card) {
+    try {
+      await api.ocultarPedido(card.pedido)
+      setDetalhe(null)
+      await carregar()
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
+
   async function carregar() {
     setCarregando(true)
     try {
@@ -220,7 +230,12 @@ export default function TelaKanban({ recarregarEm }) {
         </p>
       )}
 
-      <ModalDetalheCard card={detalhe} agora={agora} onFechar={() => setDetalhe(null)} />
+      <ModalDetalheCard
+        card={detalhe}
+        agora={agora}
+        onOcultarPedido={ocultarPedido}
+        onFechar={() => setDetalhe(null)}
+      />
     </main>
   )
 }

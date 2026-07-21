@@ -336,6 +336,9 @@ body {
 .botao--finalizar {
   background: var(--vermelho);
 }
+.botao--perigo {
+  background: var(--vermelho);
+}
 .botao--neutro {
   color: var(--tinta);
   background: var(--papel);

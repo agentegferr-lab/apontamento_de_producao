@@ -188,6 +188,23 @@ test('apontamento de operacao desconhecida nao quebra nem soma tempo', () => {
   assert.equal(k.filaAguardando[0].tempoGravadoMs, 0)
 })
 
+test('pedido oculto some do quadro inteiro (cards, fila e concluidos), nao so vira CONCLUIDO', () => {
+  const pedidosPorOrdem = new Map([[500, { pedido: 'PD 01038' }]])
+
+  const semOcultar = montarKanban({ operacoes: roteiro, apontamentos: [], emAndamento: [], pedidosPorOrdem })
+  assert.equal(semOcultar.filaAguardando.length, 1, 'sanity check: sem ocultar, a ordem aparece na fila')
+
+  const comOcultar = montarKanban({
+    operacoes: roteiro,
+    apontamentos: [],
+    emAndamento: [],
+    pedidosPorOrdem,
+    pedidosOcultos: new Set(['1038']),
+  })
+  assert.equal(comOcultar.filaAguardando.length, 0)
+  assert.equal(comOcultar.colunas.every((c) => c.cards.length === 0), true)
+})
+
 test('ordens diferentes aparecem em colunas diferentes conforme seu proprio avanco', () => {
   const operacoes = [
     ...roteiro,

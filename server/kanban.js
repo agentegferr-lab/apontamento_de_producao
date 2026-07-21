@@ -9,6 +9,8 @@
  * passa a ser a pintura e a ordem muda de coluna sem ninguem arrastar nada.
  */
 
+import { normalizarPedido } from './pedidosOcultos.js'
+
 export const STATUS = {
   EM_PRODUCAO: 'EM_PRODUCAO',
   PARADO: 'PARADO', // iniciado, mas pausado agora (refeicao, quebra de maquina...)
@@ -80,8 +82,17 @@ export function ordenarColunas(operacoes) {
  * @param pedidosPorOrdem  Map idOrdem -> {pedido, cliente}. Vem de outros dois endpoints do
  *                         Nomus (ver pedidos.js); vazio quando indisponivel, e o card so
  *                         mostra a OS.
+ * @param pedidosOcultos   Set de codigos de pedido normalizados (ver server/pedidosOcultos.js)
+ *                         que o usuario pediu pra tirar do quadro (pedido cancelado, duplicado
+ *                         etc). A ordem inteira some do kanban — nao so vira CONCLUIDO/fila.
  */
-export function montarKanban({ operacoes, apontamentos, emAndamento, pedidosPorOrdem = new Map() }) {
+export function montarKanban({
+  operacoes,
+  apontamentos,
+  emAndamento,
+  pedidosPorOrdem = new Map(),
+  pedidosOcultos = new Set(),
+}) {
   const apontadas = new Set()
   const tempoPorOrdem = new Map()
   for (const apt of apontamentos) {
@@ -137,6 +148,12 @@ export function montarKanban({ operacoes, apontamentos, emAndamento, pedidosPorO
     const etapasConcluidas = roteiro.filter((op) => apontadas.has(Number(op.id))).length
 
     const pedidoInfo = pedidosPorOrdem.get(idOrdem)
+
+    // Pedido oculto a pedido do usuario (ver server/pedidosOcultos.js): a ordem inteira nao
+    // entra em cards/filaAguardando/concluidos — some do kanban, mas continua intacta no
+    // Nomus (isto e so um filtro de exibicao, reversivel a qualquer momento).
+    if (pedidoInfo?.pedido && pedidosOcultos.has(normalizarPedido(pedidoInfo.pedido))) continue
+
     const card = {
       idOrdem,
       nomeOrdem: referencia.nomeOrdem,
