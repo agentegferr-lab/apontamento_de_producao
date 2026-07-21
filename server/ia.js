@@ -72,8 +72,10 @@ Regras:
 - So pode sugerir idOperacaoOrdem que estejam na lista acima.
 - Cada sugestao precisa de uma "data" dentro do periodo pedido (formato AAAA-MM-DD).
 - Nao ha dado de capacidade diaria da fabrica disponivel — distribua de forma razoavel entre os dias do periodo, sem empilhar tudo num unico dia, a menos que o objetivo peca isso explicitamente.
-- Se o objetivo mencionar um valor de faturamento, priorize as ordens que somadas cheguem mais perto do valor pedido, sem passar muito longe pra mais ou pra menos.
+- IMPORTANTE sobre o campo "valor": e o valor TOTAL DO PEDIDO INTEIRO, NAO do item/ordem individual — se duas ou mais ordens da lista tiverem o MESMO "pedido", elas compartilham o MESMO valor, e contar as duas juntas NAO soma o dobro no faturamento (e o mesmo dinheiro, so partes diferentes do mesmo pedido). Ao perseguir uma meta de faturamento, primeiro some o valor de PEDIDOS DISTINTOS (nao de ordens individuais) — inclua mais de uma ordem do mesmo pedido so se quiser produzir o pedido inteiro junto, sabendo que isso nao aumenta o total.
+- Se o objetivo mencionar um valor de faturamento, escolha pedidos distintos cuja soma chegue mais perto do valor pedido, sem passar muito longe pra mais ou pra menos.
 - Se o objetivo for vago ou nao mencionar faturamento, use bom senso (ex.: variedade de produtos, nao deixar nenhum dia vazio se der).
+- No campo "resumo", informe a soma de PEDIDOS DISTINTOS escolhidos (nao a soma ingenua de cada ordem), pra bater com o que o usuario realmente vai faturar.
 
 Chame a ferramenta propor_planejamento com sua sugestao.`
 }
