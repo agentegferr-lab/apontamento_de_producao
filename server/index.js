@@ -10,6 +10,7 @@ import { resolverRecursoDaOperacao } from './recursos.js'
 import { mapaPedidosPorOrdem } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
 import { materiaisParaItens } from './materiais.js'
+import { sugerirPlanejamento } from './ia.js'
 
 try {
   validarConfig()
@@ -418,24 +419,28 @@ app.delete(
 )
 
 // --- Kanban ---------------------------------------------------------------------------
+// Sequencial, nao Promise.all: cada uma dessas pagina sozinha com sua propria pausa entre
+// paginas, mas rodando as tres AO MESMO TEMPO a taxa de requisicoes somada ao Nomus
+// triplica — foi isso que manteve o 429 mesmo depois de pausar cada uma individualmente
+// (ver incidente 2026-07-15). So importa no boot frio (tudo sem cache); com o cache quente
+// (a maioria das vezes) isso e essencialmente instantaneo dos tres jeitos, entao nao ha
+// custo real em serializar. Compartilhado com /api/planejamento/sugestao (ver server/ia.js).
+async function montarQuadroAtual() {
+  const operacoes = await nomus.todasOperacoes()
+  const apontamentos = await nomus.apontamentos()
+  const pedidosPorOrdem = await mapaPedidosPorOrdem()
+  return montarKanban({
+    operacoes,
+    apontamentos,
+    emAndamento: andamento.listar(),
+    pedidosPorOrdem,
+  })
+}
+
 app.get(
   '/api/kanban',
   asyncRoute(async (_req, res) => {
-    // Sequencial, nao Promise.all: cada uma dessas pagina sozinha com sua propria pausa
-    // entre paginas, mas rodando as tres AO MESMO TEMPO a taxa de requisicoes somada ao
-    // Nomus triplica — foi isso que manteve o 429 mesmo depois de pausar cada uma
-    // individualmente (ver incidente 2026-07-15). So importa no boot frio (tudo sem
-    // cache); com o cache quente (a maioria das vezes) isso e essencialmente instantaneo
-    // dos tres jeitos, entao nao ha custo real em serializar.
-    const operacoes = await nomus.todasOperacoes()
-    const apontamentos = await nomus.apontamentos()
-    const pedidosPorOrdem = await mapaPedidosPorOrdem()
-    const quadro = montarKanban({
-      operacoes,
-      apontamentos,
-      emAndamento: andamento.listar(),
-      pedidosPorOrdem,
-    })
+    const quadro = await montarQuadroAtual()
     res.json({ ...quadro, atualizadoEm: new Date().toISOString() })
   }),
 )
@@ -516,6 +521,43 @@ app.delete(
       throw new AppError('Item de planejamento nao encontrado.', 404)
     }
     res.status(204).end()
+  }),
+)
+
+// Sugestao de planejamento por IA (ver server/ia.js) — le um objetivo em texto livre e
+// devolve QUAIS ordens do backlog agendar em quais dias, mas nunca agenda nada sozinha: o
+// cliente mostra a sugestao num modal e o usuario decide o que aplicar de verdade via
+// POST /api/planejamento normal, um por um.
+app.post(
+  '/api/planejamento/sugestao',
+  asyncRoute(async (req, res) => {
+    const { objetivo, dataInicio, dataFim } = req.body ?? {}
+    if (!objetivo || !objetivo.trim()) {
+      throw new AppError('Descreva o objetivo do planejamento antes de gerar a sugestao.', 400)
+    }
+    if (!REGEX_DATA.test(dataInicio ?? '') || !REGEX_DATA.test(dataFim ?? '')) {
+      throw new AppError('Escolha o período (de/até) antes de gerar a sugestão.', 400)
+    }
+    if (dataInicio > dataFim) {
+      throw new AppError('A data "de" precisa ser antes (ou igual a) da data "até".', 400)
+    }
+
+    const quadro = await montarQuadroAtual()
+    const idsPlanejados = new Set(planejamento.listar().map((i) => Number(i.idOperacaoOrdem)))
+    // So ordens que ainda nao entraram em nenhum planejamento e cujo valor do pedido ja
+    // resolveu (ver pedidos.js) — sem valor, a IA nao tem como mirar num alvo de faturamento.
+    const backlog = (quadro.filaAguardando ?? []).filter(
+      (c) => !idsPlanejados.has(Number(c.idOperacaoOrdem)) && c.valorTotal != null,
+    )
+    if (backlog.length === 0) {
+      throw new AppError(
+        'Nenhuma ordem em espera com valor de pedido já resolvido pra sugerir agora. Clique em "Atualizar" e tente de novo em alguns minutos.',
+        409,
+      )
+    }
+
+    const sugestao = await sugerirPlanejamento({ objetivo, dataInicio, dataFim, backlog })
+    res.json(sugestao)
   }),
 )
 

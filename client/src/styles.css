@@ -951,6 +951,35 @@ body {
   box-shadow: 0 0 0 3px var(--amarelo);
 }
 
+.planejamento__ia {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.planejamento__ia-campo {
+  flex: 1;
+  min-width: 240px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+.planejamento__ia-campo:focus {
+  outline: none;
+  border-color: var(--preto);
+  box-shadow: 0 0 0 3px var(--amarelo);
+}
+.planejamento__ia-dica {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--tinta-fraca);
+}
+
 .planejamento__corpo {
   flex: 1;
   min-height: 0;
@@ -1248,6 +1277,22 @@ body {
 .detalhes-dia__item-texto {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+/* Modal de sugestao por IA — cada ordem tem um checkbox em vez de abrir o detalhe ao
+   clicar (ver ModalSugestaoIA.jsx). */
+.detalhes-dia__item--selecionavel {
+  cursor: default;
+}
+.detalhes-dia__item--selecionavel .detalhes-dia__item-texto {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  cursor: pointer;
+}
+.detalhes-dia__item--selecionavel input[type='checkbox'] {
+  flex-shrink: 0;
+  margin-top: 3px;
 }
 .detalhes-dia__lista--material {
   gap: 4px;

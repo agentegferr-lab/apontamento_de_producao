@@ -106,6 +106,18 @@ export const config = {
   get maxTentativasThrottle() {
     return num('MAX_TENTATIVAS_THROTTLE', 3)
   },
+
+  /**
+   * Opcional (nao entra em validarConfig) — o app inteiro funciona sem isto, so a sugestao
+   * de planejamento por IA (ver server/ia.js) fica indisponivel, com um erro claro, ate ser
+   * preenchida. Chave da API da Anthropic (console.anthropic.com), NAO a do Nomus.
+   */
+  get anthropicApiKey() {
+    return process.env.ANTHROPIC_API_KEY?.trim() || null
+  },
+  get iaModelo() {
+    return process.env.IA_MODELO?.trim() || 'claude-sonnet-4-5-20250929'
+  },
 }
 
 /** Chamado no boot: toca em todo campo obrigatorio pra derrubar o processo agora, nao na 1a leitura de codigo. */

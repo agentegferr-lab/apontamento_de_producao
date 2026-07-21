@@ -3,6 +3,7 @@ import { api } from '../api.js'
 import ModalDetalheCard from './ModalDetalheCard.jsx'
 import ModalDetalheDia from './ModalDetalheDia.jsx'
 import RelatorioImpressao from './RelatorioImpressao.jsx'
+import ModalSugestaoIA from './ModalSugestaoIA.jsx'
 import { formatarNumeroBr, formatarMoedaBr } from '../numero.js'
 import { agruparMaterial, formatarDataBr } from '../planejamentoCampos.js'
 
@@ -44,6 +45,10 @@ export default function TelaPlanejamento() {
   const [modo, setModo] = useState('cards') // 'cards' | 'material'
   const [diaDetalhe, setDiaDetalhe] = useState(null) // chave do dia (AAAA-MM-DD) pro modal do dia inteiro
   const [filtroPeriodo, setFiltroPeriodo] = useState({ inicio: '', fim: '' }) // filtra as ordens JA agendadas
+  const [ideiaTexto, setIdeiaTexto] = useState('')
+  const [sugerindo, setSugerindo] = useState(false)
+  const [sugestaoIA, setSugestaoIA] = useState(null) // { resumo, sugestoes } vindo do servidor
+  const [aplicandoSugestao, setAplicandoSugestao] = useState(false)
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -252,6 +257,57 @@ export default function TelaPlanejamento() {
     }
   }
 
+  // Pede pro servidor (ver server/ia.js) uma sugestao de quais ordens do backlog agendar
+  // pra atender o objetivo em texto livre — NUNCA agenda nada sozinha, so devolve um
+  // rascunho pro ModalSugestaoIA mostrar. Usa o mesmo periodo do filtro acima como janela.
+  async function gerarSugestao() {
+    setSugerindo(true)
+    setErro(null)
+    try {
+      const resultado = await api.sugerirPlanejamento({
+        objetivo: ideiaTexto,
+        dataInicio: filtroPeriodo.inicio,
+        dataFim: filtroPeriodo.fim,
+      })
+      setSugestaoIA(resultado)
+    } catch (e) {
+      setErro(e.message)
+    } finally {
+      setSugerindo(false)
+    }
+  }
+
+  // Agenda de verdade so as sugestoes que o usuario marcou no modal, uma de cada vez (nao
+  // em paralelo — cada agendar() explode a lista de materiais do produto no servidor, e
+  // varias chamadas simultaneas martelariam o Nomus, ver server/materiais.js).
+  async function aplicarSugestoesIA(selecionadas) {
+    setAplicandoSugestao(true)
+    try {
+      for (const s of selecionadas) {
+        const novo = await api.agendar({
+          idOrdem: s.idOrdem,
+          idOperacaoOrdem: s.idOperacaoOrdem,
+          nomeOrdem: s.nomeOrdem,
+          pedido: s.pedido,
+          idPedido: s.idPedido,
+          idProduto: s.idProduto,
+          produto: s.produto,
+          codigoProduto: s.codigoProduto,
+          quantidade: s.quantidade,
+          unidadeMedida: s.unidadeMedida,
+          valorTotal: s.valorTotal,
+          data: s.data,
+        })
+        setPlano((p) => [...p, novo])
+      }
+      setSugestaoIA(null)
+    } catch (e) {
+      setErro(e.message)
+    } finally {
+      setAplicandoSugestao(false)
+    }
+  }
+
   return (
     <main className="planejamento">
       <div className="planejamento__topo">
@@ -315,6 +371,30 @@ export default function TelaPlanejamento() {
         <button className="botao botao--neutro botao--pequeno" onClick={() => window.print()}>
           Imprimir relatório
         </button>
+      </div>
+
+      <div className="planejamento__ia">
+        <label className="planejamento__filtro-rotulo" htmlFor="planejamento-ideia">
+          Ideia de planejamento
+        </label>
+        <textarea
+          id="planejamento-ideia"
+          className="planejamento__ia-campo"
+          rows={2}
+          placeholder='Ex.: "planejar a semana pra faturar R$ 50.000" ou "priorizar os pedidos mais antigos"'
+          value={ideiaTexto}
+          onChange={(e) => setIdeiaTexto(e.target.value)}
+        />
+        <button
+          className="botao botao--iniciar botao--pequeno"
+          onClick={gerarSugestao}
+          disabled={sugerindo || !ideiaTexto.trim() || !filtroPeriodo.inicio || !filtroPeriodo.fim}
+        >
+          {sugerindo ? 'Pensando...' : 'Gerar sugestão com IA'}
+        </button>
+        {(!filtroPeriodo.inicio || !filtroPeriodo.fim) && (
+          <p className="planejamento__ia-dica">Escolha o período (de/até) acima antes de gerar.</p>
+        )}
       </div>
 
       {erro && (
@@ -465,6 +545,14 @@ export default function TelaPlanejamento() {
         onRemoverItem={removerCard}
       />
       <RelatorioImpressao itens={itensRelatorio} periodoLabel={periodoLabel} />
+      {sugestaoIA && (
+        <ModalSugestaoIA
+          sugestao={sugestaoIA}
+          aplicando={aplicandoSugestao}
+          onAplicar={aplicarSugestoesIA}
+          onFechar={() => setSugestaoIA(null)}
+        />
+      )}
     </main>
   )
 }

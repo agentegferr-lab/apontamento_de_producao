@@ -63,4 +63,6 @@ export const api = {
   moverPlanejado: (id, data) =>
     chamar(`/api/planejamento/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ data }) }),
   removerPlanejado: (id) => chamar(`/api/planejamento/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  sugerirPlanejamento: (dados) =>
+    chamar('/api/planejamento/sugestao', { method: 'POST', body: JSON.stringify(dados) }),
 }
