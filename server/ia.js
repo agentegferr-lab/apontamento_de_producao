@@ -7,45 +7,49 @@ import { config } from './config.js'
  * usuario revisar e aplicar manualmente (ver ModalSugestaoIA.jsx) — e uma IA, pode errar,
  * e isto afeta producao de verdade.
  *
- * Chama a API da Anthropic direto via fetch (sem SDK, seguindo o padrao do resto do
- * projeto — ver server/nomus.js). Usa "tool use" forcado pra garantir uma resposta
- * estruturada, em vez de tentar parsear texto livre da IA.
+ * Chama a API do Grok/xAI direto via fetch (sem SDK, seguindo o padrao do resto do
+ * projeto — ver server/nomus.js). A API do Grok e compativel com o formato de "tool
+ * calling" da OpenAI (endpoint /chat/completions, tools[].function, tool_choice) —
+ * diferente do formato "tool use" da Anthropic. Forca a chamada da ferramenta pra
+ * garantir uma resposta estruturada, em vez de tentar parsear texto livre da IA.
  */
 
-const ENDPOINT = 'https://api.anthropic.com/v1/messages'
-const VERSAO_API = '2023-06-01'
+const ENDPOINT = 'https://api.x.ai/v1/chat/completions'
 const REGEX_DATA = /^\d{4}-\d{2}-\d{2}$/
 
 const FERRAMENTA = {
-  name: 'propor_planejamento',
-  description: 'Registra a sugestao de planejamento de producao para o periodo pedido.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      resumo: {
-        type: 'string',
-        description:
-          'Explicacao curta (2-4 frases, em portugues) de como a sugestao atende o objetivo pedido — ' +
-          'se o objetivo mencionar um valor de faturamento, cite o valor total das ordens escolhidas.',
-      },
-      sugestoes: {
-        type: 'array',
-        description: 'Ordens escolhidas do backlog fornecido, cada uma com o dia sugerido.',
-        items: {
-          type: 'object',
-          properties: {
-            idOperacaoOrdem: {
-              type: 'integer',
-              description: 'Exatamente igual ao idOperacaoOrdem de uma ordem da lista fornecida.',
+  type: 'function',
+  function: {
+    name: 'propor_planejamento',
+    description: 'Registra a sugestao de planejamento de producao para o periodo pedido.',
+    parameters: {
+      type: 'object',
+      properties: {
+        resumo: {
+          type: 'string',
+          description:
+            'Explicacao curta (2-4 frases, em portugues) de como a sugestao atende o objetivo pedido — ' +
+            'se o objetivo mencionar um valor de faturamento, cite o valor total das ordens escolhidas.',
+        },
+        sugestoes: {
+          type: 'array',
+          description: 'Ordens escolhidas do backlog fornecido, cada uma com o dia sugerido.',
+          items: {
+            type: 'object',
+            properties: {
+              idOperacaoOrdem: {
+                type: 'integer',
+                description: 'Exatamente igual ao idOperacaoOrdem de uma ordem da lista fornecida.',
+              },
+              data: { type: 'string', description: 'Data no formato AAAA-MM-DD, dentro do periodo pedido.' },
+              motivo: { type: 'string', description: 'Motivo curto (menos de 15 palavras) dessa ordem entrar na sugestao.' },
             },
-            data: { type: 'string', description: 'Data no formato AAAA-MM-DD, dentro do periodo pedido.' },
-            motivo: { type: 'string', description: 'Motivo curto (menos de 15 palavras) dessa ordem entrar na sugestao.' },
+            required: ['idOperacaoOrdem', 'data'],
           },
-          required: ['idOperacaoOrdem', 'data'],
         },
       },
+      required: ['resumo', 'sugestoes'],
     },
-    required: ['resumo', 'sugestoes'],
   },
 }
 
@@ -96,40 +100,47 @@ export function filtrarSugestoes(sugestoesBrutas, { backlog, dataInicio, dataFim
 }
 
 export async function sugerirPlanejamento({ objetivo, dataInicio, dataFim, backlog }) {
-  if (!config.anthropicApiKey) {
-    throw new Error('ANTHROPIC_API_KEY nao configurada no servidor — defina no .env pra usar a sugestao por IA.')
+  if (!config.iaApiKey) {
+    throw new Error('IA_API_KEY nao configurada no servidor — defina no .env pra usar a sugestao por IA.')
   }
 
   const resposta = await fetch(ENDPOINT, {
     method: 'POST',
     headers: {
-      'x-api-key': config.anthropicApiKey,
-      'anthropic-version': VERSAO_API,
+      Authorization: `Bearer ${config.iaApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       model: config.iaModelo,
-      max_tokens: 4096,
-      tools: [FERRAMENTA],
-      tool_choice: { type: 'tool', name: 'propor_planejamento' },
       messages: [{ role: 'user', content: montarPrompt({ objetivo, dataInicio, dataFim, backlog }) }],
+      tools: [FERRAMENTA],
+      tool_choice: { type: 'function', function: { name: 'propor_planejamento' } },
     }),
     signal: AbortSignal.timeout(60_000),
   })
 
   if (!resposta.ok) {
     const corpo = await resposta.text()
-    throw new Error(`API da Anthropic retornou ${resposta.status}: ${corpo.slice(0, 300)}`)
+    throw new Error(`API do Grok retornou ${resposta.status}: ${corpo.slice(0, 300)}`)
   }
 
   const dados = await resposta.json()
-  const chamada = dados.content?.find((c) => c.type === 'tool_use')
-  if (!chamada?.input) {
+  const chamada = dados.choices?.[0]?.message?.tool_calls?.[0]
+  if (!chamada?.function?.arguments) {
     throw new Error('A IA nao devolveu uma sugestao estruturada — tente de novo.')
   }
 
+  let entrada
+  try {
+    // O formato OpenAI-compatible devolve os argumentos como STRING JSON, nao objeto —
+    // diferente do "input" ja-objeto da Anthropic que este modulo usava antes.
+    entrada = JSON.parse(chamada.function.arguments)
+  } catch {
+    throw new Error('A IA devolveu uma sugestao em formato invalido — tente de novo.')
+  }
+
   return {
-    resumo: chamada.input.resumo ?? '',
-    sugestoes: filtrarSugestoes(chamada.input.sugestoes, { backlog, dataInicio, dataFim }),
+    resumo: entrada.resumo ?? '',
+    sugestoes: filtrarSugestoes(entrada.sugestoes, { backlog, dataInicio, dataFim }),
   }
 }

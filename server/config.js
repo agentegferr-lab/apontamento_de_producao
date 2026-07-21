@@ -110,13 +110,15 @@ export const config = {
   /**
    * Opcional (nao entra em validarConfig) — o app inteiro funciona sem isto, so a sugestao
    * de planejamento por IA (ver server/ia.js) fica indisponivel, com um erro claro, ate ser
-   * preenchida. Chave da API da Anthropic (console.anthropic.com), NAO a do Nomus.
+   * preenchida. Nome generico (nao "XAI_*"/"ANTHROPIC_*") de proposito: hoje aponta pra API
+   * do Grok/xAI (compativel com o formato OpenAI de tool calling), mas trocar de provedor
+   * no futuro e so reescrever server/ia.js, sem precisar renomear a variavel de novo.
    */
-  get anthropicApiKey() {
-    return process.env.ANTHROPIC_API_KEY?.trim() || null
+  get iaApiKey() {
+    return process.env.IA_API_KEY?.trim() || null
   },
   get iaModelo() {
-    return process.env.IA_MODELO?.trim() || 'claude-sonnet-4-5-20250929'
+    return process.env.IA_MODELO?.trim() || 'grok-4'
   },
 }
 
