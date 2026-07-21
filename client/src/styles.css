@@ -145,6 +145,21 @@ body {
   border-radius: var(--raio);
   cursor: pointer;
 }
+.kanban__busca {
+  min-height: 44px;
+  min-width: 220px;
+  padding: 0 12px;
+  font: inherit;
+  color: var(--tinta);
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+.kanban__busca:focus {
+  outline: none;
+  border-color: var(--preto);
+  box-shadow: 0 0 0 3px var(--amarelo);
+}
 .seletor--recurso {
   margin-left: auto;
 }

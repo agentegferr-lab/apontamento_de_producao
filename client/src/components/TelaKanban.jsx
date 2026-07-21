@@ -19,6 +19,7 @@ export default function TelaKanban({ recarregarEm }) {
   const [erro, setErro] = useState(null)
   const [carregando, setCarregando] = useState(false)
   const [filtro, setFiltro] = useState('todas')
+  const [busca, setBusca] = useState('')
   const [agora, setAgora] = useState(() => new Date())
   const [atualizadoEm, setAtualizadoEm] = useState(null)
   const [detalhe, setDetalhe] = useState(null) // card clicado, pro modal de detalhes
@@ -59,9 +60,20 @@ export default function TelaKanban({ recarregarEm }) {
 
   const colunas = useMemo(() => {
     if (!quadro) return []
-    if (filtro === 'todas') return quadro.colunas
-    return quadro.colunas.map((c) => ({ ...c, cards: c.cards.filter((k) => k.status === filtro) }))
-  }, [quadro, filtro])
+    const alvo = busca.trim().toLowerCase()
+    return quadro.colunas.map((c) => ({
+      ...c,
+      cards: c.cards.filter((k) => {
+        if (filtro !== 'todas' && k.status !== filtro) return false
+        if (!alvo) return true
+        return (
+          k.nomeOrdem?.toLowerCase().includes(alvo) ||
+          k.pedido?.toLowerCase().includes(alvo) ||
+          k.produto?.toLowerCase().includes(alvo)
+        )
+      }),
+    }))
+  }, [quadro, filtro, busca])
 
   const total = colunas.reduce((s, c) => s + c.cards.length, 0)
 
@@ -139,6 +151,13 @@ export default function TelaKanban({ recarregarEm }) {
         </div>
 
         <div className="kanban__controles">
+          <input
+            className="kanban__busca"
+            type="text"
+            placeholder="Buscar OS, pedido ou produto..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
           <select className="seletor" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
             {FILTROS.map((f) => (
               <option key={f.valor} value={f.valor}>
