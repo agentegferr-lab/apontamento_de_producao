@@ -39,6 +39,21 @@ test('as colunas seguem a ordem do roteiro, nao a alfabetica', () => {
   assert.deepEqual(ordenarColunas(roteiro), ['Corte', 'Pintura', 'Colagem'])
 })
 
+test('EXPEDIÇÃO e LOGÍSTICA vao sempre por ultimo, mesmo com numero de operacao baixo', () => {
+  // Roteiro real: um produto so faz Corte + Expedicao (sem pintura/colagem), dando a
+  // Expedicao a operacao 20 — mais baixa que a Colagem (30) de outros produtos. Mesmo
+  // assim, Expedicao/Logistica tem que ficar depois de Colagem no quadro.
+  const operacoesComExpedicao = [
+    { id: 1, idOrdem: 500, operacao: '10', centroTrabalhoPlanejado: 'CORTE' },
+    { id: 2, idOrdem: 500, operacao: '20', centroTrabalhoPlanejado: 'EXPEDIÇÃO' },
+    { id: 3, idOrdem: 501, operacao: '10', centroTrabalhoPlanejado: 'CORTE' },
+    { id: 4, idOrdem: 501, operacao: '20', centroTrabalhoPlanejado: 'PINTURA' },
+    { id: 5, idOrdem: 501, operacao: '30', centroTrabalhoPlanejado: 'COLAGEM' },
+    { id: 6, idOrdem: 501, operacao: '40', centroTrabalhoPlanejado: 'LOGÍSTICA' },
+  ]
+  assert.deepEqual(ordenarColunas(operacoesComExpedicao), ['CORTE', 'PINTURA', 'COLAGEM', 'EXPEDIÇÃO', 'LOGÍSTICA'])
+})
+
 test('ordem que nunca iniciou nenhum processo vai pra fila invisivel, nao pro quadro', () => {
   const k = montarKanban({ operacoes: roteiro, apontamentos: [], emAndamento: [] })
   // As colunas continuam existindo (roteiro pequeno = todas ficam visiveis mesmo vazias),

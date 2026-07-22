@@ -61,10 +61,18 @@ function duracaoMs(apontamento) {
   return inicio && fim ? Math.max(0, fim.getTime() - inicio.getTime()) : 0
 }
 
+// Expedicao e Logistica sao sempre as ULTIMAS etapas do fluxo fisico (embalar e despachar),
+// mesmo quando um roteiro especifico (ex.: produto que so faz corte + expedicao, sem
+// pintura/colagem) da a elas um numero de operacao baixo — a ordem dinamica por numero de
+// operacao colocaria essa etapa antes de Colagem so por causa desse roteiro mais curto, o
+// que nao bate com o fluxo real do chao de fabrica.
+const SEMPRE_POR_ULTIMO = ['EXPEDIÇÃO', 'LOGÍSTICA']
+
 /**
  * A ordem das colunas sai dos proprios dados: cada centro herda o menor numero de operacao
  * em que aparece nos roteiros. Corte (10) vem antes de Pintura (20) naturalmente, sem
- * lista fixa no codigo — abriu um centro novo no Nomus, ele entra na posicao certa.
+ * lista fixa no codigo — abriu um centro novo no Nomus, ele entra na posicao certa. Excecao:
+ * ver SEMPRE_POR_ULTIMO acima.
  */
 export function ordenarColunas(operacoes) {
   const posicao = new Map()
@@ -75,7 +83,11 @@ export function ordenarColunas(operacoes) {
     const valor = Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER
     if (atual === undefined || valor < atual) posicao.set(centro, valor)
   }
-  return [...posicao.entries()].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0])).map(([c]) => c)
+  const ordenado = [...posicao.entries()].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0])).map(([c]) => c)
+
+  const normais = ordenado.filter((c) => !SEMPRE_POR_ULTIMO.includes(c))
+  const porUltimo = SEMPRE_POR_ULTIMO.filter((c) => ordenado.includes(c))
+  return [...normais, ...porUltimo]
 }
 
 /**
