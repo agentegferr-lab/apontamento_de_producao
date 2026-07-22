@@ -371,16 +371,14 @@ export default function TelaPlanejamento() {
         <button className="botao botao--neutro botao--pequeno" onClick={() => window.print()}>
           Imprimir relatório
         </button>
-      </div>
 
-      <div className="planejamento__ia">
         <label className="planejamento__filtro-rotulo" htmlFor="planejamento-ideia">
           Ideia de planejamento
         </label>
         <textarea
           id="planejamento-ideia"
           className="planejamento__ia-campo"
-          rows={2}
+          rows={1}
           placeholder='Ex.: "planejar a semana pra faturar R$ 50.000" ou "priorizar os pedidos mais antigos"'
           value={ideiaTexto}
           onChange={(e) => setIdeiaTexto(e.target.value)}

@@ -943,12 +943,14 @@ body {
 .planejamento__filtro {
   flex-shrink: 0;
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;
   font-size: 13px;
 }
 .planejamento__filtro-rotulo {
+  flex-shrink: 0;
   font-weight: 700;
   letter-spacing: 0.3px;
   color: var(--tinta-fraca);
@@ -956,6 +958,7 @@ body {
   font-size: 12px;
 }
 .planejamento__filtro-data {
+  flex-shrink: 0;
   height: 36px;
   padding: 0 10px;
   font: inherit;
@@ -968,21 +971,14 @@ body {
   border-color: var(--preto);
   box-shadow: 0 0 0 3px var(--amarelo);
 }
-
-.planejamento__ia {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 16px;
-}
 .planejamento__ia-campo {
   flex: 1;
-  min-width: 240px;
-  padding: 8px 12px;
+  min-width: 160px;
+  height: 36px;
+  padding: 0 12px;
   font: inherit;
   font-size: 13px;
-  resize: vertical;
+  resize: horizontal;
   border: 1px solid var(--linha);
   border-radius: var(--raio);
 }
