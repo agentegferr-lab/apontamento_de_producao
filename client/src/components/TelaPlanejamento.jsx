@@ -372,7 +372,7 @@ export default function TelaPlanejamento() {
           Imprimir relatório
         </button>
 
-        <label className="planejamento__filtro-rotulo" htmlFor="planejamento-ideia">
+        <label className="planejamento__filtro-rotulo planejamento__filtro-rotulo--ideia" htmlFor="planejamento-ideia">
           Ideia de planejamento
         </label>
         <textarea

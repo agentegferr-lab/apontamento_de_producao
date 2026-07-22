@@ -957,6 +957,10 @@ body {
   text-transform: uppercase;
   font-size: 12px;
 }
+.planejamento__filtro-rotulo--ideia {
+  font-size: 10px;
+  color: var(--tinta-tenue);
+}
 .planejamento__filtro-data {
   flex-shrink: 0;
   height: 36px;
