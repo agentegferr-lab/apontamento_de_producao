@@ -501,6 +501,22 @@ app.get(
   }),
 )
 
+/**
+ * Explosao de material SOB DEMANDA pra um unico produto/quantidade — usado pelo modal de
+ * detalhes de um card (ver client/src/components/ModalDetalheCard.jsx) quando o card vem do
+ * kanban/fila (nao tem `materiais` pronto: so os itens de /api/planejamento passam por
+ * materiaisParaItens hoje). Mesma funcao, so que com um item so em vez da lista do dia.
+ */
+app.post(
+  '/api/materiais',
+  asyncRoute(async (req, res) => {
+    const { idProduto, quantidade } = req.body ?? {}
+    if (idProduto == null) throw new AppError('idProduto e obrigatorio.', 400)
+    const [comMateriais] = await materiaisParaItens([{ idProduto, quantidade }])
+    res.json({ materiais: comMateriais.materiais })
+  }),
+)
+
 app.post(
   '/api/planejamento',
   asyncRoute(async (req, res) => {

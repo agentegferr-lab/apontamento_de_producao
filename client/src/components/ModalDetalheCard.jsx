@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { ROTULO_STATUS, CLASSE_STATUS, tempoDoCard } from '../kanbanCampos.js'
-import { formatarMoedaBr } from '../numero.js'
+import { formatarMoedaBr, formatarNumeroBr } from '../numero.js'
+import { api } from '../api.js'
 
 /**
  * Modal de detalhes de uma ordem — usado tanto no Acompanhamento (cards com status de
@@ -15,6 +17,31 @@ import { formatarMoedaBr } from '../numero.js'
  * inteiro do kanban (ver server/pedidosOcultos.js). Ausente no Planejamento de proposito.
  */
 export default function ModalDetalheCard({ card, agora, extra, mostrarValor = false, onOcultarPedido, onFechar }) {
+  // undefined = ainda nao se sabe, null = sem idProduto (nunca vai ter), [] = veio vazio de verdade.
+  const [materiais, setMateriais] = useState(undefined)
+
+  useEffect(() => {
+    // Itens do Planejamento (ver /api/planejamento, server/materiais.js) ja vem prontos —
+    // so busca sob demanda quando o card vier do kanban/fila, que nao tem esse campo.
+    if (card?.materiais) {
+      setMateriais(card.materiais)
+      return
+    }
+    if (!card || card.idProduto == null) {
+      setMateriais(null)
+      return
+    }
+    let cancelado = false
+    setMateriais(undefined)
+    api
+      .materiais(card.idProduto, card.quantidade)
+      .then((r) => !cancelado && setMateriais(r.materiais))
+      .catch(() => !cancelado && setMateriais(null))
+    return () => {
+      cancelado = true
+    }
+  }, [card])
+
   if (!card) return null
   const temStatusProducao = card.status in ROTULO_STATUS
 
@@ -72,6 +99,31 @@ export default function ModalDetalheCard({ card, agora, extra, mostrarValor = fa
               <dt className="detalhes__rotulo">Quantidade</dt>
               <dd>
                 {card.quantidade} {card.unidadeMedida}
+              </dd>
+            </div>
+          )}
+          {card.idProduto != null && (
+            <div className="detalhes__linha detalhes__linha--materiais">
+              <dt className="detalhes__rotulo">Material necessário</dt>
+              <dd>
+                {materiais === undefined ? (
+                  <span className="detalhes__materiais-vazio">Calculando...</span>
+                ) : materiais === null ? (
+                  <span className="detalhes__materiais-vazio">Não foi possível calcular agora.</span>
+                ) : materiais.length === 0 ? (
+                  <span className="detalhes__materiais-vazio">Nenhum material direto cadastrado.</span>
+                ) : (
+                  <ul className="detalhes__materiais-lista">
+                    {materiais.map((m) => (
+                      <li key={m.codigo}>
+                        <span>{m.descricao}</span>
+                        <strong>
+                          {formatarNumeroBr(m.quantidade)} {m.unidadeMedida}
+                        </strong>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </dd>
             </div>
           )}

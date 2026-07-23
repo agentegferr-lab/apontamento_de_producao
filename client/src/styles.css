@@ -557,6 +557,42 @@ body {
   font-family: ui-monospace, monospace;
   font-size: 13px;
 }
+/* Lista de material do card (ver ModalDetalheCard.jsx) — empilhado, nao lado a lado como
+   as outras linhas: uma lista de materiais nao cabe bem ao lado do rotulo. */
+.detalhes__linha--materiais {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.detalhes__linha--materiais dd {
+  text-align: left;
+}
+.detalhes__materiais-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.detalhes__materiais-lista li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  background: var(--fundo);
+  border-radius: var(--raio);
+  font-size: 13px;
+}
+.detalhes__materiais-lista strong {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.detalhes__materiais-vazio {
+  color: var(--tinta-tenue);
+  font-size: 13px;
+}
 
 /* --- kanban ------------------------------------------------------------------------- */
 .kanban {

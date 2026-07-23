@@ -77,13 +77,13 @@ const ROTEIRO = [
   ['50', 'Logistica', 'Logistica'],
 ]
 
-// [ordem, produto, pedido, cliente]
+// [ordem, produto, pedido, cliente, idProduto, quantidade]
 const PRODUTOS = [
-  ['12345', 'Telha Trapezoidal 0,50mm', 'PV-2026-0431', 'Construtora ABC'],
-  ['12346', 'Telha Ondulada 0,43mm', 'PV-2026-0432', 'Metalurgica Silva'],
-  ['99887', 'Telha Sanduiche 30mm', 'PV-2026-0433', 'Frigorifico Sul'],
-  ['12350', 'Rufo Externo 0,50mm', 'PV-2026-0440', 'Joao Materiais'],
-  ['12351', 'Calha Moldura 0,43mm', 'PV-2026-0441', 'Construtora XYZ'],
+  ['12345', 'Telha Trapezoidal 0,50mm', 'PV-2026-0431', 'Construtora ABC', 900, '120'],
+  ['12346', 'Telha Ondulada 0,43mm', 'PV-2026-0432', 'Metalurgica Silva', 901, '80'],
+  ['99887', 'Telha Sanduiche 30mm', 'PV-2026-0433', 'Frigorifico Sul', 902, '40'],
+  ['12350', 'Rufo Externo 0,50mm', 'PV-2026-0440', 'Joao Materiais', 903, '25'],
+  ['12351', 'Calha Moldura 0,43mm', 'PV-2026-0441', 'Construtora XYZ', 904, '10'],
 ]
 
 /**
@@ -92,10 +92,13 @@ const PRODUTOS = [
  * pedidos[].id, e o codigo mostrado ao operador e pedidos[].codigoPedido. Reproduzido aqui
  * pra o mock exercitar o mesmo caminho de codigo que o Nomus real, nao um atalho mais simples.
  */
-const ordens = PRODUTOS.map(([nomeOrdem, produto, pedido, cliente], i) => ({
+const ordens = PRODUTOS.map(([nomeOrdem, produto, pedido, cliente, idProduto, qtde], i) => ({
   id: 501 + i,
   nome: nomeOrdem,
   descricaoProduto: produto,
+  idProduto,
+  codigoProduto: String(idProduto),
+  qtde,
   itensPedido: [{ id: 2700 + i, idPedido: 1200 + i, item: '00010', nomeCliente: cliente }],
 }))
 
@@ -103,6 +106,34 @@ const pedidos = PRODUTOS.map((_, i) => ({
   id: 1200 + i,
   codigoPedido: `PD ${String(1290 + i).padStart(5, '0')}`,
 }))
+
+/**
+ * BOM (lista de materiais) so pra exercitar o modal de detalhes do card (ver
+ * server/materiais.js, GET /componentesListaMateriais?query=produtoPai.id=N). So o primeiro
+ * produto (idProduto 900) tem receita cadastrada de proposito — os outros ficam com
+ * "nenhum material direto cadastrado" no modal, um caso real tambem (produto sem BOM).
+ */
+const produtos = {
+  900: { siglaUnidadeMedida: 'M2' },
+  491: { siglaUnidadeMedida: 'UNID' },
+  615: { siglaUnidadeMedida: 'KG' },
+}
+const componentesListaMateriais = {
+  900: [
+    {
+      alternativo: false,
+      listaMateriais: { padrao: true, qtdeBase: '1' },
+      qtdeNecessaria: '1',
+      produtoComponente: { id: 491, codigo: '0491', descricao: 'CHAPA GALVALUME 0,50MM', produtoFantasma: false },
+    },
+    {
+      alternativo: false,
+      listaMateriais: { padrao: true, qtdeBase: '1' },
+      qtdeNecessaria: '0,2',
+      produtoComponente: { id: 615, codigo: '0615', descricao: 'COLA PARA TELHA', produtoFantasma: false },
+    },
+  ],
+}
 
 const operacoes = []
 PRODUTOS.forEach(([nomeOrdem, produto], i) => {
@@ -161,6 +192,18 @@ app.get('/rest/pedidos/:id', (req, res) => {
 })
 
 app.get('/rest/atividades', (req, res) => paginar(atividades[Number(req.query.idRecurso)] ?? [], req, res))
+
+app.get('/rest/produtos/:id', (req, res) => {
+  const produto = produtos[Number(req.params.id)]
+  if (!produto) return res.status(404).json({ mensagem: `Produto ${req.params.id} nao encontrado.` })
+  res.json(produto)
+})
+
+// query vem como "produtoPai.id=N" — so extrai o numero, igual server/nomus.js manda.
+app.get('/rest/componentesListaMateriais', (req, res) => {
+  const idProduto = Number(String(req.query.query ?? '').match(/(\d+)/)?.[1])
+  paginar(componentesListaMateriais[idProduto] ?? [], req, res)
+})
 
 app.get('/rest/operacoesRoteiroOrdem', (req, res) => {
   // Espelha o comportamento confirmado do Nomus real: ?nomeOrdem e ?idOrdem sao ignorados,

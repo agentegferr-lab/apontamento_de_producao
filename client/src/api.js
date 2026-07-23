@@ -66,4 +66,6 @@ export const api = {
   sugerirPlanejamento: (dados) =>
     chamar('/api/planejamento/sugestao', { method: 'POST', body: JSON.stringify(dados) }),
   ocultarPedido: (pedido) => chamar('/api/pedidos-ocultos', { method: 'POST', body: JSON.stringify({ pedido }) }),
+  materiais: (idProduto, quantidade) =>
+    chamar('/api/materiais', { method: 'POST', body: JSON.stringify({ idProduto, quantidade }) }),
 }
