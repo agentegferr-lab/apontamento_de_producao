@@ -47,9 +47,50 @@ carregar()
 
 export const REGEX_DATA = /^\d{4}-\d{2}-\d{2}$/
 
+function chaveData(data) {
+  const p = (n) => String(n).padStart(2, '0')
+  return `${data.getFullYear()}-${p(data.getMonth() + 1)}-${p(data.getDate())}`
+}
+
+/** Proximo dia util depois de `chave` (AAAA-MM-DD) — pula sabado/domingo. Sem calendario de
+ * feriados hoje. Exportada pura pra testar sem depender do relogio real. */
+export function proximoDiaUtil(chave) {
+  const [ano, mes, dia] = chave.split('-').map(Number)
+  const data = new Date(ano, mes - 1, dia)
+  do {
+    data.setDate(data.getDate() + 1)
+  } while (data.getDay() === 0 || data.getDay() === 6) // domingo=0, sabado=6
+  return chaveData(data)
+}
+
 export const planejamento = {
   listar() {
     return [...itens]
+  },
+
+  /**
+   * Empurra pro proximo dia util (marcando `atrasado: true`) todo item cuja data ja passou e
+   * que `estaIniciado` diz que ainda nao comecou — este modulo nao sabe nada de producao/
+   * Nomus de proposito (ver topo do arquivo), entao quem chama resolve isso (ver server/
+   * index.js, que ja calcula o mesmo status usado no Acompanhamento). Item ja iniciado nunca
+   * se move, mesmo com a data no passado — so fica verde onde estiver (ver client).
+   *
+   * Roda a cada leitura (nao um cron): se ninguem chamar por dias (fim de semana, servidor
+   * desligado), a proxima chamada resolve tudo de uma vez, avancando quantos dias uteis
+   * precisar, um de cada vez, ate a data nao estar mais no passado.
+   */
+  aplicarAtrasos(estaIniciado, hoje = new Date()) {
+    const chaveHoje = chaveData(hoje)
+    let mudou = false
+    for (const item of itens) {
+      if (estaIniciado(item.idOperacaoOrdem)) continue
+      while (item.data < chaveHoje) {
+        item.data = proximoDiaUtil(item.data)
+        item.atrasado = true
+        mudou = true
+      }
+    }
+    if (mudou) gravar()
   },
 
   /**
@@ -94,17 +135,25 @@ export const planejamento = {
       valorTotal: valorTotal ?? null,
       data,
       criadoEm: new Date().toISOString(),
+      // true quando o proprio sistema empurrou o item pro dia seguinte por falta de
+      // apontamento (ver aplicarAtrasos acima) — nunca comeca marcado assim.
+      atrasado: false,
     }
     itens.push(registro)
     gravar()
     return registro
   },
 
-  /** Move um item ja agendado pra outro dia (arrastar de um dia pro outro no calendario). */
+  /**
+   * Move um item ja agendado pra outro dia (arrastar de um dia pro outro no calendario, ou
+   * "Mudar programação" no modal de detalhes). Sempre limpa `atrasado`: uma vez que alguem
+   * decidiu a data de proposito, nao e mais um empurrao automatico do sistema.
+   */
   mover(id, novaData) {
     const registro = itens.find((i) => i.id === id)
     if (!registro) return null
     registro.data = novaData
+    registro.atrasado = false
     gravar()
     return registro
   },

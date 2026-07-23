@@ -174,8 +174,20 @@ export default function TelaPlanejamento() {
     if (!vivo) return null
     return !(vivo.status === 'AGUARDANDO' && vivo.etapasConcluidas === 0)
   }
-  const classeIniciado = (iniciado) =>
-    iniciado == null ? '' : iniciado ? 'planejamento-card--iniciado' : 'planejamento-card--nao-iniciado'
+
+  /**
+   * Verde ganha de tudo (ja produzindo/ja passou por alguma etapa, mesmo que tenha chegado
+   * atrasado). Vermelho e o servidor avisando que empurrou o card pro dia de hoje sozinho por
+   * falta de apontamento (ver server/planejamento.js, aplicarAtrasos) — so faz sentido
+   * enquanto ainda nao comecou. Amarelo e o "normal": agendado, dentro do prazo, aguardando.
+   */
+  function classeDoCard(item) {
+    const iniciado = statusIniciado(item)
+    if (iniciado) return 'planejamento-card--iniciado'
+    if (item.atrasado) return 'planejamento-card--atrasado'
+    if (iniciado === false) return 'planejamento-card--nao-iniciado'
+    return ''
+  }
 
   // Pro relatorio de impressao: TODAS as ordens planejadas dentro do periodo filtrado,
   // nao so as do mes visivel no momento — o filtro de periodo pode cobrir mais de um mes.
@@ -575,7 +587,7 @@ export default function TelaPlanejamento() {
                     {itensDoDia.map((item) => (
                       <article
                         key={item.id}
-                        className={`planejamento-card planejamento-card--mini ${classeIniciado(statusIniciado(item))}`}
+                        className={`planejamento-card planejamento-card--mini ${classeDoCard(item)}`}
                         draggable
                         onDragStart={() => setArrastando({ tipo: 'planejado', item })}
                         onDragEnd={() => setArrastando(null)}
