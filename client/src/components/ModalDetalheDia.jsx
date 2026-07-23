@@ -33,7 +33,13 @@ export default function ModalDetalheDia({ data, itens, onFechar, onAbrirItem, on
                   key={item.id}
                   className={[
                     'detalhes-dia__item',
-                    item.iniciado == null ? '' : item.iniciado ? 'planejamento-card--iniciado' : 'planejamento-card--nao-iniciado',
+                    item.iniciado
+                      ? 'planejamento-card--iniciado'
+                      : item.atrasado
+                        ? 'planejamento-card--atrasado'
+                        : item.iniciado === false
+                          ? 'planejamento-card--nao-iniciado'
+                          : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}

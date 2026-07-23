@@ -32,6 +32,7 @@
   --verde-claro: #dcfce7;
   --vermelho: #dc2626;
   --vermelho-escuro: #b91c1c;
+  --vermelho-claro: #fee2e2;
   --ambar: #b45309;
   --ambar-claro: #fde9c8;
   --raio: 8px;
@@ -1353,6 +1354,12 @@ body {
   background: var(--verde-claro);
   border-color: var(--verde);
 }
+/* Empurrado pro dia de hoje sozinho, sem apontamento ate o fim do dia programado — ver
+   server/planejamento.js, aplicarAtrasos. Vira --iniciado (verde) na hora que comecar. */
+.planejamento-card--atrasado {
+  background: var(--vermelho-claro);
+  border-color: var(--vermelho);
+}
 .planejamento-card__remover {
   flex-shrink: 0;
   display: grid;
@@ -1436,6 +1443,9 @@ body {
 }
 .detalhes-dia__item.planejamento-card--iniciado {
   background: var(--verde-claro);
+}
+.detalhes-dia__item.planejamento-card--atrasado {
+  background: var(--vermelho-claro);
 }
 .detalhes-dia__item-texto {
   min-width: 0;

@@ -8,7 +8,7 @@ import path from 'node:path'
 process.env.ARQUIVO_PLANEJAMENTO = path.join(os.tmpdir(), `planejamento-teste-${process.pid}.json`)
 fs.rmSync(process.env.ARQUIVO_PLANEJAMENTO, { force: true })
 
-const { planejamento } = await import('./planejamento.js')
+const { planejamento, proximoDiaUtil } = await import('./planejamento.js')
 
 test('agendar cria um item novo e persiste', () => {
   const registro = planejamento.agendar({
@@ -95,4 +95,72 @@ test('remover tira o item da lista e devolve true; id inexistente devolve false'
   assert.equal(planejamento.remover(registro.id), true)
   assert.equal(planejamento.listar().some((i) => i.id === registro.id), false)
   assert.equal(planejamento.remover(registro.id), false)
+})
+
+test('proximoDiaUtil avanca um dia normal (quinta -> sexta)', () => {
+  assert.equal(proximoDiaUtil('2026-07-23'), '2026-07-24')
+})
+
+test('proximoDiaUtil pula fim de semana (sexta -> segunda)', () => {
+  assert.equal(proximoDiaUtil('2026-07-24'), '2026-07-27')
+})
+
+test('proximoDiaUtil pula fim de semana atravessando mudanca de mes', () => {
+  assert.equal(proximoDiaUtil('2026-07-31'), '2026-08-03') // sexta -> sabado/domingo pulados -> segunda
+})
+
+const HOJE_QUINTA = new Date(2026, 6, 23) // 2026-07-23, quinta-feira
+
+test('aplicarAtrasos empurra item vencido e nao iniciado ate o dia de hoje, marcando atrasado', () => {
+  const registro = planejamento.agendar({
+    idOrdem: 20,
+    idOperacaoOrdem: 3001,
+    nomeOrdem: 'OS ATRASADA',
+    data: '2026-07-17', // sexta, 4 dias uteis antes do "hoje" do teste
+  })
+  planejamento.aplicarAtrasos(() => false, HOJE_QUINTA)
+  const atualizado = planejamento.listar().find((i) => i.id === registro.id)
+  assert.equal(atualizado.data, '2026-07-23')
+  assert.equal(atualizado.atrasado, true)
+})
+
+test('aplicarAtrasos nao mexe em item ja iniciado, mesmo com a data no passado', () => {
+  const registro = planejamento.agendar({
+    idOrdem: 21,
+    idOperacaoOrdem: 3002,
+    nomeOrdem: 'OS JA INICIADA',
+    data: '2026-07-17',
+  })
+  planejamento.aplicarAtrasos((id) => id === 3002, HOJE_QUINTA)
+  const atualizado = planejamento.listar().find((i) => i.id === registro.id)
+  assert.equal(atualizado.data, '2026-07-17')
+  assert.equal(atualizado.atrasado, false)
+})
+
+test('aplicarAtrasos nao mexe em item agendado pra hoje ou pro futuro', () => {
+  const registro = planejamento.agendar({
+    idOrdem: 22,
+    idOperacaoOrdem: 3003,
+    nomeOrdem: 'OS DE HOJE',
+    data: '2026-07-23',
+  })
+  planejamento.aplicarAtrasos(() => false, HOJE_QUINTA)
+  const atualizado = planejamento.listar().find((i) => i.id === registro.id)
+  assert.equal(atualizado.data, '2026-07-23')
+  assert.equal(atualizado.atrasado, false)
+})
+
+test('mover limpa o atrasado — uma vez reagendado a mao, deixa de ser um empurrao automatico', () => {
+  const registro = planejamento.agendar({
+    idOrdem: 23,
+    idOperacaoOrdem: 3004,
+    nomeOrdem: 'OS REAGENDADA A MAO',
+    data: '2026-07-17',
+  })
+  planejamento.aplicarAtrasos(() => false, HOJE_QUINTA)
+  assert.equal(planejamento.listar().find((i) => i.id === registro.id).atrasado, true)
+
+  const movido = planejamento.mover(registro.id, '2026-07-30')
+  assert.equal(movido.atrasado, false)
+  assert.equal(planejamento.listar().find((i) => i.id === registro.id).atrasado, false)
 })

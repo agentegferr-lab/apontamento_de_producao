@@ -440,6 +440,17 @@ async function montarQuadroAtual() {
 }
 
 /**
+ * "Ja comecou?" pra uma operacao, segundo o quadro atual — reaproveita exatamente o mesmo
+ * criterio que decide o que vai pra fila invisivel (ver server/kanban.js): quem esta em
+ * filaAguardando e quem nunca teve nenhuma etapa tocada. Usado pra empurrar pro dia
+ * seguinte os itens do Planejamento vencidos sem apontamento (ver planejamento.aplicarAtrasos).
+ */
+function estaIniciadoNoQuadro(quadro) {
+  const idsNaFila = new Set((quadro.filaAguardando ?? []).map((c) => Number(c.idOperacaoOrdem)))
+  return (idOperacaoOrdem) => !idsNaFila.has(Number(idOperacaoOrdem))
+}
+
+/**
  * A data de "quando os dados foram buscados de verdade no Nomus" — NAO "agora", que
  * mentiria sempre que o cache estivesse servindo um valor vencido (stale-while-revalidate,
  * ver server/nomus.js). Pega a mais ANTIGA das duas fontes: se uma delas estiver atrasada,
@@ -497,6 +508,10 @@ app.delete(
 app.get(
   '/api/planejamento',
   asyncRoute(async (_req, res) => {
+    // Antes de listar, empurra pro proximo dia util (e marca atrasado) quem passou do dia
+    // programado sem nenhum apontamento — ver server/planejamento.js, aplicarAtrasos.
+    const quadro = await montarQuadroAtual()
+    planejamento.aplicarAtrasos(estaIniciadoNoQuadro(quadro))
     res.json(await materiaisParaItens(planejamento.listar()))
   }),
 )
