@@ -162,20 +162,32 @@ export default function TelaPlanejamento() {
     return mapa
   }, [quadro])
 
+  // idOrdem (a ORDEM, nao a operacao) de quem ja tem algum progresso — usado so pra cor (ver
+  // statusIniciado abaixo). Precisa ser por ordem: o item de planejamento guarda o
+  // idOperacaoOrdem de quando foi agendado (normalmente a 1a etapa, ex. Corte), mas depois que
+  // essa etapa e apontada o "card vivo" passa a existir com o id da etapa SEGUINTE (Pintura) —
+  // buscar pelo id antigo em cardVivoPorOperacao nunca mais acha nada, e o card ficava cinza
+  // (nem verde nem amarelo) mesmo com a ordem em producao ha tempos.
+  const ordensComProgresso = useMemo(() => {
+    const s = new Set()
+    if (!quadro) return s
+    for (const coluna of quadro.colunas) for (const card of coluna.cards) s.add(card.idOrdem)
+    for (const card of quadro.concluidos ?? []) s.add(card.idOrdem)
+    return s
+  }, [quadro])
+
   const dias = useMemo(() => gerarGradeMes(mesAtual.ano, mesAtual.mes), [mesAtual])
   const chaveHoje = useMemo(() => chaveData(hoje), [hoje])
 
   /**
-   * true = ja deu entrada em algum processo (verde), false = ainda nao (amarelo), null =
-   * status desconhecido (quadro nao carregou ainda) — mesmo criterio que kanban.js usa pra
-   * decidir o que vai pra fila invisivel: AGUARDANDO com zero etapas concluidas e o unico
-   * caso "intocado". Uma ordem AGUARDANDO com etapas > 0 (concluiu uma, espera a proxima)
-   * ja conta como iniciada.
+   * true = a ORDEM ja deu entrada em algum processo (verde), false = ainda nao (amarelo),
+   * null = quadro nao carregou ainda. Por ordem, nao por etapa — ver ordensComProgresso acima
+   * pro motivo. Mesmo criterio que kanban.js usa pra decidir o que vai pra fila invisivel:
+   * uma ordem so fica "intocada" enquanto nenhuma etapa dela foi apontada.
    */
   function statusIniciado(item) {
-    const vivo = cardVivoPorOperacao.get(item.idOperacaoOrdem)
-    if (!vivo) return null
-    return !(vivo.status === 'AGUARDANDO' && vivo.etapasConcluidas === 0)
+    if (!quadro) return null
+    return ordensComProgresso.has(item.idOrdem)
   }
 
   /**
