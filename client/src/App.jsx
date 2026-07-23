@@ -1,125 +1,71 @@
-import { useCallback, useEffect, useState } from 'react'
-import { api } from './api.js'
-import Logo from './components/Logo.jsx'
-import Relogio from './components/Relogio.jsx'
-import TelaLeitura from './components/TelaLeitura.jsx'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AuthProvider, RotaProtegida, useAuth } from './auth/AuthContext.jsx'
+import { ITENS_MENU } from './modulos.js'
+import IntranetShell from './IntranetShell.jsx'
+import LoginPage from './pages/LoginPage.jsx'
+import MuralPage from './pages/MuralPage.jsx'
+import DiretorioPage from './pages/DiretorioPage.jsx'
+import DocumentosPage from './pages/DocumentosPage.jsx'
+import UsuariosPage from './pages/admin/UsuariosPage.jsx'
+import PaginaApontamento from './pages/PaginaApontamento.jsx'
 import TelaKanban from './components/TelaKanban.jsx'
 import TelaPlanejamento from './components/TelaPlanejamento.jsx'
-import ModalSenha from './components/ModalSenha.jsx'
 
-// So um freio, nao seguranca de verdade (fica no bundle do cliente) — ver ModalSenha.jsx.
-const SENHA_PLANEJAMENTO = 'Adm@2026'
-const CHAVE_SESSAO = 'planejamento-liberado'
+/**
+ * "/" e o Mural quando o usuario tem o modulo; senao manda pro primeiro modulo que ele
+ * tiver (papel customizado sem avisos, por exemplo) em vez de uma tela de acesso negado
+ * logo na entrada.
+ */
+function PaginaInicial() {
+  const { usuario } = useAuth()
+  if (usuario.modulos.includes('avisos')) return <MuralPage />
 
-export default function App() {
-  const [tela, setTela] = useState('leitura')
-  const [terminal, setTerminal] = useState(null)
-  const [erroBoot, setErroBoot] = useState(null)
-  const [versaoAndamento, setVersaoAndamento] = useState(0)
-  // Liberado uma vez por sessao do navegador (sessionStorage) — nao pede nas trocas de aba
-  // seguintes, so de novo se a aba/navegador fechar.
-  const [planejamentoLiberado, setPlanejamentoLiberado] = useState(
-    () => sessionStorage.getItem(CHAVE_SESSAO) === '1',
-  )
-  const [pedindoSenha, setPedindoSenha] = useState(false)
-  const [senhaErrada, setSenhaErrada] = useState(false)
-
-  useEffect(() => {
-    let cancelado = false
-    api
-      .terminal()
-      .then((dados) => !cancelado && (setTerminal(dados), setErroBoot(null)))
-      .catch((erro) => !cancelado && setErroBoot(erro.message))
-    return () => {
-      cancelado = true
-    }
-  }, [])
-
-  // Finalizar um processo muda o kanban (o card anda de coluna): forca a releitura.
-  const aoMudarAndamento = useCallback(() => setVersaoAndamento((v) => v + 1), [])
-
-  function abrirPlanejamento() {
-    if (planejamentoLiberado) {
-      setTela('planejamento')
-    } else {
-      setSenhaErrada(false)
-      setPedindoSenha(true)
-    }
-  }
-
-  function confirmarSenha(senha) {
-    if (senha === SENHA_PLANEJAMENTO) {
-      sessionStorage.setItem(CHAVE_SESSAO, '1')
-      setPlanejamentoLiberado(true)
-      setPedindoSenha(false)
-      setTela('planejamento')
-    } else {
-      setSenhaErrada(true)
-    }
-  }
-
-  if (erroBoot) {
-    return (
-      <div className="boot">
-        <Logo />
-        <h1 className="boot__titulo">Terminal sem conexão com o Nomus</h1>
-        <p className="boot__texto">{erroBoot}</p>
-        <p className="boot__dica">
-          Os apontamentos já iniciados estão guardados no servidor do terminal e não se perdem — eles
-          voltam assim que a conexão retornar.
-        </p>
-        <button className="botao botao--iniciar" onClick={() => location.reload()}>
-          Tentar novamente
-        </button>
-      </div>
-    )
-  }
-
-  if (!terminal) {
-    return (
-      <div className="boot">
-        <Logo />
-        <p className="boot__texto">Conectando ao Nomus...</p>
-      </div>
-    )
-  }
+  const primeiro = ITENS_MENU.find((item) => item.rota !== '/' && usuario.modulos.includes(item.chave))
+  if (primeiro) return <Navigate to={primeiro.rota} replace />
 
   return (
-    <div className="app">
-      <header className="cabecalho">
-        <Logo />
+    <main className="acesso-negado">
+      <h1>Nenhum módulo liberado</h1>
+      <p>Seu usuário ainda não tem nenhum módulo liberado. Fale com um administrador.</p>
+    </main>
+  )
+}
 
-        <nav className="abas">
-          <button
-            className={`aba ${tela === 'leitura' ? 'aba--ativa' : ''}`}
-            onClick={() => setTela('leitura')}
-          >
-            Apontamento
-          </button>
-          <button
-            className={`aba ${tela === 'kanban' ? 'aba--ativa' : ''}`}
-            onClick={() => setTela('kanban')}
-          >
-            Acompanhamento
-          </button>
-          <button
-            className={`aba ${tela === 'planejamento' ? 'aba--ativa' : ''}`}
-            onClick={abrirPlanejamento}
-          >
-            Planejamento
-          </button>
-        </nav>
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
 
-        <Relogio />
-      </header>
+          <Route element={<RotaProtegida />}>
+            <Route element={<IntranetShell />}>
+              <Route path="/" element={<PaginaInicial />} />
 
-      {tela === 'leitura' && <TelaLeitura terminal={terminal} onMudouAndamento={aoMudarAndamento} />}
-      {tela === 'kanban' && <TelaKanban recarregarEm={versaoAndamento} />}
-      {tela === 'planejamento' && planejamentoLiberado && <TelaPlanejamento />}
+              <Route element={<RotaProtegida modulo="diretorio" />}>
+                <Route path="/diretorio" element={<DiretorioPage />} />
+              </Route>
+              <Route element={<RotaProtegida modulo="documentos" />}>
+                <Route path="/documentos" element={<DocumentosPage />} />
+              </Route>
+              <Route element={<RotaProtegida modulo="admin.usuarios" />}>
+                <Route path="/admin/usuarios" element={<UsuariosPage />} />
+              </Route>
+              <Route element={<RotaProtegida modulo="terminal.apontamento" />}>
+                <Route path="/terminal/apontamento" element={<PaginaApontamento />} />
+              </Route>
+              <Route element={<RotaProtegida modulo="terminal.acompanhamento" />}>
+                <Route path="/terminal/acompanhamento" element={<TelaKanban />} />
+              </Route>
+              <Route element={<RotaProtegida modulo="terminal.planejamento" />}>
+                <Route path="/terminal/planejamento" element={<TelaPlanejamento />} />
+              </Route>
+            </Route>
+          </Route>
 
-      {pedindoSenha && (
-        <ModalSenha erro={senhaErrada} onConfirmar={confirmarSenha} onCancelar={() => setPedindoSenha(false)} />
-      )}
-    </div>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }

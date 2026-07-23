@@ -1,7 +1,13 @@
 import express from 'express'
+import cookieParser from 'cookie-parser'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { config, validarConfig } from './config.js'
+import { AppError, asyncRoute } from './erros.js'
+import { exigirModulo } from './auth.js'
+import { rotasIntranet } from './rotasIntranet.js'
+import { MODULOS } from './db.js'
+import './bootstrap.js'
 import { nomus, NomusError } from './nomus.js'
 import { resolverOperacao, ResolucaoError } from './resolver.js'
 import { andamento, PRODUZINDO, PAUSADO } from './andamento.js'
@@ -23,22 +29,27 @@ try {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 app.use(express.json({ limit: '256kb' }))
+app.use(cookieParser(config.sessionSecret))
+app.use('/api', rotasIntranet)
 
-const asyncRoute = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next)
-
-class AppError extends Error {
-  constructor(mensagem, status = 400, codigo) {
-    super(mensagem)
-    this.status = status
-    this.codigo = codigo
+/**
+ * O funcionario do terminal vem da matricula do OPERADOR LOGADO (req.usuario, ver
+ * server/auth.js) — nunca mais de uma matricula fixa em .env. NOMUS_MATRICULA so serve de
+ * fallback pra dev/mock quando o usuario logado ainda nao tem matricula_nomus cadastrada.
+ */
+async function funcionarioDoTerminal(req) {
+  const matricula = req.usuario?.matriculaNomus || config.matriculaFallback
+  if (!matricula) {
+    throw new AppError(
+      `Seu usuário (${req.usuario?.nome}) não tem matrícula do Nomus cadastrada. Peça a um administrador para completar seu cadastro em Usuários.`,
+      409,
+      'SEM_MATRICULA',
+    )
   }
-}
 
-/** O funcionario do terminal vem da matricula em .env — nunca do cliente. */
-async function funcionarioDoTerminal() {
-  const funcionario = await nomus.funcionarioPorMatricula(config.matricula)
+  const funcionario = await nomus.funcionarioPorMatricula(matricula)
   if (!funcionario) {
-    throw new NomusError(`Nenhum funcionario com a matricula ${config.matricula} no Nomus.`, {
+    throw new NomusError(`Nenhum funcionario com a matricula ${matricula} no Nomus.`, {
       status: 500,
     })
   }
@@ -138,8 +149,9 @@ function instanteFinalValido(instante, inicioDoSegmento) {
 // --- Terminal ------------------------------------------------------------------------
 app.get(
   '/api/terminal',
-  asyncRoute(async (_req, res) => {
-    const funcionario = await funcionarioDoTerminal()
+  exigirModulo(MODULOS.TERMINAL_APONTAMENTO),
+  asyncRoute(async (req, res) => {
+    const funcionario = await funcionarioDoTerminal(req)
 
     const limiteNomus = Number(funcionario.limiteApontamentosSimultaneos)
     const limite = Number.isFinite(limiteNomus) && limiteNomus > 0 ? limiteNomus : config.limiteFallback
@@ -161,6 +173,7 @@ const paraTela = (a) => ({
 
 app.get(
   '/api/atividades',
+  exigirModulo(MODULOS.TERMINAL_APONTAMENTO),
   asyncRoute(async (req, res) => {
     const idRecurso = Number(req.query.idRecurso)
     if (!Number.isFinite(idRecurso)) throw new AppError('Parametro idRecurso e obrigatorio.')
@@ -181,6 +194,7 @@ app.get(
  */
 app.get(
   '/api/motivos-parada',
+  exigirModulo(MODULOS.TERMINAL_APONTAMENTO),
   asyncRoute(async (req, res) => {
     const idOperacaoOrdem = Number(req.query.idOperacaoOrdem)
     const aberto = andamento.porOperacao(idOperacaoOrdem)
@@ -204,6 +218,7 @@ app.get(
 // --- Leitura dos dois codigos de barras ----------------------------------------------
 app.post(
   '/api/resolver-operacao',
+  exigirModulo(MODULOS.TERMINAL_APONTAMENTO),
   asyncRoute(async (req, res) => {
     const { codigoOrdem, codigoProcesso } = req.body ?? {}
     const operacao = await resolverOperacao(codigoOrdem, codigoProcesso)
@@ -212,10 +227,13 @@ app.post(
 )
 
 // --- Iniciar / Finalizar --------------------------------------------------------------
-app.get('/api/andamento', (_req, res) => res.json(andamento.listar()))
+app.get('/api/andamento', exigirModulo(MODULOS.TERMINAL_ACOMPANHAMENTO), (_req, res) =>
+  res.json(andamento.listar()),
+)
 
 app.post(
   '/api/iniciar',
+  exigirModulo(MODULOS.TERMINAL_APONTAMENTO),
   asyncRoute(async (req, res) => {
     const { codigoOrdem, codigoProcesso, idAtividade } = req.body ?? {}
     const operacao = await resolverOperacao(codigoOrdem, codigoProcesso)
@@ -248,7 +266,7 @@ app.post(
     }
 
     const [funcionario, atividade] = await Promise.all([
-      funcionarioDoTerminal(),
+      funcionarioDoTerminal(req),
       resolverAtividade(idRecurso, idAtividade),
     ])
 
@@ -284,6 +302,7 @@ app.post(
 
 app.post(
   '/api/pausar',
+  exigirModulo(MODULOS.TERMINAL_APONTAMENTO),
   asyncRoute(async (req, res) => {
     const { codigoOrdem, codigoProcesso, idAtividadeParada } = req.body ?? {}
     const operacao = await resolverOperacao(codigoOrdem, codigoProcesso)
@@ -324,6 +343,7 @@ app.post(
 
 app.post(
   '/api/finalizar',
+  exigirModulo(MODULOS.TERMINAL_APONTAMENTO),
   asyncRoute(async (req, res) => {
     const { codigoOrdem, codigoProcesso, quantidade, percentualProdutoAndamento, instanteFinal } =
       req.body ?? {}
@@ -413,6 +433,7 @@ app.post(
 
 app.delete(
   '/api/andamento/:id',
+  exigirModulo(MODULOS.TERMINAL_ACOMPANHAMENTO),
   asyncRoute(async (req, res) => {
     if (!andamento.remover(req.params.id)) throw new AppError('Apontamento em andamento nao encontrado.', 404)
     res.status(204).end()
@@ -441,6 +462,7 @@ async function montarQuadroAtual() {
 
 app.get(
   '/api/kanban',
+  exigirModulo(MODULOS.TERMINAL_ACOMPANHAMENTO),
   asyncRoute(async (_req, res) => {
     const quadro = await montarQuadroAtual()
     res.json({ ...quadro, atualizadoEm: new Date().toISOString() })
@@ -451,6 +473,7 @@ app.get(
 // nao mexe no Nomus. `codigo` e o numero normalizado (ex.: "PD 01038" -> "1038").
 app.get(
   '/api/pedidos-ocultos',
+  exigirModulo(MODULOS.TERMINAL_ACOMPANHAMENTO),
   asyncRoute(async (_req, res) => {
     res.json(pedidosOcultos.listar())
   }),
@@ -458,6 +481,7 @@ app.get(
 
 app.post(
   '/api/pedidos-ocultos',
+  exigirModulo(MODULOS.TERMINAL_ACOMPANHAMENTO),
   asyncRoute(async (req, res) => {
     const { pedido } = req.body ?? {}
     if (!pedido) throw new AppError('pedido e obrigatorio.', 400)
@@ -469,6 +493,7 @@ app.post(
 
 app.delete(
   '/api/pedidos-ocultos/:codigo',
+  exigirModulo(MODULOS.TERMINAL_ACOMPANHAMENTO),
   asyncRoute(async (req, res) => {
     if (!pedidosOcultos.mostrar(req.params.codigo)) {
       throw new AppError('Pedido oculto nao encontrado.', 404)
@@ -485,6 +510,7 @@ app.delete(
 // dia novo automaticamente, sem guardar um numero que possa ficar desatualizado.
 app.get(
   '/api/planejamento',
+  exigirModulo(MODULOS.TERMINAL_PLANEJAMENTO),
   asyncRoute(async (_req, res) => {
     res.json(await materiaisParaItens(planejamento.listar()))
   }),
@@ -492,6 +518,7 @@ app.get(
 
 app.post(
   '/api/planejamento',
+  exigirModulo(MODULOS.TERMINAL_PLANEJAMENTO),
   asyncRoute(async (req, res) => {
     const {
       idOrdem,
@@ -534,6 +561,7 @@ app.post(
 
 app.patch(
   '/api/planejamento/:id',
+  exigirModulo(MODULOS.TERMINAL_PLANEJAMENTO),
   asyncRoute(async (req, res) => {
     const { data } = req.body ?? {}
     if (!REGEX_DATA.test(data ?? '')) {
@@ -548,6 +576,7 @@ app.patch(
 
 app.delete(
   '/api/planejamento/:id',
+  exigirModulo(MODULOS.TERMINAL_PLANEJAMENTO),
   asyncRoute(async (req, res) => {
     if (!planejamento.remover(req.params.id)) {
       throw new AppError('Item de planejamento nao encontrado.', 404)
@@ -562,6 +591,7 @@ app.delete(
 // POST /api/planejamento normal, um por um.
 app.post(
   '/api/planejamento/sugestao',
+  exigirModulo(MODULOS.TERMINAL_PLANEJAMENTO),
   asyncRoute(async (req, res) => {
     const { objetivo, dataInicio, dataFim } = req.body ?? {}
     if (!objetivo || !objetivo.trim()) {
@@ -621,6 +651,6 @@ app.use((erro, _req, res, _next) => {
 })
 
 app.listen(config.porta, () => {
-  console.log(`GFERRO — Apontamento de Producao em http://localhost:${config.porta}`)
-  console.log(`Nomus: ${config.baseUrl} | matricula do terminal: ${config.matricula}`)
+  console.log(`GFERRO — Intranet em http://localhost:${config.porta}`)
+  console.log(`Nomus: ${config.baseUrl}`)
 })

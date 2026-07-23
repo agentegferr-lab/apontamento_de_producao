@@ -113,7 +113,7 @@ async function getPaginado(caminho, query, { maxPaginas = 300, avisarProgresso =
 }
 
 console.log(`\nNomus: ${config.baseUrl}`)
-console.log(`Matricula do terminal: ${config.matricula}`)
+console.log(`Matricula de teste (NOMUS_MATRICULA, opcional): ${config.matriculaFallback ?? '(nao definida)'}`)
 
 if (config.baseUrl.includes('localhost')) {
   alerta('NOMUS_BASE_URL aponta para localhost — isto e o mock, nao o ERP real.')
@@ -133,16 +133,22 @@ if (problemas.length) {
   process.exit(1)
 }
 
-// --- 2. Funcionario do terminal ------------------------------------------------------
-titulo('2. Funcionario do terminal (NOMUS_MATRICULA)')
+// --- 2. Funcionario de teste (NOMUS_MATRICULA) ----------------------------------------
+// Desde a intranet com login, cada operador tem a propria matricula_nomus cadastrada (ver
+// server/usuarios.js) — nao existe mais "o" funcionario fixo do terminal. NOMUS_MATRICULA
+// e so um valor de conveniencia pra testar esta ferramenta contra o mock/uma matricula
+// conhecida; sem ela, este passo e so pulado.
+titulo('2. Funcionario de teste (NOMUS_MATRICULA, opcional)')
 let funcionario = null
-{
-  const { corpo } = await get('/funcionarios', { matricula: config.matricula })
+if (!config.matriculaFallback) {
+  console.log('  NOMUS_MATRICULA nao definida — pulando (cada operador agora usa a propria matricula cadastrada na intranet).')
+} else {
+  const { corpo } = await get('/funcionarios', { matricula: config.matriculaFallback })
   const todos = lista(corpo)
-  funcionario = todos.find((f) => String(f.matricula) === String(config.matricula))
+  funcionario = todos.find((f) => String(f.matricula) === String(config.matriculaFallback))
 
   if (!funcionario) {
-    registrar(`Nenhum funcionario com a matricula ${config.matricula}. O app nao sobe assim.`)
+    registrar(`Nenhum funcionario com a matricula ${config.matriculaFallback}.`)
   } else {
     ok(`${funcionario.nome} (id ${funcionario.id})`)
     if (funcionario.ativo === false) registrar(`${funcionario.nome} esta INATIVO no Nomus.`)

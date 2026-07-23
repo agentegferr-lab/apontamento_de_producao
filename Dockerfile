@@ -1,5 +1,7 @@
+# node:22 (nao 20): a intranet usa node:sqlite, embutido no Node desde a 22.5 — sem addon
+# nativo pra compilar, entao nao precisa de toolchain de build (python/make/g++) na imagem.
 # Build do cliente (Vite) — precisa das devDependencies (vite, plugin-react).
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -7,7 +9,7 @@ COPY . .
 RUN npm run build
 
 # Imagem final: so o servidor Express + o build estatico do cliente + deps de producao.
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 # O servidor carimba dataHoraInicial/Final com o relogio local do container (ver

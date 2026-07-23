@@ -1,12 +1,48 @@
-# Grupo Ferro — Apontamento de Produção
+# Grupo Ferro — Intranet
 
-Terminal touchscreen de chão de fábrica que substitui a tela de apontamento do Nomus ERP,
-integrando pela API REST. É **um terminal único**: um departamento de apontamento registra
-as ordens de todos os setores. Duas telas:
+Começou como um terminal touchscreen de chão de fábrica que substitui a tela de apontamento
+do Nomus ERP, integrando pela API REST, e está crescendo para uma intranet completa da
+empresa — login por usuário, papéis/permissões por módulo, e módulos além da produção. Hoje:
 
 1. **Apontamento** — lê a etiqueta da ordem de serviço e a da etapa do processo, e o
    operador escolhe **Iniciar**, **Pausar** ou **Finalizar** processo.
 2. **Acompanhamento** — quadro kanban das ordens andando pelo roteiro de produção.
+3. **Planejamento (PCP)** — calendário mensal pra agendar quando cada ordem começa a ser
+   produzida.
+4. **Mural de avisos**, **Diretório de contatos** e **Documentos** — módulos gerais da
+   intranet, ver [Intranet: login e permissões](#intranet-login-e-permissões) abaixo.
+
+Cada operador loga com e-mail e senha — inclusive no terminal touch do chão de fábrica, que
+deixou de ter matrícula fixa por `.env` (ver seção de login). O que cada um vê no menu
+depende do **papel** do seu usuário (Admin, Operador, PCP, Supervisor, RH — configurável).
+
+---
+
+## Intranet: login e permissões
+
+- **Login por e-mail/senha**, sessão em cookie httpOnly (`server/auth.js`), sem
+  `express-session`/`passport` — token opaco guardado numa tabela `sessoes` do SQLite,
+  senha em `scrypt` (nativo do Node, sem dependência extra).
+- **Banco**: `node:sqlite` (embutido no Node desde a 22.5 — sem addon nativo pra compilar,
+  por isso o Dockerfile usa `node:22-alpine` e não precisa de toolchain de build). Um
+  arquivo só, `dados/intranet.db` (`ARQUIVO_DB`), no mesmo volume que já existia.
+- **Papéis e módulos** (`server/db.js`, `MODULOS`): cada usuário tem um papel; cada papel
+  tem uma lista de módulos liberados. Sem permissão granular por ação nesta fase — só
+  visibilidade de módulo (quem tem "avisos" pode publicar E remover avisos, por exemplo).
+  Papéis padrão semeados no primeiro boot: **Admin** (tudo, incluindo Usuários),
+  **Operador** (Apontamento/Acompanhamento/Mural/Diretório), **PCP** (+ Planejamento e
+  Documentos), **Supervisor**, **RH** — editáveis depois pela tela de Usuários.
+- **Primeiro admin**: se a tabela de usuários estiver vazia no boot, `server/bootstrap.js`
+  cria um admin a partir de `ADMIN_EMAIL_INICIAL`/`ADMIN_SENHA_INICIAL` do `.env` — troque a
+  senha assim que entrar pela primeira vez. Depois disso essas duas variáveis não têm mais
+  efeito (só rodam contra tabela vazia) e podem ser removidas do `.env`.
+- **Terminal (Apontamento) sem matrícula fixa**: cada usuário com o módulo Apontamento
+  cadastra a própria `matricula_nomus` (aba Usuários). O que era `NOMUS_MATRICULA` fixo por
+  `.env` virou um campo por pessoa — todo operador que for usar o terminal precisa da
+  matrícula preenchida no cadastro **antes** do primeiro apontamento.
+- **Roadmap** (não implementado ainda): RH (ponto, férias), relatórios/dashboards
+  gerenciais (OEE, produtividade), calendário de eventos/feriados, solicitações internas
+  (chamados), permissão granular por ação além de visibilidade de módulo.
 
 ---
 
@@ -90,18 +126,20 @@ contraste.
 
 ## Rodando
 
+Requer **Node 22.5+** (usa `node:sqlite`, embutido no Node — sem instalação extra).
+
 ```bash
 npm install
-cp .env.example .env    # preencha NOMUS_API_KEY e NOMUS_MATRICULA
+cp .env.example .env    # preencha NOMUS_API_KEY, SESSION_SECRET, ADMIN_EMAIL_INICIAL/ADMIN_SENHA_INICIAL
 npm run build
-npm start               # http://localhost:3000
+npm start               # http://localhost:3000 — loga com o admin inicial e troque a senha
 ```
 
 Desenvolvimento (Vite + Express com reload):
 
 ```bash
 npm run dev             # front no :5173, backend no :3000
-npm test                # testes do resolver de código de barras e do kanban
+npm test                # testes do resolver de código de barras, kanban, login/usuários/avisos/documentos
 ```
 
 ### Testar sem tocar no ERP de produção
@@ -110,13 +148,13 @@ O repositório traz um **Nomus falso** com ordens, roteiro e atividades de menti
 
 ```bash
 node mock/nomus-fake.js                   # sobe em :4000
-# o .env que acompanha o projeto ja aponta para ele
+# aponte NOMUS_BASE_URL do seu .env pra http://localhost:4000/rest antes de subir
 npm start
 ```
 
 Ordens de teste: `12345`, `12346`, `99887`, `12350`, `12351`.
 Etapas: `10`=Corte, `20`=Pintura, `30`=Colagem, `40`=Expedição, `50`=Logística.
-Matrícula: `1234`.
+Matrícula de teste: `1234` (cadastre na tela de Usuários pro operador de teste).
 
 Para exercitar o throttling do Nomus (HTTP 429), suba o mock com `MOCK_THROTTLE=0.3`.
 Para simular um Nomus que ignora o filtro `?nomeOrdem`, use `MOCK_IGNORA_FILTRO=1`.
@@ -140,12 +178,14 @@ No EasyPanel, crie um serviço **App** (não Compose) apontando pro repositório
    variáveis vão na aba de Environment Variables do serviço, não em arquivo:
    - `NOMUS_API_KEY` (ou `NOMUS_USUARIO_SENHA`)
    - `NOMUS_BASE_URL`
-   - `NOMUS_MATRICULA`
    - `NOMUS_ATIVIDADE_PADRAO` (opcional, mas recomendado — ver seção de Configuração)
+   - `SESSION_SECRET` (obrigatório — gere com `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
+   - `ADMIN_EMAIL_INICIAL` / `ADMIN_SENHA_INICIAL` (só têm efeito no 1º boot, pra criar o admin)
 4. **Volume persistente — obrigatório**: monte um volume em `/app/dados`. É a ÚNICA cópia
-   dos apontamentos **em andamento** (quem começou mas ainda não finalizou) e do cache do
-   Nomus — sem volume, todo redeploy apaga apontamentos abertos e força uma varredura
-   completa fria do Nomus (ver [Cache](#cache-persistido-em-disco-nunca-bloqueia-por-um-restart)
+   dos apontamentos **em andamento** (quem começou mas ainda não finalizou), do cache do
+   Nomus **e agora também do banco da intranet** (`intranet.db` — usuários, papéis, avisos,
+   documentos) — sem volume, todo redeploy apaga tudo isso, inclusive as contas cadastradas
+   (ver [Cache](#cache-persistido-em-disco-nunca-bloqueia-por-um-restart)
    e o incidente de avalanche de 429 documentado ali). A pasta é criada sozinha na primeira
    escrita, não precisa existir de antemão no volume.
 5. Depois do primeiro deploy, rode o [diagnóstico](#antes-de-apontar-uma-ordem-de-verdade-rode-o-diagnóstico)
@@ -160,19 +200,23 @@ Tudo em `.env` (veja `.env.example` para a lista completa):
 | Variável | Obrigatória | O que faz |
 |---|---|---|
 | `NOMUS_API_KEY` | sim¹ | chave Base64 de integração. **Nunca chega ao browser** |
-| `NOMUS_MATRICULA` | sim | matrícula do operador do terminal (não há tela de login) |
+| `SESSION_SECRET` | sim | assina o cookie de sessão da intranet — trocar derruba todo login |
+| `ADMIN_EMAIL_INICIAL` / `ADMIN_SENHA_INICIAL` | só no 1º boot | cria o admin inicial se não houver nenhum usuário ainda |
 | `NOMUS_BASE_URL` | não | padrão: a URL de produção da Constelha |
+| `NOMUS_MATRICULA` | não | só fallback pra dev/mock — cada operador tem a própria matrícula (aba Usuários) |
 | `NOMUS_ATIVIDADE_PADRAO` | não | atividade padrão **por nome** (ex.: `Producao`) |
 | `NOMUS_ATIVIDADES_PARADA` | não | quais atividades são motivo de parada (ver abaixo) |
 | `NOMUS_ENDPOINT_ORDENS` | não | de onde vem o número do pedido (ver abaixo) |
 | `ARQUIVO_ANDAMENTO` | não | onde ficam os apontamentos em andamento (**faça backup**) |
+| `ARQUIVO_DB` | não | banco da intranet — usuários/papéis/avisos/documentos (**faça backup**) |
+| `ARQUIVO_DOCUMENTOS_DIR` | não | onde os arquivos do módulo Documentos são gravados |
 
 ¹ ou `NOMUS_USUARIO_SENHA` no formato `usuario:senha`.
 
-**Não existe configuração de recurso.** O terminal é único e aponta as ordens de todos os
-setores, então o recurso sai do **centro de trabalho da etapa lida** — quem digita é sempre
-a mesma pessoa, mas onde o trabalho aconteceu muda a cada leitura, e é isso que o Nomus
-grava em `idRecurso`. A resolução é sempre automática: o operador nunca escolhe máquina.
+**Não existe configuração de recurso.** O terminal aponta as ordens de todos os setores,
+então o recurso sai do **centro de trabalho da etapa lida** — quem digita muda a cada
+leitura, mas onde o trabalho aconteceu é o que o Nomus grava em `idRecurso`. A resolução é
+sempre automática: o operador nunca escolhe máquina.
 
 Se um centro de trabalho tiver mais de um recurso, o apontamento cai no primeiro ativo
 (ordenado por id, para ser sempre o mesmo) e o log avisa uma vez. Se algum dia for preciso
@@ -316,8 +360,9 @@ grava).
 
 - **Sem Nomus, não dá para iniciar processo novo**: a leitura precisa resolver a ordem
   contra o ERP. O que já está em andamento não se perde.
-- **Um terminal, um operador** (`NOMUS_MATRICULA`) — o departamento de apontamento. Vários
-  operadores no mesmo terminal exigiriam login por matrícula.
+- **Cada operador precisa da própria conta com `matricula_nomus` cadastrada** (aba
+  Usuários) antes de conseguir apontar — sem isso o Iniciar falha com um erro claro
+  (`SEM_MATRICULA`) em vez de usar a matrícula de outra pessoa.
 - **Uma varredura completa de `/operacoesRoteiroOrdem` ou `/apontamentos` pode levar dezenas
   de segundos** (paginação real, 50 por página) — por isso o cache dessas listas tem TTL de
   3 minutos (`CACHE_TTL_MS`), não segundos.
