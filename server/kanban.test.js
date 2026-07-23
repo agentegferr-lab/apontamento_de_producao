@@ -239,3 +239,16 @@ test('ordens diferentes aparecem em colunas diferentes conforme seu proprio avan
   assert.equal(cardDe(k, 'Corte').nomeOrdem, 'OS-1')
   assert.equal(cardDe(k, 'Pintura').nomeOrdem, 'OS-2')
 })
+
+test('filaAguardando vem ordenada da mais antiga pra mais nova (por idOrdem, nao pela ordem de chegada da API)', () => {
+  const operacoes = [
+    { id: 21, idOrdem: 700, nomeOrdem: 'OS-NOVA', operacao: '10', centroTrabalhoPlanejado: 'Corte' },
+    { id: 22, idOrdem: 500, nomeOrdem: 'OS-ANTIGA', operacao: '10', centroTrabalhoPlanejado: 'Corte' },
+    { id: 23, idOrdem: 600, nomeOrdem: 'OS-MEIO', operacao: '10', centroTrabalhoPlanejado: 'Corte' },
+  ]
+  const k = montarKanban({ operacoes, apontamentos: [], emAndamento: [] })
+  assert.deepEqual(
+    k.filaAguardando.map((c) => c.nomeOrdem),
+    ['OS-ANTIGA', 'OS-MEIO', 'OS-NOVA'],
+  )
+})
