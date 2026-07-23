@@ -13,13 +13,10 @@
     "test": "node --test server/*.test.js"
   },
   "dependencies": {
-    "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "multer": "^2.2.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^7.18.1"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
@@ -27,6 +24,6 @@
     "vite": "^6.0.7"
   },
   "engines": {
-    "node": ">=22.5"
+    "node": ">=20"
   }
 }

@@ -51,29 +51,9 @@ export const config = {
     )
   },
 
-  /**
-   * So usado como fallback em dev/mock (ver server/index.js) quando o operador logado nao
-   * tem matricula_nomus cadastrada ainda. Em producao cada operador tem a propria matricula
-   * no cadastro de usuario da intranet (ver server/usuarios.js) — nao existe mais "o"
-   * funcionario fixo do terminal.
-   */
-  get matriculaFallback() {
-    return process.env.NOMUS_MATRICULA?.trim() || null
-  },
-
-  // --- Intranet (login) ---------------------------------------------------------------
-  get sessionSecret() {
-    return obrigatorio('SESSION_SECRET')
-  },
-  // Duracao da sessao — padrao cobre um turno de 12h sem pedir login de novo no meio.
-  get sessaoDuracaoHoras() {
-    return num('SESSAO_DURACAO_HORAS', 12)
-  },
-  get adminEmailInicial() {
-    return process.env.ADMIN_EMAIL_INICIAL?.trim() || null
-  },
-  get adminSenhaInicial() {
-    return process.env.ADMIN_SENHA_INICIAL?.trim() || null
+  // Terminal: um funcionario fixo por maquina, sem tela de login.
+  get matricula() {
+    return obrigatorio('NOMUS_MATRICULA')
   },
 
   /**
@@ -144,7 +124,7 @@ export const config = {
 
 /** Chamado no boot: toca em todo campo obrigatorio pra derrubar o processo agora, nao na 1a leitura de codigo. */
 export function validarConfig() {
-  const campos = ['porta', 'baseUrl', 'credencialBasic', 'sessionSecret', 'cacheTtlMs', 'timeoutMs']
+  const campos = ['porta', 'baseUrl', 'credencialBasic', 'matricula', 'cacheTtlMs', 'timeoutMs']
   const problemas = []
   for (const campo of campos) {
     try {

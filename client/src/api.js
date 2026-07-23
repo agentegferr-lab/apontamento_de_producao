@@ -18,8 +18,7 @@ async function chamar(caminho, opcoes = {}) {
   try {
     resposta = await fetch(caminho, {
       ...opcoes,
-      credentials: 'include', // manda o cookie de sessao (ver server/auth.js)
-      headers: opcoes.semJson ? opcoes.headers : { 'Content-Type': 'application/json', ...opcoes.headers },
+      headers: { 'Content-Type': 'application/json', ...opcoes.headers },
     })
   } catch {
     throw new ApiError('Sem conexao com o servidor do terminal.', { status: 0 })
@@ -67,44 +66,4 @@ export const api = {
   sugerirPlanejamento: (dados) =>
     chamar('/api/planejamento/sugestao', { method: 'POST', body: JSON.stringify(dados) }),
   ocultarPedido: (pedido) => chamar('/api/pedidos-ocultos', { method: 'POST', body: JSON.stringify({ pedido }) }),
-
-  // --- Intranet ------------------------------------------------------------------------
-  auth: {
-    login: (email, senha) => chamar('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, senha }) }),
-    logout: () => chamar('/api/auth/logout', { method: 'POST' }),
-    eu: () => chamar('/api/auth/eu'),
-  },
-
-  usuarios: {
-    listar: () => chamar('/api/usuarios'),
-    criar: (dados) => chamar('/api/usuarios', { method: 'POST', body: JSON.stringify(dados) }),
-    atualizar: (id, dados) =>
-      chamar(`/api/usuarios/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(dados) }),
-  },
-
-  papeis: {
-    listar: () => chamar('/api/papeis'),
-    atualizarModulos: (id, modulos) =>
-      chamar(`/api/papeis/${encodeURIComponent(id)}/modulos`, { method: 'PATCH', body: JSON.stringify({ modulos }) }),
-  },
-
-  diretorio: () => chamar('/api/diretorio'),
-
-  avisos: {
-    listar: () => chamar('/api/avisos'),
-    criar: (dados) => chamar('/api/avisos', { method: 'POST', body: JSON.stringify(dados) }),
-    remover: (id) => chamar(`/api/avisos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  },
-
-  documentos: {
-    listar: () => chamar('/api/documentos'),
-    enviar: (arquivo, pasta) => {
-      const form = new FormData()
-      form.append('arquivo', arquivo)
-      if (pasta) form.append('pasta', pasta)
-      return chamar('/api/documentos', { method: 'POST', body: form, semJson: true })
-    },
-    remover: (id) => chamar(`/api/documentos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-    urlArquivo: (id) => `/api/documentos/${encodeURIComponent(id)}/arquivo`,
-  },
 }
