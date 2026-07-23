@@ -223,6 +223,10 @@ export function montarKanban({
     }
   }
 
+  // Mais antiga primeiro: `idOrdem` e o id interno do Nomus, atribuido em sequencia na
+  // criacao da ordem — mais confiavel que nomeOrdem (texto) pra ordenar por idade real.
+  filaAguardando.sort((a, b) => a.idOrdem - b.idOrdem)
+
   const ordemDasColunas = ordenarColunas(operacoes)
   const colunas = ordemDasColunas.map((nome) => ({
     nome,
