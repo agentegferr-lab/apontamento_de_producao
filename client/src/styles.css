@@ -594,6 +594,31 @@ body {
   font-size: 13px;
 }
 
+/* "Mudar programação" dentro do modal de detalhes (ver ModalDetalheCard.jsx) — so em cards
+   ja agendados no Planejamento. */
+.detalhes__linha--reagendar {
+  align-items: center;
+}
+.detalhes__reagendar-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.detalhes__reagendar-campo {
+  height: 38px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+.detalhes__reagendar-campo:focus {
+  outline: none;
+  border-color: var(--preto);
+  box-shadow: 0 0 0 3px var(--amarelo);
+}
+
 /* --- kanban ------------------------------------------------------------------------- */
 .kanban {
   flex: 1;
