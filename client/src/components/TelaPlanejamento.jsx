@@ -214,7 +214,21 @@ export default function TelaPlanejamento() {
     // `materiais` so existe no retrato (ver /api/planejamento, server/materiais.js) — o card
     // vivo vem do kanban, que nao explode a BOM. Sem isto o modal buscaria de novo por api,
     // em vez de reaproveitar o que /api/planejamento ja calculou.
-    setDetalhe({ card: { ...(vivo ?? item), materiais: item.materiais }, extra })
+    // `planejamentoId` e o `id` do REGISTRO de planejamento (nao o idOperacaoOrdem) — e o que
+    // moverDetalhePlanejado usa pra reagendar; card.id nao serve pois some quando `vivo` existe.
+    setDetalhe({ card: { ...(vivo ?? item), materiais: item.materiais }, extra, planejamentoId: item.id, data: item.data })
+  }
+
+  // "Mudar programação" dentro do modal de detalhes — mesma chamada do drag-and-drop
+  // (soltarEmDia), so que disparada pelo formulario do modal em vez de um drop.
+  async function moverDetalhePlanejado(id, novaData) {
+    try {
+      const atualizado = await api.moverPlanejado(id, novaData)
+      setPlano((p) => p.map((x) => (x.id === id ? atualizado : x)))
+      setDetalhe(null)
+    } catch (e) {
+      setErro(e.message)
+    }
   }
 
   // Clicar numa ordem dentro do modal do dia inteiro troca pro modal de detalhe daquela
@@ -609,6 +623,10 @@ export default function TelaPlanejamento() {
         agora={agora}
         extra={detalhe?.extra}
         mostrarValor
+        dataPlanejada={detalhe?.data}
+        onMudarDia={
+          detalhe?.planejamentoId ? (novaData) => moverDetalhePlanejado(detalhe.planejamentoId, novaData) : undefined
+        }
         onFechar={() => setDetalhe(null)}
       />
       <ModalDetalheDia

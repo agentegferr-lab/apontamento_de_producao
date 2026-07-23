@@ -15,10 +15,25 @@ import { api } from '../api.js'
  *
  * `onOcultarPedido`: so o Acompanhamento passa isto (ver TelaKanban.jsx) — oculta o pedido
  * inteiro do kanban (ver server/pedidosOcultos.js). Ausente no Planejamento de proposito.
+ *
+ * `onMudarDia`/`dataPlanejada`: so o Planejamento passa isto, e so pra card ja agendado (ver
+ * TelaPlanejamento.jsx, abrirDetalhePlanejado) — reagenda sem precisar fechar o modal e
+ * arrastar o card na grade. Ausente na fila (ainda nao tem dia) e no Acompanhamento.
  */
-export default function ModalDetalheCard({ card, agora, extra, mostrarValor = false, onOcultarPedido, onFechar }) {
+export default function ModalDetalheCard({
+  card,
+  agora,
+  extra,
+  mostrarValor = false,
+  onOcultarPedido,
+  onMudarDia,
+  dataPlanejada,
+  onFechar,
+}) {
   // undefined = ainda nao se sabe, null = sem idProduto (nunca vai ter), [] = veio vazio de verdade.
   const [materiais, setMateriais] = useState(undefined)
+  const [reagendando, setReagendando] = useState(false)
+  const [novaData, setNovaData] = useState('')
 
   useEffect(() => {
     // Itens do Planejamento (ver /api/planejamento, server/materiais.js) ja vem prontos —
@@ -41,6 +56,13 @@ export default function ModalDetalheCard({ card, agora, extra, mostrarValor = fa
       cancelado = true
     }
   }, [card])
+
+  // Fecha o mini-calendario e reparte a data sempre que um card DIFERENTE for aberto — sem
+  // isso, o formulario ficaria aberto (ou com a data velha) ao trocar de card sem fechar.
+  useEffect(() => {
+    setReagendando(false)
+    setNovaData(dataPlanejada ?? '')
+  }, [card, dataPlanejada])
 
   if (!card) return null
   const temStatusProducao = card.status in ROTULO_STATUS
@@ -152,6 +174,44 @@ export default function ModalDetalheCard({ card, agora, extra, mostrarValor = fa
             </div>
           )}
           {extra}
+          {onMudarDia && (
+            <div className="detalhes__linha detalhes__linha--reagendar">
+              <dt className="detalhes__rotulo">Reagendar</dt>
+              <dd>
+                {reagendando ? (
+                  <form
+                    className="detalhes__reagendar-form"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      if (novaData) onMudarDia(novaData)
+                    }}
+                  >
+                    <input
+                      type="date"
+                      className="detalhes__reagendar-campo"
+                      value={novaData}
+                      onChange={(e) => setNovaData(e.target.value)}
+                      autoFocus
+                    />
+                    <button type="submit" className="botao botao--iniciar botao--pequeno" disabled={!novaData}>
+                      Mover
+                    </button>
+                    <button
+                      type="button"
+                      className="botao botao--neutro botao--pequeno"
+                      onClick={() => setReagendando(false)}
+                    >
+                      Cancelar
+                    </button>
+                  </form>
+                ) : (
+                  <button className="botao botao--neutro botao--pequeno" onClick={() => setReagendando(true)}>
+                    Mudar programação
+                  </button>
+                )}
+              </dd>
+            </div>
+          )}
           <div className="detalhes__linha">
             <dt className="detalhes__rotulo">Id interno (ordem / operação)</dt>
             <dd className="detalhes__mono">
