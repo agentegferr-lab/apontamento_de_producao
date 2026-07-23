@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import ModalDetalheCard from './ModalDetalheCard.jsx'
 import ModalDetalheDia from './ModalDetalheDia.jsx'
@@ -48,6 +48,9 @@ export default function TelaPlanejamento() {
   const [ideiaTexto, setIdeiaTexto] = useState('')
   const [sugerindo, setSugerindo] = useState(false)
   const [sugestaoIA, setSugestaoIA] = useState(null) // { resumo, sugestoes } vindo do servidor
+  const [buscaAgendada, setBuscaAgendada] = useState('') // acha uma OS JA no calendario (diferente da busca da fila acima)
+  const [diaEmDestaque, setDiaEmDestaque] = useState(null) // chave do dia (AAAA-MM-DD) pra piscar depois de "ir pra la"
+  const destaqueTimeoutRef = useRef(null)
   const [aplicandoSugestao, setAplicandoSugestao] = useState(false)
 
   const carregar = useCallback(async () => {
@@ -100,6 +103,36 @@ export default function TelaPlanejamento() {
     }
     return mapa
   }, [plano])
+
+  // Acha uma OS que JA esta no calendario (a busca da fila acima nunca encontra estas, de
+  // proposito — ver o filtro de idsPlanejados na fila). Ordenado por data: quem tem a mesma
+  // OS em vários dias (raro, mas possível) ve a mais próxima primeiro.
+  const resultadosAgendados = useMemo(() => {
+    const alvo = buscaAgendada.trim().toLowerCase()
+    if (!alvo) return []
+    return plano
+      .filter(
+        (item) =>
+          item.nomeOrdem?.toLowerCase().includes(alvo) ||
+          item.pedido?.toLowerCase().includes(alvo) ||
+          item.produto?.toLowerCase().includes(alvo),
+      )
+      .sort((a, b) => a.data.localeCompare(b.data))
+      .slice(0, 20)
+  }, [plano, buscaAgendada])
+
+  // Pula pro mes do item e pisca o dia por alguns segundos — sem isso, achar a OS na busca
+  // nao adianta muito se ela estiver num mes diferente do que a grade esta mostrando agora.
+  function irParaAgendado(item) {
+    const [ano, mes] = item.data.split('-').map(Number)
+    setMesAtual({ ano, mes: mes - 1 })
+    setDiaEmDestaque(item.data)
+    setBuscaAgendada('')
+    clearTimeout(destaqueTimeoutRef.current)
+    destaqueTimeoutRef.current = setTimeout(() => setDiaEmDestaque(null), 4000)
+  }
+
+  useEffect(() => () => clearTimeout(destaqueTimeoutRef.current), [])
 
   // Filtra quais ordens JA AGENDADAS aparecem na grade — a chave do dia e AAAA-MM-DD,
   // entao comparar como texto basta (ordena igual a data). So esconde da GRADE: clicar no
@@ -405,6 +438,37 @@ export default function TelaPlanejamento() {
         </p>
       )}
 
+      <div className="planejamento__busca-agendada">
+        <input
+          className="modal__campo planejamento__busca-agendada-campo"
+          type="text"
+          placeholder="Buscar OS já agendada no calendário..."
+          value={buscaAgendada}
+          onChange={(e) => setBuscaAgendada(e.target.value)}
+        />
+        {buscaAgendada.trim() && (
+          <div className="planejamento__busca-agendada-resultados">
+            {resultadosAgendados.length === 0 ? (
+              <p className="planejamento__busca-agendada-vazio">
+                Nenhuma ordem já agendada bate com isso — talvez ainda esteja na fila "Aguardando 1º processo".
+              </p>
+            ) : (
+              resultadosAgendados.map((item) => (
+                <button
+                  key={item.id}
+                  className="planejamento__busca-agendada-item"
+                  onClick={() => irParaAgendado(item)}
+                >
+                  <strong>{item.nomeOrdem}</strong>
+                  <span>{formatarDataBr(item.data)}</span>
+                  {item.produto && <small>{item.produto}</small>}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="planejamento__corpo">
         <aside
           className={`planejamento__fila ${arrastando?.tipo === 'planejado' ? 'planejamento__fila--alvo' : ''}`}
@@ -475,6 +539,7 @@ export default function TelaPlanejamento() {
                   !doMes && 'planejamento__dia--fora',
                   chave === chaveHoje && 'planejamento__dia--hoje',
                   diaSobre === chave && 'planejamento__dia--alvo',
+                  diaEmDestaque === chave && 'planejamento__dia--destaque',
                   filtroAtivo && !dentroDoFiltro && 'planejamento__dia--filtrado-fora',
                 ]
                   .filter(Boolean)

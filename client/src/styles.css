@@ -998,6 +998,68 @@ body {
   color: var(--tinta-fraca);
 }
 
+/* Busca uma OS que JA esta no calendario — diferente da busca da fila (aguardando 1o
+   processo): esta procura em `plano`, e o resultado pula pro mes certo e pisca o dia. */
+.planejamento__busca-agendada {
+  position: relative;
+  flex-shrink: 0;
+  width: min(420px, 100%);
+  margin-bottom: 12px;
+}
+.planejamento__busca-agendada-campo {
+  width: 100%;
+}
+.planejamento__busca-agendada-resultados {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+.planejamento__busca-agendada-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--tinta);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--linha);
+  cursor: pointer;
+}
+.planejamento__busca-agendada-item:last-child {
+  border-bottom: none;
+}
+.planejamento__busca-agendada-item:hover {
+  background: var(--amarelo-tenue);
+}
+.planejamento__busca-agendada-item span {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--tinta-fraca);
+  font-weight: 700;
+}
+.planejamento__busca-agendada-item small {
+  flex-basis: 100%;
+  color: var(--tinta-tenue);
+}
+.planejamento__busca-agendada-vazio {
+  margin: 0;
+  padding: 12px 14px;
+  color: var(--tinta-fraca);
+  font-size: 13px;
+}
+
 .planejamento__corpo {
   flex: 1;
   min-height: 0;
@@ -1144,6 +1206,22 @@ body {
 .planejamento__dia--alvo {
   border-color: var(--verde);
   background: var(--verde-claro);
+}
+/* Pisca por alguns segundos depois de escolher um resultado na busca de OS agendada —
+   ver TelaPlanejamento.jsx, irParaAgendado(). */
+.planejamento__dia--destaque {
+  border-color: var(--amarelo-escuro);
+  border-width: 2px;
+  box-shadow: 0 0 0 3px var(--amarelo);
+  animation: planejamento-piscar 1s ease-in-out 2;
+}
+@keyframes planejamento-piscar {
+  0%, 100% {
+    background: var(--papel);
+  }
+  50% {
+    background: var(--amarelo-tenue);
+  }
 }
 .planejamento__numero-dia {
   flex-shrink: 0;
