@@ -3,9 +3,11 @@ import { api } from '../api.js'
 import ModalDetalheCard from './ModalDetalheCard.jsx'
 import ModalDetalheDia from './ModalDetalheDia.jsx'
 import RelatorioImpressao from './RelatorioImpressao.jsx'
+import ModalImprimir from './ModalImprimir.jsx'
 import ModalSugestaoIA from './ModalSugestaoIA.jsx'
-import { formatarNumeroBr, formatarMoedaBr } from '../numero.js'
-import { agruparMaterial, formatarDataBr } from '../planejamentoCampos.js'
+import ModalGerarSugestao from './ModalGerarSugestao.jsx'
+import { formatarMoedaBr } from '../numero.js'
+import { formatarDataBr } from '../planejamentoCampos.js'
 
 const NOMES_MES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -42,10 +44,11 @@ export default function TelaPlanejamento() {
   const [diaSobre, setDiaSobre] = useState(null) // chave do dia com highlight de drop
   const [agora, setAgora] = useState(() => new Date())
   const [detalhe, setDetalhe] = useState(null) // { card, extra } pro modal de detalhes
-  const [modo, setModo] = useState('cards') // 'cards' | 'material'
   const [diaDetalhe, setDiaDetalhe] = useState(null) // chave do dia (AAAA-MM-DD) pro modal do dia inteiro
-  const [filtroPeriodo, setFiltroPeriodo] = useState({ inicio: '', fim: '' }) // filtra as ordens JA agendadas
-  const [ideiaTexto, setIdeiaTexto] = useState('')
+  const [imprimindo, setImprimindo] = useState(false) // abre o modal de escolher o periodo
+  const [periodoImpressao, setPeriodoImpressao] = useState({ inicio: '', fim: '' }) // o que RelatorioImpressao usa
+  const deveImprimirRef = useRef(false) // arma o print pro proximo commit — ver useEffect abaixo
+  const [pedindoSugestao, setPedindoSugestao] = useState(false) // abre o modal de objetivo/periodo
   const [sugerindo, setSugerindo] = useState(false)
   const [sugestaoIA, setSugestaoIA] = useState(null) // { resumo, sugestoes } vindo do servidor
   const [buscaAgendada, setBuscaAgendada] = useState('') // acha uma OS JA no calendario (diferente da busca da fila acima)
@@ -134,16 +137,16 @@ export default function TelaPlanejamento() {
 
   useEffect(() => () => clearTimeout(destaqueTimeoutRef.current), [])
 
-  // Filtra quais ordens JA AGENDADAS aparecem na grade — a chave do dia e AAAA-MM-DD,
-  // entao comparar como texto basta (ordena igual a data). So esconde da GRADE: clicar no
-  // dia (ModalDetalheDia) sempre mostra o conteudo real, filtrado ou nao, pra nao confundir
-  // "nao ha nada aqui" com "isto esta escondido pelo filtro".
-  const filtroAtivo = Boolean(filtroPeriodo.inicio || filtroPeriodo.fim)
-  const dentroDoPeriodo = useCallback(
-    (chave) =>
-      (!filtroPeriodo.inicio || chave >= filtroPeriodo.inicio) && (!filtroPeriodo.fim || chave <= filtroPeriodo.fim),
-    [filtroPeriodo],
-  )
+  // window.print() precisa rodar SO depois que o DOM ja reflete o `periodoImpressao` novo
+  // (RelatorioImpressao.jsx re-renderiza via itensRelatorio, que depende dele) — chamar print
+  // no mesmo handler que muda o estado imprimiria o periodo ANTERIOR, porque o React so
+  // aplica a mudanca depois que o handler termina. O ref arma o disparo so quando quem pediu
+  // foi handleImprimir (nao no primeiro render nem em qualquer outra mudanca de estado).
+  useEffect(() => {
+    if (!deveImprimirRef.current) return
+    deveImprimirRef.current = false
+    window.print()
+  }, [periodoImpressao])
 
   // idOperacaoOrdem -> card completo (com status de producao), pra abrir o modal de
   // detalhes de um item ja agendado com informacao atualizada quando disponivel — o
@@ -189,19 +192,27 @@ export default function TelaPlanejamento() {
     return ''
   }
 
-  // Pro relatorio de impressao: TODAS as ordens planejadas dentro do periodo filtrado,
-  // nao so as do mes visivel no momento — o filtro de periodo pode cobrir mais de um mes.
-  const itensRelatorio = useMemo(
-    () => plano.filter((item) => dentroDoPeriodo(item.data)).sort((a, b) => a.data.localeCompare(b.data)),
-    [plano, dentroDoPeriodo],
-  )
-  const periodoLabel = filtroPeriodo.inicio && filtroPeriodo.fim
-    ? `Período: ${formatarDataBr(filtroPeriodo.inicio)} até ${formatarDataBr(filtroPeriodo.fim)}`
-    : filtroPeriodo.inicio
-      ? `A partir de ${formatarDataBr(filtroPeriodo.inicio)}`
-      : filtroPeriodo.fim
-        ? `Até ${formatarDataBr(filtroPeriodo.fim)}`
+  // Pro relatorio de impressao: TODAS as ordens planejadas dentro do periodo escolhido no
+  // modal de imprimir, nao so as do mes visivel no momento — ver handleImprimir abaixo.
+  const itensRelatorio = useMemo(() => {
+    const { inicio, fim } = periodoImpressao
+    return plano
+      .filter((item) => (!inicio || item.data >= inicio) && (!fim || item.data <= fim))
+      .sort((a, b) => a.data.localeCompare(b.data))
+  }, [plano, periodoImpressao])
+  const periodoLabel = periodoImpressao.inicio && periodoImpressao.fim
+    ? `Período: ${formatarDataBr(periodoImpressao.inicio)} até ${formatarDataBr(periodoImpressao.fim)}`
+    : periodoImpressao.inicio
+      ? `A partir de ${formatarDataBr(periodoImpressao.inicio)}`
+      : periodoImpressao.fim
+        ? `Até ${formatarDataBr(periodoImpressao.fim)}`
         : 'Todas as ordens planejadas'
+
+  function handleImprimir(periodo) {
+    deveImprimirRef.current = true
+    setPeriodoImpressao(periodo)
+    setImprimindo(false)
+  }
 
   function abrirDetalheDaFila(card) {
     setDetalhe({ card, extra: null })
@@ -325,17 +336,14 @@ export default function TelaPlanejamento() {
 
   // Pede pro servidor (ver server/ia.js) uma sugestao de quais ordens do backlog agendar
   // pra atender o objetivo em texto livre — NUNCA agenda nada sozinha, so devolve um
-  // rascunho pro ModalSugestaoIA mostrar. Usa o mesmo periodo do filtro acima como janela.
-  async function gerarSugestao() {
+  // rascunho pro ModalSugestaoIA mostrar. objetivo/periodo vem do ModalGerarSugestao.
+  async function gerarSugestao({ objetivo, dataInicio, dataFim }) {
     setSugerindo(true)
     setErro(null)
     try {
-      const resultado = await api.sugerirPlanejamento({
-        objetivo: ideiaTexto,
-        dataInicio: filtroPeriodo.inicio,
-        dataFim: filtroPeriodo.fim,
-      })
+      const resultado = await api.sugerirPlanejamento({ objetivo, dataInicio, dataFim })
       setSugestaoIA(resultado)
+      setPedindoSugestao(false)
     } catch (e) {
       setErro(e.message)
     } finally {
@@ -384,12 +392,6 @@ export default function TelaPlanejamento() {
           </p>
         </div>
         <div className="planejamento__navegacao">
-          <button
-            className={`botao botao--pequeno ${modo === 'material' ? 'botao--ativo' : 'botao--neutro'}`}
-            onClick={() => setModo((m) => (m === 'cards' ? 'material' : 'cards'))}
-          >
-            {modo === 'material' ? 'Ver ordens' : 'Ver material do dia'}
-          </button>
           <button className="botao botao--neutro botao--pequeno" onClick={() => mudarMes(-1)}>
             ‹
           </button>
@@ -405,60 +407,13 @@ export default function TelaPlanejamento() {
           <button className="botao botao--neutro botao--pequeno" onClick={carregar} disabled={carregando}>
             {carregando ? 'Atualizando...' : 'Atualizar'}
           </button>
-        </div>
-      </div>
-
-      <div className="planejamento__filtro">
-        <label className="planejamento__filtro-rotulo" htmlFor="planejamento-filtro-inicio">
-          Período
-        </label>
-        <input
-          id="planejamento-filtro-inicio"
-          className="planejamento__filtro-data"
-          type="date"
-          value={filtroPeriodo.inicio}
-          onChange={(e) => setFiltroPeriodo((f) => ({ ...f, inicio: e.target.value }))}
-        />
-        <span>até</span>
-        <input
-          className="planejamento__filtro-data"
-          type="date"
-          value={filtroPeriodo.fim}
-          onChange={(e) => setFiltroPeriodo((f) => ({ ...f, fim: e.target.value }))}
-        />
-        {filtroAtivo && (
-          <button
-            className="botao botao--neutro botao--pequeno"
-            onClick={() => setFiltroPeriodo({ inicio: '', fim: '' })}
-          >
-            Limpar filtro
+          <button className="botao botao--neutro botao--pequeno" onClick={() => setImprimindo(true)}>
+            Imprimir relatório
           </button>
-        )}
-        <button className="botao botao--neutro botao--pequeno" onClick={() => window.print()}>
-          Imprimir relatório
-        </button>
-
-        <label className="planejamento__filtro-rotulo planejamento__filtro-rotulo--ideia" htmlFor="planejamento-ideia">
-          Ideia de planejamento
-        </label>
-        <textarea
-          id="planejamento-ideia"
-          className="planejamento__ia-campo"
-          rows={1}
-          placeholder='Ex.: "planejar a semana pra faturar R$ 50.000" ou "priorizar os pedidos mais antigos"'
-          value={ideiaTexto}
-          onChange={(e) => setIdeiaTexto(e.target.value)}
-        />
-        <button
-          className="botao botao--iniciar botao--pequeno"
-          onClick={gerarSugestao}
-          disabled={sugerindo || !ideiaTexto.trim() || !filtroPeriodo.inicio || !filtroPeriodo.fim}
-        >
-          {sugerindo ? 'Pensando...' : 'Gerar sugestão com IA'}
-        </button>
-        {(!filtroPeriodo.inicio || !filtroPeriodo.fim) && (
-          <p className="planejamento__ia-dica">Escolha o período (de/até) acima antes de gerar.</p>
-        )}
+          <button className="botao botao--iniciar botao--pequeno" onClick={() => setPedindoSugestao(true)}>
+            Gerar sugestão com IA
+          </button>
+        </div>
       </div>
 
       {erro && (
@@ -558,8 +513,7 @@ export default function TelaPlanejamento() {
           {dias.map((dia) => {
             const chave = chaveData(dia)
             const doMes = dia.getMonth() === mesAtual.mes
-            const dentroDoFiltro = dentroDoPeriodo(chave)
-            const itensDoDia = dentroDoFiltro ? (planoPorDia.get(chave) ?? []) : []
+            const itensDoDia = planoPorDia.get(chave) ?? []
             return (
               <div
                 key={chave}
@@ -569,7 +523,6 @@ export default function TelaPlanejamento() {
                   chave === chaveHoje && 'planejamento__dia--hoje',
                   diaSobre === chave && 'planejamento__dia--alvo',
                   diaEmDestaque === chave && 'planejamento__dia--destaque',
-                  filtroAtivo && !dentroDoFiltro && 'planejamento__dia--filtrado-fora',
                 ]
                   .filter(Boolean)
                   .join(' ')}
@@ -582,48 +535,31 @@ export default function TelaPlanejamento() {
                 onClick={() => setDiaDetalhe(chave)}
               >
                 <span className="planejamento__numero-dia">{dia.getDate()}</span>
-                {modo === 'cards' ? (
-                  <div className="planejamento__dia-cards">
-                    {itensDoDia.map((item) => (
-                      <article
-                        key={item.id}
-                        className={`planejamento-card planejamento-card--mini ${classeDoCard(item)}`}
-                        draggable
-                        onDragStart={() => setArrastando({ tipo: 'planejado', item })}
-                        onDragEnd={() => setArrastando(null)}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          abrirDetalhePlanejado(item)
-                        }}
-                        title={`${item.nomeOrdem}${item.produto ? ' · ' + item.produto : ''}`}
+                <div className="planejamento__dia-cards">
+                  {itensDoDia.map((item) => (
+                    <article
+                      key={item.id}
+                      className={`planejamento-card planejamento-card--mini ${classeDoCard(item)}`}
+                      draggable
+                      onDragStart={() => setArrastando({ tipo: 'planejado', item })}
+                      onDragEnd={() => setArrastando(null)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        abrirDetalhePlanejado(item)
+                      }}
+                      title={`${item.nomeOrdem}${item.produto ? ' · ' + item.produto : ''}`}
+                    >
+                      <span className="planejamento-card__os">{item.nomeOrdem}</span>
+                      <button
+                        className="planejamento-card__remover"
+                        onClick={(e) => removerCard(item, e)}
+                        aria-label={`Remover ${item.nomeOrdem} do planejamento`}
                       >
-                        <span className="planejamento-card__os">{item.nomeOrdem}</span>
-                        <button
-                          className="planejamento-card__remover"
-                          onClick={(e) => removerCard(item, e)}
-                          aria-label={`Remover ${item.nomeOrdem} do planejamento`}
-                        >
-                          ×
-                        </button>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="planejamento__dia-material">
-                    {agruparMaterial(itensDoDia).map((g) => (
-                      <p
-                        key={g.chave}
-                        className="planejamento__material-linha"
-                        title={`${g.produto} — ${formatarNumeroBr(g.quantidade)} ${g.unidadeMedida}`}
-                      >
-                        <span className="planejamento__material-qtd">{formatarNumeroBr(g.quantidade)}</span>
-                        <span className="planejamento__material-nome">
-                          {g.unidadeMedida} · {g.produto}
-                        </span>
-                      </p>
-                    ))}
-                  </div>
-                )}
+                        ×
+                      </button>
+                    </article>
+                  ))}
+                </div>
               </div>
             )
           })}
@@ -653,6 +589,14 @@ export default function TelaPlanejamento() {
         onRemoverItem={removerCard}
       />
       <RelatorioImpressao itens={itensRelatorio} periodoLabel={periodoLabel} />
+      {imprimindo && <ModalImprimir onImprimir={handleImprimir} onFechar={() => setImprimindo(false)} />}
+      {pedindoSugestao && (
+        <ModalGerarSugestao
+          gerando={sugerindo}
+          onGerar={gerarSugestao}
+          onFechar={() => setPedindoSugestao(false)}
+        />
+      )}
       {sugestaoIA && (
         <ModalSugestaoIA
           sugestao={sugestaoIA}
