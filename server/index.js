@@ -2,7 +2,7 @@ import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { config, validarConfig } from './config.js'
-import { nomus, NomusError } from './nomus.js'
+import { nomus, NomusError, ultimaAtualizacao, iniciarRefreshDeFundo } from './nomus.js'
 import { resolverOperacao, ResolucaoError } from './resolver.js'
 import { andamento, PRODUZINDO, PAUSADO } from './andamento.js'
 import { montarKanban } from './kanban.js'
@@ -439,11 +439,22 @@ async function montarQuadroAtual() {
   })
 }
 
+/**
+ * A data de "quando os dados foram buscados de verdade no Nomus" — NAO "agora", que
+ * mentiria sempre que o cache estivesse servindo um valor vencido (stale-while-revalidate,
+ * ver server/nomus.js). Pega a mais ANTIGA das duas fontes: se uma delas estiver atrasada,
+ * o quadro inteiro pode estar incompleto por causa dela.
+ */
+function dataDeAtualizacaoDoQuadro() {
+  const datas = [ultimaAtualizacao('operacoes:todas'), ultimaAtualizacao('apontamentos')].filter(Boolean)
+  return datas.length ? new Date(Math.min(...datas.map((d) => d.getTime()))) : new Date()
+}
+
 app.get(
   '/api/kanban',
   asyncRoute(async (_req, res) => {
     const quadro = await montarQuadroAtual()
-    res.json({ ...quadro, atualizadoEm: new Date().toISOString() })
+    res.json({ ...quadro, atualizadoEm: dataDeAtualizacaoDoQuadro().toISOString() })
   }),
 )
 
@@ -624,3 +635,5 @@ app.listen(config.porta, () => {
   console.log(`GFERRO — Apontamento de Producao em http://localhost:${config.porta}`)
   console.log(`Nomus: ${config.baseUrl} | matricula do terminal: ${config.matricula}`)
 })
+
+iniciarRefreshDeFundo()

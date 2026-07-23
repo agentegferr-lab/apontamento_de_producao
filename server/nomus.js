@@ -220,7 +220,9 @@ function persistirCache() {
       const paraGravar = {}
       for (const [chave, entrada] of cache.entries()) {
         // nunca grava a promise em voo/atualizacao de fundo, so o valor ja resolvido
-        if (entrada.valor !== undefined) paraGravar[chave] = { valor: entrada.valor, expiraEm: entrada.expiraEm }
+        if (entrada.valor !== undefined) {
+          paraGravar[chave] = { valor: entrada.valor, expiraEm: entrada.expiraEm, atualizadoEm: entrada.atualizadoEm }
+        }
       }
       fs.mkdirSync(path.dirname(ARQUIVO_CACHE), { recursive: true })
       const temporario = `${ARQUIVO_CACHE}.tmp`
@@ -245,7 +247,11 @@ async function comCache(chave, produtor, ttlMsOverride) {
     if (!entrada.atualizandoEmFundo) {
       const emFundo = produtor()
         .then((valor) => {
-          cache.set(chave, { valor, expiraEm: Date.now() + (ttlMsOverride ?? config.cacheTtlMs) })
+          cache.set(chave, {
+            valor,
+            expiraEm: Date.now() + (ttlMsOverride ?? config.cacheTtlMs),
+            atualizadoEm: Date.now(),
+          })
           persistirCache()
         })
         .catch((erro) => {
@@ -264,7 +270,11 @@ async function comCache(chave, produtor, ttlMsOverride) {
 
   const emVoo = produtor()
     .then((valor) => {
-      cache.set(chave, { valor, expiraEm: Date.now() + (ttlMsOverride ?? config.cacheTtlMs) })
+      cache.set(chave, {
+        valor,
+        expiraEm: Date.now() + (ttlMsOverride ?? config.cacheTtlMs),
+        atualizadoEm: Date.now(),
+      })
       persistirCache()
       return valor
     })
@@ -280,6 +290,17 @@ async function comCache(chave, produtor, ttlMsOverride) {
 export function limparCache() {
   cache.clear()
   persistirCache()
+}
+
+/**
+ * Quando "chave" foi buscada de verdade no Nomus pela ULTIMA vez com sucesso — nao quando
+ * alguem recebeu a resposta (que pode ter vindo do cache, na hora, mesmo com o dado velho).
+ * Usado pra mostrar uma data de atualizacao real na tela (ver /api/kanban em index.js) em
+ * vez de "agora", que mentiria sempre que o cache estivesse servindo um valor vencido.
+ */
+export function ultimaAtualizacao(chave) {
+  const entrada = cache.get(chave)
+  return entrada?.atualizadoEm ? new Date(entrada.atualizadoEm) : null
 }
 
 export const nomus = {
@@ -377,4 +398,29 @@ export const nomus = {
     cache.delete('apontamentos')
     return criado
   },
+}
+
+/**
+ * Mantem o roteiro/apontamentos completos tentando se atualizar sozinhos, independente de
+ * alguem estar com uma tela aberta. Precisa ser chamado explicitamente no boot do servidor
+ * (ver index.js) — NAO roda so por importar este modulo, pra nao disparar chamadas de rede
+ * de verdade (inclusive contra o Nomus real) so por causa de um `import` em teste.
+ *
+ * Por que isto existe: uma atualizacao de fundo pode falhar no meio (ex.: 429 numa
+ * varredura de 30+ paginas — ja aconteceu). Sem um agendamento proprio, essa tentativa so
+ * seria refeita na PROXIMA vez que uma pessoa abrisse o Acompanhamento/Planejamento depois
+ * do cache ja estar vencido de novo — num periodo de pouco uso (fim de turno, madrugada),
+ * o dado podia ficar parado por muito mais que CACHE_TTL_MS sem ninguem perceber (ver
+ * ultimaAtualizacao acima, exposta em /api/kanban pra tornar isto visivel).
+ * Cada chamada aqui e barata quando o cache ja esta fresco: comCache() so faz um fetch de
+ * verdade se estiver mesmo vencido. `.unref()` pra este timer nunca ser o motivo de o
+ * processo nao conseguir encerrar.
+ */
+export function iniciarRefreshDeFundo() {
+  const id = setInterval(() => {
+    nomus.todasOperacoes().catch(() => {}) // erro ja logado dentro de comCache()
+    nomus.apontamentos().catch(() => {})
+  }, config.refreshFundoIntervaloMs)
+  id.unref?.()
+  return id
 }

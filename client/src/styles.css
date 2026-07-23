@@ -1049,6 +1049,12 @@ body {
   border-color: var(--preto);
   box-shadow: 0 0 0 3px var(--amarelo);
 }
+.planejamento__fila-atualizado {
+  flex-shrink: 0;
+  margin: -4px 0 10px;
+  color: var(--tinta-tenue);
+  font-size: 11px;
+}
 .planejamento__fila-lista {
   flex: 1;
   min-height: 0;

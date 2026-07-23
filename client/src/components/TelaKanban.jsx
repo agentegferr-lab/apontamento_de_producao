@@ -39,7 +39,9 @@ export default function TelaKanban({ recarregarEm }) {
     try {
       const dados = await api.kanban()
       setQuadro(dados)
-      setAtualizadoEm(new Date())
+      // Data real da ultima busca no Nomus (ver server/index.js, dataDeAtualizacaoDoQuadro)
+      // — NAO "agora": o cache pode responder na hora mesmo servindo um valor vencido.
+      setAtualizadoEm(new Date(dados.atualizadoEm))
       setErro(null)
     } catch (e) {
       setErro(e.message)
@@ -50,6 +52,11 @@ export default function TelaKanban({ recarregarEm }) {
 
   useEffect(() => {
     carregar()
+    // Sozinho, sem precisar de F5 ou clicar em Atualizar — quem esta de olho no quadro (ou
+    // no Planejamento, ver TelaPlanejamento.jsx) ve uma ordem nova assim que ela entrar no
+    // cache do servidor, sem precisar lembrar de atualizar a tela.
+    const id = setInterval(carregar, 30_000)
+    return () => clearInterval(id)
   }, [recarregarEm])
 
   // Um tick pra tela toda; cada card calcula seu proprio decorrido.

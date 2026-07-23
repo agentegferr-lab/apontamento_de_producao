@@ -343,3 +343,27 @@ bom tempo. Duas correções:
    plano — só espera de verdade quando não há absolutamente nada em cache (o primeiro boot
    de todos). Um restart do terminal (queda de energia, deploy, reinício manual) nunca mais
    força a tela a esperar uma varredura inteira.
+
+### "Não encontrei uma ordem" — atualização de fundo, não só TTL (2026-07-23)
+
+Uma ordem recém-criada no Nomus pode não aparecer nem no Acompanhamento nem na fila do
+Planejamento, e a leitura do código de barras dela no terminal pode devolver "processo não
+encontrado" — os três dependem do mesmo cache paginado (`nomus.todasOperacoes()`).
+Investigando um caso real (OS 01621/01622/01623), duas coisas confirmadas:
+
+- **O rótulo "Última atualização" mentia.** Ele mostrava o instante em que o *navegador*
+  recebeu a resposta, não quando os dados foram de fato buscados no Nomus — o cache pode
+  responder na hora mesmo servindo um valor vencido. Agora `/api/kanban` devolve o
+  `atualizadoEm` real (`server/nomus.js`, `ultimaAtualizacao()`), e as telas usam esse valor
+  em vez de `new Date()` local.
+- **Uma atualização de fundo que falha (ex.: 429 no meio de uma varredura de 30+ páginas,
+  reproduzido ao investigar este caso) só era tentada de novo na próxima vez que alguém
+  abrisse a tela** depois do cache vencer de novo — em período de pouco uso, o dado podia
+  ficar parado por muito mais que `CACHE_TTL_MS`. Agora o servidor tenta se atualizar
+  sozinho a cada `REFRESH_FUNDO_INTERVALO_MS` (padrão 60s — `server/nomus.js`,
+  `iniciarRefreshDeFundo()`, chamada só no boot real do servidor, nunca em teste), e as
+  telas de Acompanhamento/Planejamento se atualizam sozinhas a cada 30s, sem precisar
+  clicar em "Atualizar".
+- **`CACHE_TTL_MS` continua em 3 minutos de propósito** — reduzir isso aumenta as chamadas
+  ao Nomus e o risco do avalanche de 429 acima. O refresh de fundo veio pra dar mais
+  resiliência dentro da mesma janela, não pra encurtá-la.

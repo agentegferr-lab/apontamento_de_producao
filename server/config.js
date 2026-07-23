@@ -95,6 +95,20 @@ export const config = {
   get cacheTtlMs() {
     return num('CACHE_TTL_MS', 180_000)
   },
+
+  /**
+   * De quanto em quanto tempo o servidor tenta atualizar sozinho, em segundo plano, o
+   * roteiro/apontamentos completos — INDEPENDENTE de alguem estar com a tela aberta. Sem
+   * isto, uma atualizacao de fundo que falhe (por causa de 429, por exemplo) so seria
+   * tentada de novo na proxima vez que alguem abrisse o Acompanhamento/Planejamento depois
+   * do cache vencer — podendo ficar parado por muito mais que CACHE_TTL_MS num periodo de
+   * pouco uso. Bem menor que CACHE_TTL_MS de proposito: comCache() so faz um fetch de
+   * verdade se o cache estiver mesmo vencido, entao chamar com mais frequencia que o TTL
+   * so custa uma checagem local, nunca uma chamada extra ao Nomus.
+   */
+  get refreshFundoIntervaloMs() {
+    return num('REFRESH_FUNDO_INTERVALO_MS', 60_000)
+  },
   get timeoutMs() {
     return num('NOMUS_TIMEOUT_MS', 20_000)
   },

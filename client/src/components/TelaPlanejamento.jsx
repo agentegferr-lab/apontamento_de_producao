@@ -66,6 +66,10 @@ export default function TelaPlanejamento() {
 
   useEffect(() => {
     carregar()
+    // Sozinho, sem precisar clicar em Atualizar — uma ordem nova (ou que mudou de status)
+    // aparece na fila/quadro assim que entrar no cache do servidor.
+    const id = setInterval(carregar, 30_000)
+    return () => clearInterval(id)
   }, [carregar])
 
   // So pro cronometro do modal de detalhes, quando o card clicado estiver em producao.
@@ -419,6 +423,14 @@ export default function TelaPlanejamento() {
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
           />
+          {quadro?.atualizadoEm && (
+            // Hora real da ultima busca no Nomus (ver server/index.js,
+            // dataDeAtualizacaoDoQuadro) — se estiver "atrasada", o dado pode estar
+            // incompleto (ex.: ordem criada recem-agora ainda nao entrou no cache).
+            <p className="planejamento__fila-atualizado">
+              Atualizado às {new Date(quadro.atualizadoEm).toLocaleTimeString('pt-BR')}
+            </p>
+          )}
           <div className="planejamento__fila-lista">
             {!quadro && <p className="coluna__vazia">Carregando...</p>}
             {quadro && fila.length === 0 && <p className="coluna__vazia">Nada aqui</p>}
