@@ -1053,6 +1053,7 @@ body {
   flex-shrink: 0;
   width: min(420px, 100%);
   margin-bottom: 12px;
+  margin-left: auto;
 }
 .planejamento__busca-agendada-campo {
   width: 100%;
