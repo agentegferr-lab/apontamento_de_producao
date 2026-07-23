@@ -211,7 +211,10 @@ export default function TelaPlanejamento() {
     )
     // Sem card vivo (ainda carregando, ou a operacao saiu do quadro por algum motivo), usa
     // so o retrato salvo — o modal esconde sozinho as linhas de producao que faltarem.
-    setDetalhe({ card: vivo ?? item, extra })
+    // `materiais` so existe no retrato (ver /api/planejamento, server/materiais.js) — o card
+    // vivo vem do kanban, que nao explode a BOM. Sem isto o modal buscaria de novo por api,
+    // em vez de reaproveitar o que /api/planejamento ja calculou.
+    setDetalhe({ card: { ...(vivo ?? item), materiais: item.materiais }, extra })
   }
 
   // Clicar numa ordem dentro do modal do dia inteiro troca pro modal de detalhe daquela

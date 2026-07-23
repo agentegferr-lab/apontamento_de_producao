@@ -4,7 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { config, validarConfig } from './config.js'
 import { AppError, asyncRoute } from './erros.js'
-import { exigirModulo } from './auth.js'
+import { exigirModulo, exigirLogin } from './auth.js'
 import { rotasIntranet } from './rotasIntranet.js'
 import { MODULOS } from './db.js'
 import './bootstrap.js'
@@ -524,6 +524,23 @@ app.get(
   exigirModulo(MODULOS.TERMINAL_PLANEJAMENTO),
   asyncRoute(async (_req, res) => {
     res.json(await materiaisParaItens(planejamento.listar()))
+  }),
+)
+
+/**
+ * Explosao de material SOB DEMANDA pra um unico produto/quantidade — usado pelo modal de
+ * detalhes de um card (ver client/src/components/ModalDetalheCard.jsx) quando o card vem do
+ * kanban/fila (nao tem `materiais` pronto: so os itens de /api/planejamento passam por
+ * materiaisParaItens hoje). Mesma funcao, so que com um item so em vez da lista do dia.
+ */
+app.post(
+  '/api/materiais',
+  exigirLogin,
+  asyncRoute(async (req, res) => {
+    const { idProduto, quantidade } = req.body ?? {}
+    if (idProduto == null) throw new AppError('idProduto e obrigatorio.', 400)
+    const [comMateriais] = await materiaisParaItens([{ idProduto, quantidade }])
+    res.json({ materiais: comMateriais.materiais })
   }),
 )
 
