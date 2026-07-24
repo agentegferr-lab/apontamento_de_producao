@@ -112,6 +112,11 @@ body {
 .lateral__nav {
   display: flex;
   flex-direction: column;
+  gap: 18px;
+}
+.lateral__grupo {
+  display: flex;
+  flex-direction: column;
   gap: 2px;
 }
 .lateral__secao {

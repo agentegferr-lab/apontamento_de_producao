@@ -61,6 +61,20 @@ function iniciais(nome) {
     .join('')
 }
 
+/** Preserva a ordem de primeira ocorrencia dos grupos, na ordem em que aparecem em ITENS_MENU. */
+function agruparPorGrupo(itens) {
+  const grupos = []
+  for (const item of itens) {
+    let grupo = grupos.find((g) => g.nome === item.grupo)
+    if (!grupo) {
+      grupo = { nome: item.grupo, itens: [] }
+      grupos.push(grupo)
+    }
+    grupo.itens.push(item)
+  }
+  return grupos
+}
+
 export default function IntranetShell() {
   const { usuario, logout } = useAuth()
   const navegar = useNavigate()
@@ -83,17 +97,21 @@ export default function IntranetShell() {
         </div>
 
         <nav className="lateral__nav">
-          <span className="lateral__secao">Menu</span>
-          {ITENS_MENU.filter((item) => usuario.modulos.includes(item.chave)).map((item) => (
-            <NavLink
-              key={item.chave}
-              to={item.rota}
-              end={item.rota === '/'}
-              className={({ isActive }) => `lateral__item ${isActive ? 'lateral__item--ativo' : ''}`}
-            >
-              <span className="lateral__icone">{ICONES[item.chave]}</span>
-              {item.rotulo}
-            </NavLink>
+          {agruparPorGrupo(ITENS_MENU.filter((item) => usuario.modulos.includes(item.chave))).map((grupo) => (
+            <div className="lateral__grupo" key={grupo.nome}>
+              <span className="lateral__secao">{grupo.nome}</span>
+              {grupo.itens.map((item) => (
+                <NavLink
+                  key={item.chave}
+                  to={item.rota}
+                  end={item.rota === '/'}
+                  className={({ isActive }) => `lateral__item ${isActive ? 'lateral__item--ativo' : ''}`}
+                >
+                  <span className="lateral__icone">{ICONES[item.chave]}</span>
+                  {item.rotulo}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
