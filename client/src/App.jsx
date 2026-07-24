@@ -5,7 +5,6 @@ import IntranetShell from './IntranetShell.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import MuralPage from './pages/MuralPage.jsx'
 import DiretorioPage from './pages/DiretorioPage.jsx'
-import DocumentosPage from './pages/DocumentosPage.jsx'
 import UsuariosPage from './pages/admin/UsuariosPage.jsx'
 import PaginaApontamento from './pages/PaginaApontamento.jsx'
 import TelaKanban from './components/TelaKanban.jsx'
@@ -44,9 +43,6 @@ export default function App() {
 
               <Route element={<RotaProtegida modulo="diretorio" />}>
                 <Route path="/diretorio" element={<DiretorioPage />} />
-              </Route>
-              <Route element={<RotaProtegida modulo="documentos" />}>
-                <Route path="/documentos" element={<DocumentosPage />} />
               </Route>
               <Route element={<RotaProtegida modulo="admin.usuarios" />}>
                 <Route path="/admin/usuarios" element={<UsuariosPage />} />

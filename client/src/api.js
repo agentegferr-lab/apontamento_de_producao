@@ -97,16 +97,4 @@ export const api = {
     criar: (dados) => chamar('/api/avisos', { method: 'POST', body: JSON.stringify(dados) }),
     remover: (id) => chamar(`/api/avisos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },
-
-  documentos: {
-    listar: () => chamar('/api/documentos'),
-    enviar: (arquivo, pasta) => {
-      const form = new FormData()
-      form.append('arquivo', arquivo)
-      if (pasta) form.append('pasta', pasta)
-      return chamar('/api/documentos', { method: 'POST', body: form, semJson: true })
-    },
-    remover: (id) => chamar(`/api/documentos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-    urlArquivo: (id) => `/api/documentos/${encodeURIComponent(id)}/arquivo`,
-  },
 }

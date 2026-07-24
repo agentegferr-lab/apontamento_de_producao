@@ -9,8 +9,9 @@ empresa — login por usuário, papéis/permissões por módulo, e módulos alé
 2. **Acompanhamento** — quadro kanban das ordens andando pelo roteiro de produção.
 3. **Planejamento (PCP)** — calendário mensal pra agendar quando cada ordem começa a ser
    produzida.
-4. **Mural de avisos**, **Diretório de contatos** e **Documentos** — módulos gerais da
-   intranet, ver [Intranet: login e permissões](#intranet-login-e-permissões) abaixo.
+4. **Mural de avisos** e **Diretório de contatos** — módulos gerais da intranet, ver
+   [Intranet: login e permissões](#intranet-login-e-permissões) abaixo. (Documentos entra
+   numa fase futura — ver Roadmap.)
 
 Cada operador loga com e-mail e senha — inclusive no terminal touch do chão de fábrica, que
 deixou de ter matrícula fixa por `.env` (ver seção de login). O que cada um vê no menu
@@ -30,8 +31,8 @@ depende do **papel** do seu usuário (Admin, Operador, PCP, Supervisor, RH — c
   tem uma lista de módulos liberados. Sem permissão granular por ação nesta fase — só
   visibilidade de módulo (quem tem "avisos" pode publicar E remover avisos, por exemplo).
   Papéis padrão semeados no primeiro boot: **Admin** (tudo, incluindo Usuários),
-  **Operador** (Apontamento/Acompanhamento/Mural/Diretório), **PCP** (+ Planejamento e
-  Documentos), **Supervisor**, **RH** — editáveis depois pela tela de Usuários.
+  **Operador** (Apontamento/Acompanhamento/Mural/Diretório), **PCP** (+ Planejamento),
+  **Supervisor**, **RH** — editáveis depois pela tela de Usuários.
 - **Primeiro admin**: se a tabela de usuários estiver vazia no boot, `server/bootstrap.js`
   cria um admin a partir de `ADMIN_EMAIL_INICIAL`/`ADMIN_SENHA_INICIAL` do `.env` — troque a
   senha assim que entrar pela primeira vez. Depois disso essas duas variáveis não têm mais
@@ -40,9 +41,10 @@ depende do **papel** do seu usuário (Admin, Operador, PCP, Supervisor, RH — c
   cadastra a própria `matricula_nomus` (aba Usuários). O que era `NOMUS_MATRICULA` fixo por
   `.env` virou um campo por pessoa — todo operador que for usar o terminal precisa da
   matrícula preenchida no cadastro **antes** do primeiro apontamento.
-- **Roadmap** (não implementado ainda): RH (ponto, férias), relatórios/dashboards
-  gerenciais (OEE, produtividade), calendário de eventos/feriados, solicitações internas
-  (chamados), permissão granular por ação além de visibilidade de módulo.
+- **Roadmap** (não implementado ainda): Documentos (repositório de arquivos — tirado de
+  propósito da primeira leva), RH (ponto, férias), relatórios/dashboards gerenciais (OEE,
+  produtividade), calendário de eventos/feriados, solicitações internas (chamados),
+  permissão granular por ação além de visibilidade de módulo.
 
 ---
 
@@ -139,7 +141,7 @@ Desenvolvimento (Vite + Express com reload):
 
 ```bash
 npm run dev             # front no :5173, backend no :3000
-npm test                # testes do resolver de código de barras, kanban, login/usuários/avisos/documentos
+npm test                # testes do resolver de código de barras, kanban, login/usuários/avisos
 ```
 
 ### Testar sem tocar no ERP de produção
@@ -183,8 +185,8 @@ No EasyPanel, crie um serviço **App** (não Compose) apontando pro repositório
    - `ADMIN_EMAIL_INICIAL` / `ADMIN_SENHA_INICIAL` (só têm efeito no 1º boot, pra criar o admin)
 4. **Volume persistente — obrigatório**: monte um volume em `/app/dados`. É a ÚNICA cópia
    dos apontamentos **em andamento** (quem começou mas ainda não finalizou), do cache do
-   Nomus **e agora também do banco da intranet** (`intranet.db` — usuários, papéis, avisos,
-   documentos) — sem volume, todo redeploy apaga tudo isso, inclusive as contas cadastradas
+   Nomus **e agora também do banco da intranet** (`intranet.db` — usuários, papéis, avisos)
+   — sem volume, todo redeploy apaga tudo isso, inclusive as contas cadastradas
    (ver [Cache](#cache-persistido-em-disco-nunca-bloqueia-por-um-restart)
    e o incidente de avalanche de 429 documentado ali). A pasta é criada sozinha na primeira
    escrita, não precisa existir de antemão no volume.
@@ -208,8 +210,7 @@ Tudo em `.env` (veja `.env.example` para a lista completa):
 | `NOMUS_ATIVIDADES_PARADA` | não | quais atividades são motivo de parada (ver abaixo) |
 | `NOMUS_ENDPOINT_ORDENS` | não | de onde vem o número do pedido (ver abaixo) |
 | `ARQUIVO_ANDAMENTO` | não | onde ficam os apontamentos em andamento (**faça backup**) |
-| `ARQUIVO_DB` | não | banco da intranet — usuários/papéis/avisos/documentos (**faça backup**) |
-| `ARQUIVO_DOCUMENTOS_DIR` | não | onde os arquivos do módulo Documentos são gravados |
+| `ARQUIVO_DB` | não | banco da intranet — usuários/papéis/avisos (**faça backup**) |
 
 ¹ ou `NOMUS_USUARIO_SENHA` no formato `usuario:senha`.
 

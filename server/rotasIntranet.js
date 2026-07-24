@@ -4,13 +4,11 @@ import { MODULOS } from './db.js'
 import { autenticar, destruirSessao, definirCookieSessao, limparCookieSessao, exigirLogin, exigirModulo } from './auth.js'
 import { usuarios, papeis } from './usuarios.js'
 import { avisos } from './avisos.js'
-import { documentos, uploadDocumento, erroDeUpload } from './documentos.js'
-import path from 'node:path'
 
 /**
- * Rotas da intranet (login, usuarios, papeis, avisos, documentos, diretorio) — router
- * separado das rotas de apontamento em index.js pra nao inchar mais um arquivo de mais de
- * 600 linhas com um dominio diferente. Montado em '/api' antes do catch-all do SPA.
+ * Rotas da intranet (login, usuarios, papeis, avisos, diretorio) — router separado das
+ * rotas de apontamento em index.js pra nao inchar mais um arquivo de mais de 600 linhas
+ * com um dominio diferente. Montado em '/api' antes do catch-all do SPA.
  */
 export const rotasIntranet = express.Router()
 
@@ -82,49 +80,6 @@ rotasIntranet.delete(
   exigirModulo(MODULOS.AVISOS),
   asyncRoute(async (req, res) => {
     if (!avisos.remover(req.params.id)) throw new AppError('Aviso não encontrado.', 404)
-    res.status(204).end()
-  }),
-)
-
-// --- Documentos ----------------------------------------------------------------------------
-rotasIntranet.get('/documentos', exigirModulo(MODULOS.DOCUMENTOS), (req, res) => res.json(documentos.listar()))
-
-rotasIntranet.post(
-  '/documentos',
-  exigirModulo(MODULOS.DOCUMENTOS),
-  (req, res, next) => uploadDocumento(req, res, (erro) => (erro ? next(erroDeUpload(erro) ?? erro) : next())),
-  asyncRoute(async (req, res) => {
-    if (!req.file) throw new AppError('Escolha um arquivo para enviar.', 400)
-    const registro = documentos.registrar({
-      nomeOriginal: req.file.originalname,
-      nomeArquivo: req.file.filename,
-      pasta: req.body?.pasta,
-      tamanho: req.file.size,
-      tipo: req.file.mimetype,
-      enviadoPor: req.usuario.id,
-    })
-    const { caminhoArquivo: _omitido, ...publico } = registro
-    res.status(201).json(publico)
-  }),
-)
-
-rotasIntranet.get(
-  '/documentos/:id/arquivo',
-  exigirModulo(MODULOS.DOCUMENTOS),
-  asyncRoute(async (req, res) => {
-    const registro = documentos.obterComCaminho(req.params.id)
-    if (!registro) throw new AppError('Documento não encontrado.', 404)
-    // Confinado a PASTA_DOCUMENTOS pelo proprio storage do multer (nome em disco e sempre um
-    // uuid gerado por nos, nunca o nome enviado pelo usuario) — path.join acima nao sai dali.
-    res.download(path.resolve(registro.caminhoArquivo), registro.nome)
-  }),
-)
-
-rotasIntranet.delete(
-  '/documentos/:id',
-  exigirModulo(MODULOS.DOCUMENTOS),
-  asyncRoute(async (req, res) => {
-    if (!documentos.remover(req.params.id)) throw new AppError('Documento não encontrado.', 404)
     res.status(204).end()
   }),
 )

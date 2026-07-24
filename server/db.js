@@ -4,7 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /**
- * Banco da intranet (usuarios/papeis/sessoes/avisos/documentos) — separado dos JSONs de
+ * Banco da intranet (usuarios/papeis/sessoes/avisos) — separado dos JSONs de
  * andamento.js/planejamento.js, que continuam como estao. Usa o node:sqlite embutido no
  * proprio Node (>=22.5) em vez de better-sqlite3: mesma API sincrona no espirito do resto
  * do projeto (fs.readFileSync/writeFileSync direto), mas sem addon nativo pra compilar —
@@ -65,17 +65,6 @@ db.exec(`
     fixado INTEGER NOT NULL DEFAULT 0,
     criado_em TEXT NOT NULL
   );
-
-  CREATE TABLE IF NOT EXISTS documentos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT NOT NULL,
-    pasta TEXT NOT NULL DEFAULT 'Geral',
-    caminho_arquivo TEXT NOT NULL,
-    tamanho INTEGER NOT NULL,
-    tipo TEXT,
-    enviado_por INTEGER NOT NULL REFERENCES usuarios(id),
-    criado_em TEXT NOT NULL
-  );
 `)
 
 /**
@@ -90,7 +79,6 @@ export const MODULOS = {
   TERMINAL_PLANEJAMENTO: 'terminal.planejamento',
   AVISOS: 'avisos',
   DIRETORIO: 'diretorio',
-  DOCUMENTOS: 'documentos',
   ADMIN_USUARIOS: 'admin.usuarios',
 }
 
@@ -110,14 +98,13 @@ const PAPEIS_PADRAO = [
       MODULOS.TERMINAL_PLANEJAMENTO,
       MODULOS.AVISOS,
       MODULOS.DIRETORIO,
-      MODULOS.DOCUMENTOS,
     ],
   },
   {
     nome: 'Supervisor',
-    modulos: [MODULOS.TERMINAL_ACOMPANHAMENTO, MODULOS.AVISOS, MODULOS.DIRETORIO, MODULOS.DOCUMENTOS],
+    modulos: [MODULOS.TERMINAL_ACOMPANHAMENTO, MODULOS.AVISOS, MODULOS.DIRETORIO],
   },
-  { nome: 'RH', modulos: [MODULOS.AVISOS, MODULOS.DIRETORIO, MODULOS.DOCUMENTOS] },
+  { nome: 'RH', modulos: [MODULOS.AVISOS, MODULOS.DIRETORIO] },
 ]
 
 function semearPapeisPadrao() {

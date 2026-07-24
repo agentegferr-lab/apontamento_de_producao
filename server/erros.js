@@ -1,5 +1,5 @@
 /** Erro de aplicacao com status HTTP — extraido de index.js pra ser reutilizavel pelos
- * modulos novos da intranet (usuarios.js, avisos.js, documentos.js, rotasIntranet.js) sem
+ * modulos novos da intranet (usuarios.js, avisos.js, rotasIntranet.js) sem
  * criar import circular com index.js. */
 export class AppError extends Error {
   constructor(mensagem, status = 400, codigo) {

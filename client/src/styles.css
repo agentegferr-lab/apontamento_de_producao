@@ -65,22 +65,23 @@ body {
   height: 100vh;
   height: 100dvh;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
 }
 
-/* --- cabecalho --------------------------------------------------------------------- */
-.cabecalho {
+/* --- barra lateral (menu da intranet), ver IntranetShell.jsx ------------------------ */
+.lateral {
   display: flex;
+  flex-direction: column;
   flex-shrink: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px 24px;
-  padding: 12px 24px;
+  width: 220px;
+  padding: 20px 16px;
   background: var(--preto);
+  overflow-y: auto;
 }
 
 .logo {
   flex-shrink: 0;
+  margin-bottom: 24px;
   color: var(--amarelo);
   font-size: 26px;
   font-weight: 800;
@@ -88,17 +89,16 @@ body {
   line-height: 1;
 }
 
-.abas {
+.lateral__nav {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-left: 8px;
+  flex-direction: column;
+  gap: 4px;
 }
-.aba {
-  display: inline-flex;
+.lateral__item {
+  display: flex;
   align-items: center;
   min-height: 44px;
-  padding: 0 18px;
+  padding: 0 14px;
   font: inherit;
   font-weight: 700;
   color: #b0aca6;
@@ -107,29 +107,49 @@ body {
   border: none;
   border-radius: var(--raio);
   cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.aba--ativa {
+.lateral__item--ativo {
   background: var(--amarelo);
   color: var(--preto);
 }
 
-/* --- cabecalho da intranet (usuario logado + sair), ver IntranetShell.jsx ------------ */
-.cabecalho__direita {
+/* --- rodape da lateral: relogio + usuario logado + sair ----------------------------- */
+.lateral__rodape {
   display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-left: auto;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid rgb(255 255 255 / 0.12);
 }
-.cabecalho__direita .relogio {
+.lateral__rodape .relogio {
   margin-left: 0;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 13px;
 }
-.cabecalho__usuario {
+.lateral__rodape .botao {
+  width: 100%;
+}
+.lateral__usuario {
   color: #fff;
   font-size: 14px;
-  white-space: nowrap;
 }
-.cabecalho__usuario small {
+.lateral__usuario small {
+  display: block;
   color: #b0aca6;
+}
+
+/* --- area de conteudo, ao lado da lateral -------------------------------------------- */
+.conteudo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Relogio na barra preta: fonte branca. */
@@ -1493,7 +1513,7 @@ body {
     height: auto;
     display: block;
   }
-  .cabecalho {
+  .lateral {
     display: none;
   }
   .planejamento {
@@ -1562,14 +1582,13 @@ body {
 
 /* --- telas estreitas (tablet retrato, monitores menores) ---------------------------- */
 @media (max-width: 720px) {
-  .cabecalho {
-    padding: 10px 16px;
+  .lateral {
+    width: 160px;
+    padding: 16px 12px;
   }
-  .relogio {
-    margin-left: 0;
-    order: 3;
-    width: 100%;
-    justify-content: space-between;
+  .lateral__item {
+    padding: 0 10px;
+    font-size: 13px;
   }
 
   .leitura {
@@ -1611,7 +1630,7 @@ body {
 }
 
 /* ======================================================================================
- * Intranet — login, paginas gerais (Mural/Diretorio/Documentos/Usuarios). Reaproveita os
+ * Intranet — login, paginas gerais (Mural/Diretorio/Usuarios). Reaproveita os
  * tokens e classes acima (.botao, .modal__campo, .aviso, .seletor) em vez de duplicar.
  * ====================================================================================== */
 
@@ -1808,57 +1827,6 @@ body {
   margin: 0;
   text-align: right;
   word-break: break-word;
-}
-
-/* --- documentos ------------------------------------------------------------------------- */
-.documentos__form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 28px;
-}
-.documentos__pasta {
-  width: 240px;
-}
-.documentos__pasta-secao {
-  margin-bottom: 24px;
-}
-.documentos__pasta-secao h2 {
-  margin: 0 0 10px;
-  font-size: 16px;
-  color: var(--tinta-fraca);
-}
-.documentos__lista {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.documentos__item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--papel);
-  border: 1px solid var(--linha);
-  border-radius: var(--raio);
-}
-.documentos__nome {
-  font-weight: 700;
-  color: var(--tinta);
-  text-decoration: none;
-}
-.documentos__nome:hover {
-  text-decoration: underline;
-}
-.documentos__meta {
-  color: var(--tinta-tenue);
-  font-size: 13px;
-  margin-right: auto;
 }
 
 /* --- admin: usuarios --------------------------------------------------------------------- */

@@ -19,34 +19,37 @@ export default function IntranetShell() {
 
   return (
     <div className="app">
-      <header className="cabecalho">
+      <aside className="lateral">
         <Logo />
 
-        <nav className="abas">
+        <nav className="lateral__nav">
           {ITENS_MENU.filter((item) => usuario.modulos.includes(item.chave)).map((item) => (
             <NavLink
               key={item.chave}
               to={item.rota}
               end={item.rota === '/'}
-              className={({ isActive }) => `aba ${isActive ? 'aba--ativa' : ''}`}
+              className={({ isActive }) => `lateral__item ${isActive ? 'lateral__item--ativo' : ''}`}
             >
               {item.rotulo}
             </NavLink>
           ))}
         </nav>
 
-        <div className="cabecalho__direita">
+        <div className="lateral__rodape">
           <Relogio />
-          <span className="cabecalho__usuario">
-            {usuario.nome} <small>({usuario.papel.nome})</small>
+          <span className="lateral__usuario">
+            {usuario.nome}
+            <small>{usuario.papel.nome}</small>
           </span>
           <button className="botao botao--neutro botao--pequeno" onClick={sair}>
             Sair
           </button>
         </div>
-      </header>
+      </aside>
 
-      <Outlet />
+      <div className="conteudo">
+        <Outlet />
+      </div>
     </div>
   )
 }

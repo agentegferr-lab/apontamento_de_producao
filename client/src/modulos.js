@@ -6,7 +6,6 @@
 export const ITENS_MENU = [
   { chave: 'avisos', rota: '/', rotulo: 'Mural' },
   { chave: 'diretorio', rota: '/diretorio', rotulo: 'Diretório' },
-  { chave: 'documentos', rota: '/documentos', rotulo: 'Documentos' },
   { chave: 'terminal.apontamento', rota: '/terminal/apontamento', rotulo: 'Apontamento' },
   { chave: 'terminal.acompanhamento', rota: '/terminal/acompanhamento', rotulo: 'Acompanhamento' },
   { chave: 'terminal.planejamento', rota: '/terminal/planejamento', rotulo: 'Planejamento' },
