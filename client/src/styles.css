@@ -68,20 +68,24 @@ body {
   flex-direction: row;
 }
 
-/* --- barra lateral (menu da intranet), ver IntranetShell.jsx ------------------------ */
+/* --- barra lateral (menu da intranet), ver IntranetShell.jsx ------------------------
+   Visual de SaaS: sidebar escura com elevacao (box-shadow em vez de borda dura), icone +
+   rotulo por item, estado ativo solido (a marca e amarelo/preto, mantido de proposito),
+   hover sutil pra dar feedback de "sistema de verdade" mesmo sem alvo de touch aqui (e
+   tela de escritorio, tem mouse). */
 .lateral {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  width: 220px;
-  padding: 20px 16px;
+  width: 260px;
+  padding: 18px 14px;
   background: var(--preto);
+  box-shadow: 2px 0 20px rgb(0 0 0 / 0.2);
   overflow-y: auto;
 }
 
 .logo {
   flex-shrink: 0;
-  margin-bottom: 24px;
   color: var(--amarelo);
   font-size: 26px;
   font-weight: 800;
@@ -89,58 +93,160 @@ body {
   line-height: 1;
 }
 
-.lateral__nav {
+.lateral__topo {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding: 4px 10px 18px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+.lateral__subtitulo {
+  color: #7d7972;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.lateral__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lateral__secao {
+  padding: 4px 10px 8px;
+  color: #7d7972;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 .lateral__item {
   display: flex;
   align-items: center;
-  min-height: 44px;
-  padding: 0 14px;
+  gap: 12px;
+  min-height: 42px;
+  padding: 0 12px;
   font: inherit;
-  font-weight: 700;
+  font-size: 14.5px;
+  font-weight: 600;
   color: #b0aca6;
   text-decoration: none;
   background: transparent;
   border: none;
-  border-radius: var(--raio);
+  border-radius: 10px;
   cursor: pointer;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
-.lateral__item--ativo {
+.lateral__item:hover {
+  background: rgb(255 255 255 / 0.07);
+  color: #fff;
+}
+.lateral__item--ativo,
+.lateral__item--ativo:hover {
   background: var(--amarelo);
   color: var(--preto);
 }
+.lateral__icone {
+  display: flex;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+.lateral__icone svg {
+  width: 100%;
+  height: 100%;
+}
 
-/* --- rodape da lateral: relogio + usuario logado + sair ----------------------------- */
+/* --- rodape da lateral: relogio + cartao de perfil (usuario logado + sair) ---------- */
 .lateral__rodape {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   margin-top: auto;
   padding-top: 16px;
-  border-top: 1px solid rgb(255 255 255 / 0.12);
+  border-top: 1px solid rgb(255 255 255 / 0.08);
 }
 .lateral__rodape .relogio {
   margin-left: 0;
+  padding: 0 10px;
   flex-wrap: wrap;
   gap: 6px 12px;
+  color: #9a968f;
+  font-size: 12.5px;
+}
+.lateral__rodape .relogio__separador {
+  background: rgb(255 255 255 / 0.15);
+}
+
+.lateral__perfil {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgb(255 255 255 / 0.05);
+  border-radius: 10px;
+}
+.lateral__avatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: var(--amarelo);
+  color: var(--preto);
   font-size: 13px;
+  font-weight: 800;
+  border-radius: 50%;
 }
-.lateral__rodape .botao {
-  width: 100%;
+.lateral__perfil-texto {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
 }
-.lateral__usuario {
+.lateral__perfil-texto strong {
+  overflow: hidden;
   color: #fff;
-  font-size: 14px;
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.lateral__usuario small {
-  display: block;
+.lateral__perfil-texto small {
+  overflow: hidden;
+  color: #8f8b84;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.lateral__sair {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   color: #b0aca6;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.lateral__sair:hover {
+  background: rgb(220 38 38 / 0.15);
+  color: #f87171;
+}
+.lateral__sair svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* --- area de conteudo, ao lado da lateral -------------------------------------------- */
@@ -152,7 +258,7 @@ body {
   overflow: hidden;
 }
 
-/* Relogio na barra preta: fonte branca. */
+/* Relogio: reaproveitado no rodape da lateral (fundo escuro) por padrao. */
 .relogio {
   margin-left: auto;
   display: flex;
@@ -1583,12 +1689,16 @@ body {
 /* --- telas estreitas (tablet retrato, monitores menores) ---------------------------- */
 @media (max-width: 720px) {
   .lateral {
-    width: 160px;
-    padding: 16px 12px;
+    width: 200px;
+    padding: 16px 10px;
   }
   .lateral__item {
+    gap: 10px;
     padding: 0 10px;
     font-size: 13px;
+  }
+  .lateral__perfil-texto small {
+    display: none;
   }
 
   .leitura {
