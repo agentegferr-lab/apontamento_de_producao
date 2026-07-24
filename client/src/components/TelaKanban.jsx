@@ -9,6 +9,7 @@ const FILTROS = [
   { valor: 'PARADO', texto: 'Paradas' },
   { valor: 'AGUARDANDO', texto: 'Aguardando' },
   { valor: 'CONCLUIDO', texto: 'Concluídas' },
+  { valor: 'OCULTOS', texto: 'Ocultos' },
 ]
 
 // statusItemPedido do pedido de VENDA (1=Aguardando liberacao, 2=Liberado — ver server/pedidos.js).
@@ -23,11 +24,21 @@ export default function TelaKanban({ recarregarEm }) {
   const [agora, setAgora] = useState(() => new Date())
   const [atualizadoEm, setAtualizadoEm] = useState(null)
   const [detalhe, setDetalhe] = useState(null) // card clicado, pro modal de detalhes
+  const [ocultos, setOcultos] = useState(null) // [{codigo, rotulo, ocultadoEm}], so pro filtro "Ocultos"
 
   async function ocultarPedido(card) {
     try {
-      await api.ocultarPedido(card.pedido)
+      await api.pedidosOcultos.ocultar(card.pedido)
       setDetalhe(null)
+      await carregar()
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
+
+  async function mostrarPedido(codigo) {
+    try {
+      await api.pedidosOcultos.mostrar(codigo)
       await carregar()
     } catch (e) {
       setErro(e.message)
@@ -37,8 +48,9 @@ export default function TelaKanban({ recarregarEm }) {
   async function carregar() {
     setCarregando(true)
     try {
-      const dados = await api.kanban()
+      const [dados, listaOcultos] = await Promise.all([api.kanban(), api.pedidosOcultos.listar()])
       setQuadro(dados)
+      setOcultos(listaOcultos)
       // Data real da ultima busca no Nomus (ver server/index.js, dataDeAtualizacaoDoQuadro)
       // — NAO "agora": o cache pode responder na hora mesmo servindo um valor vencido.
       setAtualizadoEm(new Date(dados.atualizadoEm))
@@ -82,7 +94,14 @@ export default function TelaKanban({ recarregarEm }) {
     }))
   }, [quadro, filtro, busca])
 
-  const total = colunas.reduce((s, c) => s + c.cards.length, 0)
+  const ocultosFiltrados = useMemo(() => {
+    if (!ocultos) return []
+    const alvo = busca.trim().toLowerCase()
+    if (!alvo) return ocultos
+    return ocultos.filter((o) => o.rotulo?.toLowerCase().includes(alvo))
+  }, [ocultos, busca])
+
+  const total = filtro === 'OCULTOS' ? ocultosFiltrados.length : colunas.reduce((s, c) => s + c.cards.length, 0)
 
   // KPIs do topo: sempre contam TODAS as ordens, independente do filtro selecionado —
   // sao um resumo geral do quadro, nao do que esta visivel no momento.
@@ -190,10 +209,29 @@ export default function TelaKanban({ recarregarEm }) {
       {!quadro && !erro && <p className="kanban__vazio">Carregando o quadro...</p>}
 
       {quadro && total === 0 && (
-        <p className="kanban__vazio">Nenhuma ordem para este filtro.</p>
+        <p className="kanban__vazio">
+          {filtro === 'OCULTOS' ? 'Nenhum pedido oculto.' : 'Nenhuma ordem para este filtro.'}
+        </p>
       )}
 
-      {quadro && total > 0 && (
+      {quadro && total > 0 && filtro === 'OCULTOS' && (
+        <ul className="kanban__ocultos">
+          {ocultosFiltrados.map((o) => (
+            <li className="kanban__ocultos-item" key={o.codigo}>
+              <span className="kanban__ocultos-rotulo">{o.rotulo}</span>
+              <span className="kanban__ocultos-data">
+                Ocultado em {new Date(o.ocultadoEm).toLocaleDateString('pt-BR')}{' '}
+                {new Date(o.ocultadoEm).toLocaleTimeString('pt-BR')}
+              </span>
+              <button className="botao botao--neutro botao--pequeno" onClick={() => mostrarPedido(o.codigo)}>
+                Mostrar de novo
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {quadro && total > 0 && filtro !== 'OCULTOS' && (
         <div className="kanban__colunas">
           {colunas.map((coluna) => (
             <section className="coluna" key={coluna.nome}>

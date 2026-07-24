@@ -65,7 +65,11 @@ export const api = {
   removerPlanejado: (id) => chamar(`/api/planejamento/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   sugerirPlanejamento: (dados) =>
     chamar('/api/planejamento/sugestao', { method: 'POST', body: JSON.stringify(dados) }),
-  ocultarPedido: (pedido) => chamar('/api/pedidos-ocultos', { method: 'POST', body: JSON.stringify({ pedido }) }),
+  pedidosOcultos: {
+    ocultar: (pedido) => chamar('/api/pedidos-ocultos', { method: 'POST', body: JSON.stringify({ pedido }) }),
+    listar: () => chamar('/api/pedidos-ocultos'),
+    mostrar: (codigo) => chamar(`/api/pedidos-ocultos/${encodeURIComponent(codigo)}`, { method: 'DELETE' }),
+  },
   materiais: (idProduto, quantidade) =>
     chamar('/api/materiais', { method: 'POST', body: JSON.stringify({ idProduto, quantidade }) }),
 }
