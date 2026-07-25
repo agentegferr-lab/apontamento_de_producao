@@ -12,6 +12,10 @@ import { planejamento, REGEX_DATA } from './planejamento.js'
 import { pedidosOcultos } from './pedidosOcultos.js'
 import { materiaisParaItens } from './materiais.js'
 import { sugerirPlanejamento } from './ia.js'
+import { AppError, asyncRoute } from './erros.js'
+import { caminhoes } from './caminhoes.js'
+import { motoristas } from './motoristas.js'
+import { entregas } from './entregas.js'
 
 try {
   validarConfig()
@@ -23,16 +27,6 @@ try {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 app.use(express.json({ limit: '256kb' }))
-
-const asyncRoute = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next)
-
-class AppError extends Error {
-  constructor(mensagem, status = 400, codigo) {
-    super(mensagem)
-    this.status = status
-    this.codigo = codigo
-  }
-}
 
 /** O funcionario do terminal vem da matricula em .env — nunca do cliente. */
 async function funcionarioDoTerminal() {
@@ -497,6 +491,51 @@ app.delete(
     }
     res.status(204).end()
   }),
+)
+
+// --- Entregas ----------------------------------------------------------------------------
+// Cadastro de caminhoes/motoristas e lancamento de quais pedidos cada motorista entregou —
+// so nosso, nunca vai pro Nomus (ver server/caminhoes.js, server/motoristas.js,
+// server/entregas.js). Cada modulo ja valida e lanca AppError sozinho, entao as rotas aqui
+// so repassam o corpo da requisicao.
+app.get(
+  '/api/caminhoes',
+  asyncRoute(async (_req, res) => res.json(caminhoes.listar())),
+)
+
+app.post(
+  '/api/caminhoes',
+  asyncRoute(async (req, res) => res.status(201).json(caminhoes.criar(req.body ?? {}))),
+)
+
+app.patch(
+  '/api/caminhoes/:id',
+  asyncRoute(async (req, res) => res.json(caminhoes.atualizar(req.params.id, req.body ?? {}))),
+)
+
+app.get(
+  '/api/motoristas',
+  asyncRoute(async (_req, res) => res.json(motoristas.listar())),
+)
+
+app.post(
+  '/api/motoristas',
+  asyncRoute(async (req, res) => res.status(201).json(motoristas.criar(req.body ?? {}))),
+)
+
+app.patch(
+  '/api/motoristas/:id',
+  asyncRoute(async (req, res) => res.json(motoristas.atualizar(req.params.id, req.body ?? {}))),
+)
+
+app.get(
+  '/api/entregas',
+  asyncRoute(async (_req, res) => res.json(entregas.listar())),
+)
+
+app.post(
+  '/api/entregas',
+  asyncRoute(async (req, res) => res.status(201).json(entregas.lancar(req.body ?? {}))),
 )
 
 // --- Planejamento (PCP) ----------------------------------------------------------------

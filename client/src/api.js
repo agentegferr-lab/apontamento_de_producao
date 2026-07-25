@@ -72,4 +72,20 @@ export const api = {
   },
   materiais: (idProduto, quantidade) =>
     chamar('/api/materiais', { method: 'POST', body: JSON.stringify({ idProduto, quantidade }) }),
+  caminhoes: {
+    listar: () => chamar('/api/caminhoes'),
+    criar: (dados) => chamar('/api/caminhoes', { method: 'POST', body: JSON.stringify(dados) }),
+    atualizar: (id, dados) =>
+      chamar(`/api/caminhoes/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(dados) }),
+  },
+  motoristas: {
+    listar: () => chamar('/api/motoristas'),
+    criar: (dados) => chamar('/api/motoristas', { method: 'POST', body: JSON.stringify(dados) }),
+    atualizar: (id, dados) =>
+      chamar(`/api/motoristas/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(dados) }),
+  },
+  entregas: {
+    listar: () => chamar('/api/entregas'),
+    lancar: (dados) => chamar('/api/entregas', { method: 'POST', body: JSON.stringify(dados) }),
+  },
 }

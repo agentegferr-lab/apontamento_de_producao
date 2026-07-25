@@ -5,10 +5,12 @@ import Relogio from './components/Relogio.jsx'
 import TelaLeitura from './components/TelaLeitura.jsx'
 import TelaKanban from './components/TelaKanban.jsx'
 import TelaPlanejamento from './components/TelaPlanejamento.jsx'
+import TelaEntregas from './components/TelaEntregas.jsx'
 import ModalSenha from './components/ModalSenha.jsx'
 
 // So um freio, nao seguranca de verdade (fica no bundle do cliente) — ver ModalSenha.jsx.
-const SENHA_PLANEJAMENTO = 'Adm@2026'
+// Mesma senha protege o Planejamento e o Cadastro de caminhoes/motoristas dentro de Entregas.
+const SENHA_ADMIN = 'Adm@2026'
 const CHAVE_SESSAO = 'planejamento-liberado'
 
 export default function App() {
@@ -18,11 +20,12 @@ export default function App() {
   const [versaoAndamento, setVersaoAndamento] = useState(0)
   // Liberado uma vez por sessao do navegador (sessionStorage) — nao pede nas trocas de aba
   // seguintes, so de novo se a aba/navegador fechar.
-  const [planejamentoLiberado, setPlanejamentoLiberado] = useState(
-    () => sessionStorage.getItem(CHAVE_SESSAO) === '1',
-  )
+  const [adminLiberado, setAdminLiberado] = useState(() => sessionStorage.getItem(CHAVE_SESSAO) === '1')
   const [pedindoSenha, setPedindoSenha] = useState(false)
   const [senhaErrada, setSenhaErrada] = useState(false)
+  // Pra onde ir depois de confirmar a senha — Planejamento troca de aba sozinho; pedido vindo
+  // de dentro de Entregas so libera o Cadastro, o usuario ja esta na aba certa.
+  const [origemSenha, setOrigemSenha] = useState(null)
 
   useEffect(() => {
     let cancelado = false
@@ -39,20 +42,27 @@ export default function App() {
   const aoMudarAndamento = useCallback(() => setVersaoAndamento((v) => v + 1), [])
 
   function abrirPlanejamento() {
-    if (planejamentoLiberado) {
+    if (adminLiberado) {
       setTela('planejamento')
     } else {
+      setOrigemSenha('planejamento')
       setSenhaErrada(false)
       setPedindoSenha(true)
     }
   }
 
+  function pedirSenhaParaEntregas() {
+    setOrigemSenha('entregas')
+    setSenhaErrada(false)
+    setPedindoSenha(true)
+  }
+
   function confirmarSenha(senha) {
-    if (senha === SENHA_PLANEJAMENTO) {
+    if (senha === SENHA_ADMIN) {
       sessionStorage.setItem(CHAVE_SESSAO, '1')
-      setPlanejamentoLiberado(true)
+      setAdminLiberado(true)
       setPedindoSenha(false)
-      setTela('planejamento')
+      if (origemSenha === 'planejamento') setTela('planejamento')
     } else {
       setSenhaErrada(true)
     }
@@ -108,6 +118,12 @@ export default function App() {
           >
             Planejamento
           </button>
+          <button
+            className={`aba ${tela === 'entregas' ? 'aba--ativa' : ''}`}
+            onClick={() => setTela('entregas')}
+          >
+            Entregas
+          </button>
         </nav>
 
         <Relogio />
@@ -115,10 +131,20 @@ export default function App() {
 
       {tela === 'leitura' && <TelaLeitura terminal={terminal} onMudouAndamento={aoMudarAndamento} />}
       {tela === 'kanban' && <TelaKanban recarregarEm={versaoAndamento} />}
-      {tela === 'planejamento' && planejamentoLiberado && <TelaPlanejamento />}
+      {tela === 'planejamento' && adminLiberado && <TelaPlanejamento />}
+      {tela === 'entregas' && <TelaEntregas adminLiberado={adminLiberado} onPedirSenha={pedirSenhaParaEntregas} />}
 
       {pedindoSenha && (
-        <ModalSenha erro={senhaErrada} onConfirmar={confirmarSenha} onCancelar={() => setPedindoSenha(false)} />
+        <ModalSenha
+          erro={senhaErrada}
+          mensagem={
+            origemSenha === 'entregas'
+              ? 'Digite a senha para abrir o Cadastro de caminhões e motoristas.'
+              : 'Digite a senha para abrir o Planejamento.'
+          }
+          onConfirmar={confirmarSenha}
+          onCancelar={() => setPedindoSenha(false)}
+        />
       )}
     </div>
   )
