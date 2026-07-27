@@ -73,16 +73,34 @@ export function filtrarPorPeriodo(entregas, { inicio, fim }) {
   return entregas.filter((e) => e.data >= inicio && e.data <= fim)
 }
 
-/** Quantos pedidos cada motorista entregou no periodo, do que mais entregou pro que menos. */
-export function agruparPorMotorista(entregasFiltradas, motoristas) {
-  const nomePorId = new Map(motoristas.map((m) => [m.id, m.nome]))
-  const contagem = new Map()
+/**
+ * Ranking de motoristas no periodo (tela Ranking de entregas): pedidos entregues, metragem
+ * total e valor total por motorista, do que mais entregou pro que menos (empate desfeito por
+ * valor total). So entra quem tem ao menos 1 entrega no periodo — motorista sem nada nao
+ * aparece, pra nao poluir o ranking com zeros. `ativo` vem junto pra dar pra filtrar na tela
+ * so os motoristas ainda ativos, sem perder o nome de quem ja foi desativado/removido.
+ */
+export function rankingPorMotorista(entregasFiltradas, motoristas) {
+  const motoristaPorId = new Map(motoristas.map((m) => [m.id, m]))
+  const acumulado = new Map()
   for (const e of entregasFiltradas) {
-    contagem.set(e.motoristaId, (contagem.get(e.motoristaId) ?? 0) + 1)
+    const atual = acumulado.get(e.motoristaId) ?? { pedidos: 0, metragem: 0, valor: 0 }
+    atual.pedidos += 1
+    if (e.metragem != null) atual.metragem += e.metragem
+    if (e.valor != null) atual.valor += e.valor
+    acumulado.set(e.motoristaId, atual)
   }
-  return [...contagem.entries()]
-    .map(([motoristaId, total]) => ({ motoristaId, nome: nomePorId.get(motoristaId) ?? 'Motorista removido', total }))
-    .sort((a, b) => b.total - a.total)
+  return [...acumulado.entries()]
+    .map(([motoristaId, totais]) => {
+      const motorista = motoristaPorId.get(motoristaId)
+      return {
+        motoristaId,
+        nome: motorista?.nome ?? 'Motorista removido',
+        ativo: motorista?.ativo ?? false,
+        ...totais,
+      }
+    })
+    .sort((a, b) => b.pedidos - a.pedidos || b.valor - a.valor)
 }
 
 /** Soma metragem/valor do periodo — `metragem`/`valor` sao opcionais (null quando o

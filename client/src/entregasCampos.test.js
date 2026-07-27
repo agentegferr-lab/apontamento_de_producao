@@ -4,7 +4,7 @@ import {
   intervaloDoPeriodo,
   navegarPeriodo,
   filtrarPorPeriodo,
-  agruparPorMotorista,
+  rankingPorMotorista,
   somarTotais,
   motoristasAtivos,
   pluralizar,
@@ -72,18 +72,44 @@ test('filtrarPorPeriodo mantem so entregas com data dentro do intervalo, inclusi
   assert.deepEqual(filtradas.map((e) => e.data), ['2026-07-19', '2026-07-22', '2026-07-25'])
 })
 
-test('agruparPorMotorista conta pedidos por motorista, do que mais entregou pro que menos', () => {
-  const motoristas = [{ id: 'a', nome: 'Joao' }, { id: 'b', nome: 'Maria' }]
-  const entregas = [{ motoristaId: 'a' }, { motoristaId: 'b' }, { motoristaId: 'a' }, { motoristaId: 'a' }]
-  assert.deepEqual(agruparPorMotorista(entregas, motoristas), [
-    { motoristaId: 'a', nome: 'Joao', total: 3 },
-    { motoristaId: 'b', nome: 'Maria', total: 1 },
+test('rankingPorMotorista soma pedidos/metragem/valor por motorista, do que mais entregou pro que menos', () => {
+  const motoristas = [
+    { id: 'a', nome: 'Joao', ativo: true },
+    { id: 'b', nome: 'Maria', ativo: true },
+  ]
+  const entregas = [
+    { motoristaId: 'a', metragem: 10, valor: 500 },
+    { motoristaId: 'b', metragem: 20, valor: 1000 },
+    { motoristaId: 'a', metragem: 5, valor: 300 },
+    { motoristaId: 'a', metragem: null, valor: null },
+  ]
+  assert.deepEqual(rankingPorMotorista(entregas, motoristas), [
+    { motoristaId: 'a', nome: 'Joao', ativo: true, pedidos: 3, metragem: 15, valor: 800 },
+    { motoristaId: 'b', nome: 'Maria', ativo: true, pedidos: 1, metragem: 20, valor: 1000 },
   ])
 })
 
-test('agruparPorMotorista: motorista que nao existe mais no cadastro ainda aparece no relatorio', () => {
-  const resultado = agruparPorMotorista([{ motoristaId: 'removido' }], [])
-  assert.deepEqual(resultado, [{ motoristaId: 'removido', nome: 'Motorista removido', total: 1 }])
+test('rankingPorMotorista: empate em pedidos desfeito por valor total', () => {
+  const motoristas = [{ id: 'a', nome: 'Joao', ativo: true }, { id: 'b', nome: 'Maria', ativo: true }]
+  const entregas = [
+    { motoristaId: 'a', metragem: null, valor: 100 },
+    { motoristaId: 'b', metragem: null, valor: 200 },
+  ]
+  assert.deepEqual(rankingPorMotorista(entregas, motoristas).map((r) => r.motoristaId), ['b', 'a'])
+})
+
+test('rankingPorMotorista: motorista que nao existe mais no cadastro ainda aparece, com ativo=false', () => {
+  const resultado = rankingPorMotorista([{ motoristaId: 'removido', metragem: null, valor: null }], [])
+  assert.deepEqual(resultado, [
+    { motoristaId: 'removido', nome: 'Motorista removido', ativo: false, pedidos: 1, metragem: 0, valor: 0 },
+  ])
+})
+
+test('rankingPorMotorista: motorista sem nenhuma entrega no periodo nao aparece no ranking', () => {
+  const motoristas = [{ id: 'a', nome: 'Joao', ativo: true }, { id: 'b', nome: 'Sem entregas', ativo: true }]
+  const resultado = rankingPorMotorista([{ motoristaId: 'a', metragem: 1, valor: 1 }], motoristas)
+  assert.equal(resultado.length, 1)
+  assert.equal(resultado[0].motoristaId, 'a')
 })
 
 test('somarTotais soma metragem/valor, ignorando o que o motorista nao informou', () => {

@@ -2005,6 +2005,26 @@ body {
   text-transform: none;
   font-weight: 400;
 }
+/* Toggle "Somente ativos" do Ranking — label inteira e o alvo de toque (min-height 44px),
+   nao so o checkbox nativo (pequeno demais pra tocar com conforto sozinho). */
+.entregas__filtro-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tinta);
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  cursor: pointer;
+}
+.entregas__filtro-toggle input {
+  width: 18px;
+  height: 18px;
+}
 
 /* --- tabela ---------------------------------------------------------------------------- */
 .entregas__tabela-wrap {
@@ -2066,6 +2086,37 @@ body {
 .status-badge--entregue {
   color: var(--verde-escuro);
   background: var(--verde-claro);
+}
+
+/* --- ranking de motoristas --------------------------------------------------------------- */
+.entregas__ranking-posicao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  font-weight: 800;
+  color: var(--tinta-fraca);
+  background: var(--fundo);
+  font-variant-numeric: tabular-nums;
+}
+.entregas__ranking-posicao--1 {
+  color: var(--preto);
+  background: var(--amarelo);
+}
+.entregas__ranking-posicao--2 {
+  color: var(--tinta);
+  background: #e4e4e7;
+}
+.entregas__ranking-posicao--3 {
+  color: var(--ambar);
+  background: var(--ambar-claro);
+}
+.entregas__ranking-inativo {
+  color: var(--tinta-tenue);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 /* --- menu de acoes (3 pontinhos) -------------------------------------------------------- */

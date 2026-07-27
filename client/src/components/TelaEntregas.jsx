@@ -10,6 +10,7 @@ import {
   filtrarPorPeriodo,
   somarTotais,
   motoristasAtivos,
+  rankingPorMotorista,
   pluralizar,
   textoRegistros,
   formatarMetragem,
@@ -81,6 +82,9 @@ export default function TelaEntregas({ adminLiberado, onPedirSenha }) {
           <button type="button" className="botao botao--neutro botao--pequeno" onClick={() => abrirSubaba('relatorio')}>
             Relatório
           </button>
+          <button type="button" className="botao botao--neutro botao--pequeno" onClick={() => abrirSubaba('ranking')}>
+            Ranking de motoristas
+          </button>
           <button type="button" className="botao botao--amarelo botao--pequeno" onClick={() => abrirSubaba('lancar')}>
             Nova entrega
           </button>
@@ -104,6 +108,7 @@ export default function TelaEntregas({ adminLiberado, onPedirSenha }) {
       {!carregando && subaba === 'relatorio' && (
         <Relatorio entregas={entregas} motoristas={motoristas} caminhoes={caminhoes} onMudou={carregar} onErro={setErro} />
       )}
+      {!carregando && subaba === 'ranking' && <Ranking entregas={entregas} motoristas={motoristas} />}
     </main>
   )
 }
@@ -454,6 +459,82 @@ function Cadastro({ motoristas, caminhoes, onMudou, onErro }) {
   )
 }
 
+/**
+ * Controle de período (segmentado Dia/Semana/Mês + navegação + calendário) — usado tanto no
+ * Relatório quanto no Ranking de motoristas, extraído pra não duplicar essa marcação (e o
+ * comportamento) nos dois lugares.
+ */
+function SeletorPeriodo({ modo, setModo, referencia, setReferencia, rotulo }) {
+  const dataOcultaRef = useRef(null)
+
+  function abrirSeletorDeData() {
+    const el = dataOcultaRef.current
+    if (!el) return
+    if (typeof el.showPicker === 'function') el.showPicker()
+    else el.focus()
+  }
+
+  return (
+    <div className="entregas__relatorio-controles">
+      <div className="segmentado" role="group" aria-label="Período">
+        {MODOS_PERIODO.map((m) => (
+          <button
+            key={m.valor}
+            type="button"
+            className={`segmentado__item ${modo === m.valor ? 'segmentado__item--ativo' : ''}`}
+            aria-pressed={modo === m.valor}
+            onClick={() => setModo(m.valor)}
+          >
+            {m.texto}
+          </button>
+        ))}
+      </div>
+      <div className="entregas__navegacao">
+        <button
+          type="button"
+          className="botao botao--neutro botao--pequeno botao--icone"
+          aria-label="Período anterior"
+          onClick={() => setReferencia((r) => navegarPeriodo(modo, r, -1))}
+        >
+          ‹
+        </button>
+        <span className="entregas__periodo-rotulo">{rotulo}</span>
+        <button
+          type="button"
+          className="botao botao--neutro botao--pequeno botao--icone"
+          aria-label="Próximo período"
+          onClick={() => setReferencia((r) => navegarPeriodo(modo, r, 1))}
+        >
+          ›
+        </button>
+        <button type="button" className="botao botao--neutro botao--pequeno" onClick={() => setReferencia(new Date())}>
+          Hoje
+        </button>
+        <button
+          type="button"
+          className="botao botao--neutro botao--pequeno botao--icone"
+          aria-label="Escolher uma data"
+          onClick={abrirSeletorDeData}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="16" rx="2" />
+            <path d="M3 9h18M8 3v4M16 3v4" />
+          </svg>
+        </button>
+        <input
+          ref={dataOcultaRef}
+          type="date"
+          className="entregas__data-oculta"
+          aria-hidden="true"
+          tabIndex={-1}
+          value={chaveDoDia(referencia)}
+          onChange={(e) => e.target.value && setReferencia(new Date(`${e.target.value}T00:00:00`))}
+        />
+      </div>
+    </div>
+  )
+}
+
 function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
   const [modo, setModo] = useState('dia')
   const [referencia, setReferencia] = useState(() => new Date())
@@ -466,7 +547,6 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
   const [excluindo, setExcluindo] = useState(false)
   const [sucesso, setSucesso] = useState(null)
 
-  const dataOcultaRef = useRef(null)
   const filtrosPainelRef = useRef(null)
   const filtrosBotaoRef = useRef(null)
 
@@ -509,13 +589,6 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
     }
   }, [filtrosAbertos])
 
-  function abrirSeletorDeData() {
-    const el = dataOcultaRef.current
-    if (!el) return
-    if (typeof el.showPicker === 'function') el.showPicker()
-    else el.focus()
-  }
-
   function exportarCsv() {
     const csv = gerarCsvEntregas(filtradas, { nomeMotorista, placaCaminhao })
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
@@ -551,63 +624,7 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
 
   return (
     <div className="entregas__painel">
-      <div className="entregas__relatorio-controles">
-        <div className="segmentado" role="group" aria-label="Período do relatório">
-          {MODOS_PERIODO.map((m) => (
-            <button
-              key={m.valor}
-              type="button"
-              className={`segmentado__item ${modo === m.valor ? 'segmentado__item--ativo' : ''}`}
-              aria-pressed={modo === m.valor}
-              onClick={() => setModo(m.valor)}
-            >
-              {m.texto}
-            </button>
-          ))}
-        </div>
-        <div className="entregas__navegacao">
-          <button
-            type="button"
-            className="botao botao--neutro botao--pequeno botao--icone"
-            aria-label="Período anterior"
-            onClick={() => setReferencia((r) => navegarPeriodo(modo, r, -1))}
-          >
-            ‹
-          </button>
-          <span className="entregas__periodo-rotulo">{periodo.rotulo}</span>
-          <button
-            type="button"
-            className="botao botao--neutro botao--pequeno botao--icone"
-            aria-label="Próximo período"
-            onClick={() => setReferencia((r) => navegarPeriodo(modo, r, 1))}
-          >
-            ›
-          </button>
-          <button type="button" className="botao botao--neutro botao--pequeno" onClick={() => setReferencia(new Date())}>
-            Hoje
-          </button>
-          <button
-            type="button"
-            className="botao botao--neutro botao--pequeno botao--icone"
-            aria-label="Escolher uma data"
-            onClick={abrirSeletorDeData}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <rect x="3" y="5" width="18" height="16" rx="2" />
-              <path d="M3 9h18M8 3v4M16 3v4" />
-            </svg>
-          </button>
-          <input
-            ref={dataOcultaRef}
-            type="date"
-            className="entregas__data-oculta"
-            aria-hidden="true"
-            tabIndex={-1}
-            value={chaveDoDia(referencia)}
-            onChange={(e) => e.target.value && setReferencia(new Date(`${e.target.value}T00:00:00`))}
-          />
-        </div>
-      </div>
+      <SeletorPeriodo modo={modo} setModo={setModo} referencia={referencia} setReferencia={setReferencia} rotulo={periodo.rotulo} />
 
       <div className="entregas__indicadores">
         <div className="indicador">
@@ -816,6 +833,101 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
           onConfirmar={confirmarExclusao}
           onCancelar={() => setEntregaParaExcluir(null)}
         />
+      )}
+    </div>
+  )
+}
+
+function Ranking({ entregas, motoristas }) {
+  // Ranking olha o quadro geral por padrao — "mes" faz mais sentido aqui do que "dia" (que e
+  // o padrao do Relatorio, focado no dia a dia de lancamentos).
+  const [modo, setModo] = useState('mes')
+  const [referencia, setReferencia] = useState(() => new Date())
+  const [busca, setBusca] = useState('')
+  const [somenteAtivos, setSomenteAtivos] = useState(false)
+
+  const periodo = useMemo(() => intervaloDoPeriodo(modo, referencia), [modo, referencia])
+  const doPeriodo = useMemo(() => filtrarPorPeriodo(entregas, periodo), [entregas, periodo])
+  const ranking = useMemo(() => rankingPorMotorista(doPeriodo, motoristas), [doPeriodo, motoristas])
+
+  const filtrado = useMemo(() => {
+    const alvo = busca.trim().toLowerCase()
+    return ranking.filter((r) => (!somenteAtivos || r.ativo) && (!alvo || r.nome.toLowerCase().includes(alvo)))
+  }, [ranking, busca, somenteAtivos])
+
+  return (
+    <div className="entregas__painel">
+      <SeletorPeriodo modo={modo} setModo={setModo} referencia={referencia} setReferencia={setReferencia} rotulo={periodo.rotulo} />
+
+      <div className="entregas__lista-cabecalho">
+        <div>
+          <h2 className="entregas__lista-titulo">Ranking de motoristas</h2>
+          <p className="entregas__lista-contagem">{textoRegistros(filtrado.length)}</p>
+        </div>
+        <div className="entregas__lista-acoes">
+          <div className="entregas__busca-wrap">
+            <svg className="entregas__busca-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              type="search"
+              className="entregas__busca"
+              placeholder="Buscar motorista"
+              aria-label="Buscar motorista"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
+          <label className="entregas__filtro-toggle">
+            <input type="checkbox" checked={somenteAtivos} onChange={(e) => setSomenteAtivos(e.target.checked)} />
+            Somente ativos
+          </label>
+        </div>
+      </div>
+
+      {filtrado.length === 0 ? (
+        <p className="entregas__vazio">Nenhum motorista com entregas nesse período.</p>
+      ) : (
+        <div className="entregas__tabela-wrap">
+          <table className="entregas__tabela">
+            <thead>
+              <tr>
+                <th className="entregas__col-numerica">#</th>
+                <th>Motorista</th>
+                <th className="entregas__col-numerica">Pedidos entregues</th>
+                <th className="entregas__col-numerica">Metragem total</th>
+                <th className="entregas__col-numerica">Valor total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtrado.map((r, i) => (
+                <tr key={r.motoristaId}>
+                  <td data-rotulo="Posição" className="entregas__col-numerica">
+                    <span
+                      className={`entregas__ranking-posicao ${i < 3 ? `entregas__ranking-posicao--${i + 1}` : ''}`}
+                    >
+                      {i + 1}
+                    </span>
+                  </td>
+                  <td data-rotulo="Motorista">
+                    {r.nome}
+                    {!r.ativo && <span className="entregas__ranking-inativo"> (inativo)</span>}
+                  </td>
+                  <td data-rotulo="Pedidos entregues" className="entregas__col-numerica">
+                    {r.pedidos}
+                  </td>
+                  <td data-rotulo="Metragem total" className="entregas__col-numerica">
+                    {formatarMetragem(r.metragem)}
+                  </td>
+                  <td data-rotulo="Valor total" className="entregas__col-numerica">
+                    {formatarMoedaNumero(r.valor)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )
