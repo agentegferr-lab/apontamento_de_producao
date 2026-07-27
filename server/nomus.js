@@ -87,9 +87,10 @@ function montarUrl(caminho, query) {
  * Nao ha retry para 5xx: um POST /apontamentos que falhou por erro do servidor pode ter
  * sido gravado, e reenviar duplicaria o apontamento. Quem decide retentar e o operador.
  */
-async function requisitar(metodo, caminho, { query, body, maxTentativas } = {}) {
+async function requisitar(metodo, caminho, { query, body, maxTentativas, maxEsperaMs } = {}) {
   const url = montarUrl(caminho, query)
   const tentativasPermitidas = maxTentativas ?? config.maxTentativasThrottle
+  const esperaMaximaMs = maxEsperaMs ?? config.maxEsperaThrottleMs
 
   for (let tentativa = 1; ; tentativa++) {
     let resposta
@@ -118,7 +119,7 @@ async function requisitar(metodo, caminho, { query, body, maxTentativas } = {}) 
 
     if (resposta.status === 429) {
       const esperaMs = extrairRetryAfter(corpo, resposta.headers) ?? 2000
-      const podeRetentar = tentativa <= tentativasPermitidas && esperaMs <= config.maxEsperaThrottleMs
+      const podeRetentar = tentativa <= tentativasPermitidas && esperaMs <= esperaMaximaMs
 
       if (!podeRetentar) {
         throw new NomusError('Nomus esta limitando as requisicoes (429). Tente novamente.', {
@@ -169,12 +170,31 @@ const comoLista = (v) => (Array.isArray(v) ? v : v?.content ?? v?.lista ?? v?.da
  * So termina quando uma pagina vem MAIS CURTA que o tamanho de pagina — a mesma
  * heuristica usada no projeto irmao. Uma pausa de 300ms entre paginas evita martelar
  * o Nomus (que ja throttlou em 429 durante o desenvolvimento).
+ *
+ * INCIDENTE (2026-07-27): o cache de "operacoes:todas" (2000+ registros, ~40 paginas)
+ * ficou 3 DIAS parado sem ninguem perceber — cada tentativa de atualizacao em fundo
+ * (comCache, a cada ~60s) reiniciava a varredura do zero, e sob o throttle que o Nomus
+ * estava aplicando nessa janela (esperas de 30-45s por pagina), o limite padrao de
+ * espera (config.maxEsperaThrottleMs, 30s) fazia `requisitar` desistir ANTES do tempo
+ * que o proprio Nomus pediu pra esperar — a varredura inteira (dezenas de paginas ja
+ * buscadas) era descartada, e a proxima tentativa comecava do zero de novo. Resultado:
+ * pedido/OS criada nos ultimos 3 dias nao resolvia ("Processo nao encontrado no Nomus")
+ * mesmo existindo de verdade, porque o cache nunca chegava a terminar uma volta inteira.
+ *
+ * Isto aqui e SEMPRE uma atualizacao de fundo (stale-while-revalidate — quem pediu ja
+ * recebeu o valor antigo na hora, ver comCache) — nunca bloqueia um operador esperando
+ * na tela. Por isso vale a pena esperar bem mais o throttle passar (e tentar mais vezes)
+ * em vez de desistir cedo e jogar fora o progresso: maxEsperaMs bem maior que o padrao
+ * das chamadas interativas (iniciar/pausar/finalizar), que continuam com o limite curto
+ * pra falhar rapido e dar um erro claro pro operador em vez de travar a tela.
  */
 async function requisitarPaginado(caminho, { query, tamanhoPagina = 50 } = {}) {
   const itens = []
   for (let pagina = 1; ; pagina++) {
     if (pagina > 1) await dormir(300)
-    const dados = comoLista(await requisitar('GET', caminho, { query: { ...query, pagina } }))
+    const dados = comoLista(
+      await requisitar('GET', caminho, { query: { ...query, pagina }, maxTentativas: 6, maxEsperaMs: 120_000 }),
+    )
     itens.push(...dados)
     if (dados.length < tamanhoPagina) break
   }
