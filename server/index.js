@@ -6,6 +6,7 @@ import { nomus, NomusError, ultimaAtualizacao, iniciarRefreshDeFundo } from './n
 import { resolverOperacao, ResolucaoError } from './resolver.js'
 import { andamento, PRODUZINDO, PAUSADO } from './andamento.js'
 import { montarKanban } from './kanban.js'
+import { montarRelatorioProducao } from './relatorioProducao.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
 import { mapaPedidosPorOrdem, buscarPedidoPorCodigo } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
@@ -460,6 +461,28 @@ app.get(
   asyncRoute(async (_req, res) => {
     const quadro = await montarQuadroAtual()
     res.json({ ...quadro, atualizadoEm: dataDeAtualizacaoDoQuadro().toISOString() })
+  }),
+)
+
+// Relatorio de producao por centro de trabalho (Corte, Pintura...) num periodo — historico
+// ja apontado, diferente do /api/kanban (que mostra o que falta fazer agora). Ver
+// server/relatorioProducao.js.
+app.get(
+  '/api/relatorio-producao',
+  asyncRoute(async (req, res) => {
+    const { inicio, fim } = req.query
+    if (!REGEX_DATA.test(inicio ?? '') || !REGEX_DATA.test(fim ?? '')) {
+      throw new AppError('inicio e fim devem estar no formato AAAA-MM-DD.', 400)
+    }
+    const [operacoes, apontamentos, funcionarios] = await Promise.all([
+      nomus.todasOperacoes(),
+      nomus.apontamentos(),
+      nomus.funcionarios(),
+    ])
+    res.json({
+      ...montarRelatorioProducao({ operacoes, apontamentos, funcionarios, inicio, fim }),
+      atualizadoEm: dataDeAtualizacaoDoQuadro().toISOString(),
+    })
   }),
 )
 

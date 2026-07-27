@@ -97,7 +97,7 @@ export default function TelaEntregas({ adminLiberado, onPedirSenha }) {
         </p>
       )}
 
-      {carregando && !erro && <p className="entregas__vazio">Carregando...</p>}
+      {carregando && !erro && <p className="vazio">Carregando...</p>}
 
       {!carregando && subaba === 'lancar' && (
         <LancarEntrega motoristas={motoristas} caminhoes={caminhoes} onLancado={carregar} onErro={setErro} />
@@ -193,7 +193,7 @@ function LancarEntrega({ motoristas, caminhoes, onLancado, onErro }) {
 
   if (motoristasAtivosLista.length === 0 || caminhoesAtivos.length === 0) {
     return (
-      <p className="entregas__vazio">
+      <p className="vazio">
         Cadastre ao menos um motorista e um caminhão ativos (aba Cadastro) antes de lançar uma entrega.
       </p>
     )
@@ -263,7 +263,7 @@ function LancarEntrega({ motoristas, caminhoes, onLancado, onErro }) {
             // Enter nao tira o foco do campo sozinho).
             onKeyDown={(e) => e.key === 'Enter' && buscarDadosDoPedido()}
           />
-          {buscandoPedido && <span className="entregas__buscando-pedido">Buscando...</span>}
+          {buscandoPedido && <span className="buscando-pedido">Buscando...</span>}
           <input
             className="modal__campo entregas__campo-metragem"
             type="number"
@@ -498,7 +498,7 @@ function SeletorPeriodo({ modo, setModo, referencia, setReferencia, rotulo }) {
         >
           ‹
         </button>
-        <span className="entregas__periodo-rotulo">{rotulo}</span>
+        <span className="periodo-rotulo">{rotulo}</span>
         <button
           type="button"
           className="botao botao--neutro botao--pequeno botao--icone"
@@ -524,7 +524,7 @@ function SeletorPeriodo({ modo, setModo, referencia, setReferencia, rotulo }) {
         <input
           ref={dataOcultaRef}
           type="date"
-          className="entregas__data-oculta"
+          className="data-oculta"
           aria-hidden="true"
           tabIndex={-1}
           value={chaveDoDia(referencia)}
@@ -653,20 +653,20 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
 
       {sucesso && <p className="aviso aviso--ok">{sucesso}</p>}
 
-      <div className="entregas__lista-cabecalho">
+      <div className="lista-cabecalho">
         <div>
-          <h2 className="entregas__lista-titulo">Entregas do período</h2>
-          <p className="entregas__lista-contagem">{textoRegistros(filtradas.length)}</p>
+          <h2 className="lista-titulo">Entregas do período</h2>
+          <p className="lista-contagem">{textoRegistros(filtradas.length)}</p>
         </div>
-        <div className="entregas__lista-acoes">
-          <div className="entregas__busca-wrap">
-            <svg className="entregas__busca-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <div className="lista-acoes">
+          <div className="busca-wrap">
+            <svg className="busca-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="m21 21-4.3-4.3" />
             </svg>
             <input
               type="search"
-              className="entregas__busca"
+              className="busca"
               placeholder="Buscar cliente ou pedido"
               aria-label="Buscar por cliente ou pedido"
               value={busca}
@@ -741,10 +741,10 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
       </div>
 
       {filtradas.length === 0 ? (
-        <p className="entregas__vazio">Nenhuma entrega encontrada para os filtros selecionados.</p>
+        <p className="vazio">Nenhuma entrega encontrada para os filtros selecionados.</p>
       ) : (
         <>
-          <div className="entregas__tabela-wrap">
+          <div className="tabela-wrap">
             <table className="entregas__tabela">
               <thead>
                 <tr>
@@ -753,8 +753,8 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
                   <th>Caminhão</th>
                   <th>Pedido</th>
                   <th className="entregas__col-cliente">Cliente</th>
-                  <th className="entregas__col-numerica">Metragem</th>
-                  <th className="entregas__col-numerica">Valor</th>
+                  <th className="col-numerica">Metragem</th>
+                  <th className="col-numerica">Valor</th>
                   <th>Status</th>
                   <th className="entregas__col-acoes">
                     <span className="visualmente-oculto">Ações</span>
@@ -771,10 +771,10 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
                     <td data-rotulo="Cliente" className="entregas__col-cliente entregas__celula-truncada" title={e.cliente ?? '—'}>
                       {e.cliente ?? '—'}
                     </td>
-                    <td data-rotulo="Metragem" className="entregas__col-numerica">
+                    <td data-rotulo="Metragem" className="col-numerica">
                       {e.metragem != null ? formatarMetragem(e.metragem) : '—'}
                     </td>
-                    <td data-rotulo="Valor" className="entregas__col-numerica">
+                    <td data-rotulo="Valor" className="col-numerica">
                       {e.valor != null ? formatarMoedaNumero(e.valor) : '—'}
                     </td>
                     <td data-rotulo="Status">
@@ -859,20 +859,20 @@ function Ranking({ entregas, motoristas }) {
     <div className="entregas__painel">
       <SeletorPeriodo modo={modo} setModo={setModo} referencia={referencia} setReferencia={setReferencia} rotulo={periodo.rotulo} />
 
-      <div className="entregas__lista-cabecalho">
+      <div className="lista-cabecalho">
         <div>
-          <h2 className="entregas__lista-titulo">Ranking de motoristas</h2>
-          <p className="entregas__lista-contagem">{textoRegistros(filtrado.length)}</p>
+          <h2 className="lista-titulo">Ranking de motoristas</h2>
+          <p className="lista-contagem">{textoRegistros(filtrado.length)}</p>
         </div>
-        <div className="entregas__lista-acoes">
-          <div className="entregas__busca-wrap">
-            <svg className="entregas__busca-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <div className="lista-acoes">
+          <div className="busca-wrap">
+            <svg className="busca-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="m21 21-4.3-4.3" />
             </svg>
             <input
               type="search"
-              className="entregas__busca"
+              className="busca"
               placeholder="Buscar motorista"
               aria-label="Buscar motorista"
               value={busca}
@@ -887,23 +887,23 @@ function Ranking({ entregas, motoristas }) {
       </div>
 
       {filtrado.length === 0 ? (
-        <p className="entregas__vazio">Nenhum motorista com entregas nesse período.</p>
+        <p className="vazio">Nenhum motorista com entregas nesse período.</p>
       ) : (
-        <div className="entregas__tabela-wrap">
+        <div className="tabela-wrap">
           <table className="entregas__tabela">
             <thead>
               <tr>
-                <th className="entregas__col-numerica">#</th>
+                <th className="col-numerica">#</th>
                 <th>Motorista</th>
-                <th className="entregas__col-numerica">Pedidos entregues</th>
-                <th className="entregas__col-numerica">Metragem total</th>
-                <th className="entregas__col-numerica">Valor total</th>
+                <th className="col-numerica">Pedidos entregues</th>
+                <th className="col-numerica">Metragem total</th>
+                <th className="col-numerica">Valor total</th>
               </tr>
             </thead>
             <tbody>
               {filtrado.map((r, i) => (
                 <tr key={r.motoristaId}>
-                  <td data-rotulo="Posição" className="entregas__col-numerica">
+                  <td data-rotulo="Posição" className="col-numerica">
                     <span
                       className={`entregas__ranking-posicao ${i < 3 ? `entregas__ranking-posicao--${i + 1}` : ''}`}
                     >
@@ -914,13 +914,13 @@ function Ranking({ entregas, motoristas }) {
                     {r.nome}
                     {!r.ativo && <span className="entregas__ranking-inativo"> (inativo)</span>}
                   </td>
-                  <td data-rotulo="Pedidos entregues" className="entregas__col-numerica">
+                  <td data-rotulo="Pedidos entregues" className="col-numerica">
                     {r.pedidos}
                   </td>
-                  <td data-rotulo="Metragem total" className="entregas__col-numerica">
+                  <td data-rotulo="Metragem total" className="col-numerica">
                     {formatarMetragem(r.metragem)}
                   </td>
-                  <td data-rotulo="Valor total" className="entregas__col-numerica">
+                  <td data-rotulo="Valor total" className="col-numerica">
                     {formatarMoedaNumero(r.valor)}
                   </td>
                 </tr>

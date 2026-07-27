@@ -98,9 +98,11 @@ body {
   gap: 16px 24px;
   min-width: 0;
 }
-/* Abaixo da largura onde logo+abas cabem juntos numa linha so (~760px), volta a poder
-   quebrar entre os dois — sem isso o nowrap acima cria scroll horizontal em telas de celular. */
-@media (max-width: 760px) {
+/* Abaixo da largura onde logo+abas cabem juntos numa linha so, volta a poder quebrar entre
+   os dois — sem isso o nowrap acima cria scroll horizontal em telas de celular. Recalculado
+   pra 880px quando a aba "Relatório" (producao) foi adicionada — o texto das 5 abas juntas
+   ficou mais largo que o antigo limiar de 760px. */
+@media (max-width: 880px) {
   .cabecalho__nav {
     flex-wrap: wrap;
   }
@@ -1693,7 +1695,7 @@ body {
   flex-wrap: wrap;
   gap: 10px;
 }
-.entregas__vazio {
+.vazio {
   color: var(--tinta-tenue);
   padding: 40px 0;
   text-align: center;
@@ -1756,7 +1758,7 @@ body {
 .entregas__campo-cliente {
   flex: 1.2 1 150px;
 }
-.entregas__buscando-pedido {
+.buscando-pedido {
   flex-basis: 100%;
   font-size: 12px;
   color: var(--tinta-fraca);
@@ -1869,13 +1871,13 @@ body {
   align-items: center;
   gap: 8px;
 }
-.entregas__periodo-rotulo {
+.periodo-rotulo {
   min-width: 160px;
   text-align: center;
   font-weight: 700;
   letter-spacing: 0.3px;
 }
-.entregas__data-oculta {
+.data-oculta {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1920,7 +1922,7 @@ body {
 }
 
 /* --- cabecalho da listagem: titulo+contagem, busca, filtros, exportar ----------------- */
-.entregas__lista-cabecalho {
+.lista-cabecalho {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1928,28 +1930,28 @@ body {
   gap: 12px;
   margin-bottom: 14px;
 }
-.entregas__lista-titulo {
+.lista-titulo {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
 }
-.entregas__lista-contagem {
+.lista-contagem {
   margin: 2px 0 0;
   font-size: 13px;
   color: var(--tinta-fraca);
 }
-.entregas__lista-acoes {
+.lista-acoes {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
-.entregas__busca-wrap {
+.busca-wrap {
   position: relative;
   display: flex;
   align-items: center;
 }
-.entregas__busca-icone {
+.busca-icone {
   position: absolute;
   left: 12px;
   width: 16px;
@@ -1957,7 +1959,7 @@ body {
   color: var(--tinta-tenue);
   pointer-events: none;
 }
-.entregas__busca {
+.busca {
   min-height: 44px;
   min-width: 220px;
   padding: 0 12px 0 36px;
@@ -1967,7 +1969,7 @@ body {
   border: 1px solid var(--linha);
   border-radius: var(--raio);
 }
-.entregas__busca:focus {
+.busca:focus {
   outline: none;
   border-color: var(--preto);
   box-shadow: 0 0 0 3px var(--amarelo);
@@ -2027,7 +2029,7 @@ body {
 }
 
 /* --- tabela ---------------------------------------------------------------------------- */
-.entregas__tabela-wrap {
+.tabela-wrap {
   overflow-x: auto;
 }
 .entregas__tabela {
@@ -2065,7 +2067,7 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.entregas__col-numerica {
+.col-numerica {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -2197,6 +2199,86 @@ body {
   white-space: nowrap;
 }
 
+/* --- relatorio de producao (por centro de trabalho) ---------------------------------- */
+.relatorio-producao {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px;
+}
+.relatorio-producao__topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.relatorio-producao__titulo {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.relatorio-producao__subtitulo {
+  margin: 4px 0 0;
+  color: var(--tinta-fraca);
+  font-size: 14px;
+}
+.relatorio-producao__controles {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.relatorio-producao__navegacao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Um card por centro de trabalho — o numero de centros varia (Corte, Pintura, Colagem...),
+   entao auto-fit em vez da grade fixa de 4 colunas do Relatorio de Entregas. */
+.relatorio-producao__indicadores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.relatorio-producao__tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.relatorio-producao__tabela thead th {
+  padding: 10px 12px;
+  color: var(--tinta-fraca);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  text-align: left;
+  background: var(--fundo);
+  border-bottom: 1px solid var(--linha);
+  white-space: nowrap;
+}
+.relatorio-producao__tabela tbody td {
+  padding: 14px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--linha);
+  white-space: nowrap;
+}
+.relatorio-producao__tabela tbody tr:hover {
+  background: var(--fundo);
+}
+.relatorio-producao__atualizado {
+  margin-top: 16px;
+  color: var(--tinta-tenue);
+  font-size: 13px;
+  text-align: right;
+}
+
 /* --- telas estreitas (tablet retrato, monitores menores) ---------------------------- */
 /* --- tablet: os 4 cards de indicadores viram 2 colunas -------------------------------- */
 @media (max-width: 1100px) {
@@ -2254,15 +2336,22 @@ body {
   .entregas__indicadores {
     grid-template-columns: 1fr;
   }
-  .entregas__lista-cabecalho,
-  .entregas__lista-acoes {
+  .relatorio-producao__controles {
     flex-direction: column;
     align-items: stretch;
   }
-  .entregas__busca-wrap,
-  .entregas__busca,
+  .relatorio-producao__navegacao {
+    flex-wrap: wrap;
+  }
+  .lista-cabecalho,
+  .lista-acoes {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .busca-wrap,
+  .busca,
   .entregas__filtros-wrap,
-  .entregas__lista-acoes > .botao {
+  .lista-acoes > .botao {
     width: 100%;
   }
   .entregas__filtros-painel {
@@ -2328,6 +2417,49 @@ body {
   }
   .entregas__col-acoes::before {
     display: none;
+  }
+
+  .relatorio-producao__tabela thead {
+    display: none;
+  }
+  .relatorio-producao__tabela,
+  .relatorio-producao__tabela tbody,
+  .relatorio-producao__tabela tr,
+  .relatorio-producao__tabela td {
+    display: block;
+    width: 100%;
+  }
+  .relatorio-producao__tabela tr {
+    margin-bottom: 12px;
+    padding: 4px 12px;
+    background: var(--papel);
+    border: 1px solid var(--linha);
+    border-radius: var(--raio);
+  }
+  .relatorio-producao__tabela tbody tr:hover {
+    background: var(--papel);
+  }
+  .relatorio-producao__tabela td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--linha);
+    white-space: normal;
+    text-align: right;
+  }
+  .relatorio-producao__tabela tr td:last-child {
+    border-bottom: none;
+  }
+  .relatorio-producao__tabela td::before {
+    content: attr(data-rotulo);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--tinta-fraca);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    text-align: left;
   }
 
   .entregas__rodape {

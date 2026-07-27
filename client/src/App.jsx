@@ -6,6 +6,7 @@ import TelaLeitura from './components/TelaLeitura.jsx'
 import TelaKanban from './components/TelaKanban.jsx'
 import TelaPlanejamento from './components/TelaPlanejamento.jsx'
 import TelaEntregas from './components/TelaEntregas.jsx'
+import TelaRelatorioProducao from './components/TelaRelatorioProducao.jsx'
 import ModalSenha from './components/ModalSenha.jsx'
 
 // So um freio, nao seguranca de verdade (fica no bundle do cliente) — ver ModalSenha.jsx.
@@ -140,6 +141,12 @@ export default function App() {
             >
               Entregas
             </button>
+            <button
+              className={`aba ${tela === 'relatorio-producao' ? 'aba--ativa' : ''}`}
+              onClick={() => setTela('relatorio-producao')}
+            >
+              Relatório
+            </button>
           </nav>
         </div>
 
@@ -152,6 +159,7 @@ export default function App() {
         <TelaPlanejamento somenteLeitura={!adminLiberado} />
       )}
       {tela === 'entregas' && <TelaEntregas adminLiberado={adminLiberado} onPedirSenha={pedirSenhaParaEntregas} />}
+      {tela === 'relatorio-producao' && <TelaRelatorioProducao />}
 
       {pedindoSenha && (
         <ModalSenha

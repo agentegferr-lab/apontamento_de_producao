@@ -337,6 +337,13 @@ export const nomus = {
     return comCache('recursos', async () => requisitarPaginado('/recursos'))
   },
 
+  // Lista completa (nao um so, ver funcionarioPorMatricula acima) — usada pro relatorio de
+  // producao resolver nome a partir de idFuncionario. Cache proprio: poucos registros neste
+  // Nomus (confirmado: 3), pagina 1 sozinha ja cobre tudo.
+  async funcionarios() {
+    return comCache('funcionarios:todos', async () => requisitarPaginado('/funcionarios'))
+  },
+
   async atividades(idRecurso) {
     return comCache(`atividades:${idRecurso}`, async () =>
       requisitarPaginado('/atividades', { query: { idRecurso } }),
