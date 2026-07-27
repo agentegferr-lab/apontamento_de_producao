@@ -17,12 +17,24 @@ const IconeProcesso = () => (
   </svg>
 )
 
+const IconeMatricula = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <rect x="3" y="4.5" width="18" height="15" rx="2" />
+    <circle cx="9" cy="11" r="2.25" />
+    <path d="M5.5 16.5c.6-2 2-3 3.5-3s2.9 1 3.5 3" strokeLinecap="round" />
+    <path d="M14.5 9.5h4M14.5 13h4" strokeLinecap="round" />
+  </svg>
+)
+
 /**
  * Um campo por etiqueta, como no leitor fisico: le a ordem, o foco pula pro processo,
  * le o processo e o operador escolhe Iniciar ou Finalizar. Nao ha submit implicito — o
  * Enter e tratado na mao, pra leitura nunca depender do numero de campos do form.
  */
 export default function TelaLeitura({ terminal, onMudouAndamento }) {
+  // Ainda nao entra no apontamento (nao e obrigatorio, nao vai no corpo de iniciar/pausar/
+  // finalizar) — so o campo, preparando terreno pra quando isso virar exigencia de verdade.
+  const [matricula, setMatricula] = useState('')
   const [ordem, setOrdem] = useState('')
   const [processo, setProcesso] = useState('')
   const [ocupado, setOcupado] = useState(false)
@@ -31,6 +43,7 @@ export default function TelaLeitura({ terminal, onMudouAndamento }) {
   const [escolhendoAtividade, setEscolhendoAtividade] = useState(null) // { atividades, extras }
   const [escolhendoMotivo, setEscolhendoMotivo] = useState(null) // { motivos } ao pausar
 
+  const refMatricula = useRef(null)
   const refOrdem = useRef(null)
   const refProcesso = useRef(null)
   const refQuantidade = useRef(null)
@@ -189,6 +202,32 @@ export default function TelaLeitura({ terminal, onMudouAndamento }) {
         <p className="leitura__subtitulo">
           Utilize o leitor de código de barras para identificar os dados abaixo.
         </p>
+
+        <div className="leitura__linha">
+          <div className="leitura__rotulo">
+            <span className="leitura__icone">
+              <IconeMatricula />
+            </span>
+            <span>
+              <strong>MATRÍCULA DO COLABORADOR</strong>
+              <small>Opcional por enquanto</small>
+            </span>
+          </div>
+          <div className="leitura__campo">
+            <input
+              ref={refMatricula}
+              value={matricula}
+              onChange={(e) => setMatricula(e.target.value)}
+              onKeyDown={aoTeclar(refOrdem)}
+              disabled={bloqueado}
+              autoComplete="off"
+              aria-label="Matrícula do colaborador"
+            />
+            <span className="leitura__marca" aria-hidden="true">
+              <IconeMatricula />
+            </span>
+          </div>
+        </div>
 
         <div className="leitura__linha">
           <div className="leitura__rotulo">
