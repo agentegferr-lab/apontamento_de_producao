@@ -71,3 +71,15 @@ export function agruparPorMotorista(entregasFiltradas, motoristas) {
     .map(([motoristaId, total]) => ({ motoristaId, nome: nomePorId.get(motoristaId) ?? 'Motorista removido', total }))
     .sort((a, b) => b.total - a.total)
 }
+
+/** Soma metragem/valor do periodo — `metragem`/`valor` sao opcionais (null quando o
+ * motorista nao informou), entao null/undefined simplesmente nao entram na soma. */
+export function somarTotais(entregasFiltradas) {
+  let metragem = 0
+  let valor = 0
+  for (const e of entregasFiltradas) {
+    if (e.metragem != null) metragem += e.metragem
+    if (e.valor != null) valor += e.valor
+  }
+  return { metragem, valor }
+}

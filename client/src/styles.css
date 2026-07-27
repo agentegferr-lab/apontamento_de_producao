@@ -1623,7 +1623,7 @@ body {
   padding: 20px;
 }
 .entregas__painel--estreito {
-  max-width: 480px;
+  max-width: 640px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1659,6 +1659,19 @@ body {
 }
 .entregas__linha-adicionar--dupla .modal__campo {
   flex: 1;
+}
+.entregas__linha-adicionar--pedido {
+  flex-wrap: wrap;
+}
+.entregas__campo-pedido {
+  flex: 1.4 1 160px;
+}
+.entregas__campo-metragem,
+.entregas__campo-valor {
+  flex: 1 1 130px;
+}
+.entregas__campo-cliente {
+  flex: 1.2 1 150px;
 }
 
 .entregas__lista-pedidos {

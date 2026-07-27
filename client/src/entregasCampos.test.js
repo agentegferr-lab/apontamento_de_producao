@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { intervaloDoPeriodo, navegarPeriodo, filtrarPorPeriodo, agruparPorMotorista } from './entregasCampos.js'
+import { intervaloDoPeriodo, navegarPeriodo, filtrarPorPeriodo, agruparPorMotorista, somarTotais } from './entregasCampos.js'
 
 // 2026-07-25 e sabado — bom caso de teste pra semana (nao cai no domingo/inicio de semana).
 const REFERENCIA = new Date(2026, 6, 25)
@@ -59,4 +59,18 @@ test('agruparPorMotorista conta pedidos por motorista, do que mais entregou pro 
 test('agruparPorMotorista: motorista que nao existe mais no cadastro ainda aparece no relatorio', () => {
   const resultado = agruparPorMotorista([{ motoristaId: 'removido' }], [])
   assert.deepEqual(resultado, [{ motoristaId: 'removido', nome: 'Motorista removido', total: 1 }])
+})
+
+test('somarTotais soma metragem/valor, ignorando o que o motorista nao informou', () => {
+  const entregas = [
+    { metragem: 10, valor: 500 },
+    { metragem: null, valor: 200 },
+    { metragem: 5.5, valor: null },
+    { metragem: null, valor: null },
+  ]
+  assert.deepEqual(somarTotais(entregas), { metragem: 15.5, valor: 700 })
+})
+
+test('somarTotais com lista vazia devolve zero, nao NaN', () => {
+  assert.deepEqual(somarTotais([]), { metragem: 0, valor: 0 })
 })

@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import { formatarDataBr } from '../planejamentoCampos.js'
-import { intervaloDoPeriodo, navegarPeriodo, filtrarPorPeriodo, agruparPorMotorista } from '../entregasCampos.js'
+import { formatarNumeroBr, formatarMoedaNumero } from '../numero.js'
+import {
+  intervaloDoPeriodo,
+  navegarPeriodo,
+  filtrarPorPeriodo,
+  agruparPorMotorista,
+  somarTotais,
+} from '../entregasCampos.js'
 
 const SUBABAS = [
   { valor: 'lancar', texto: 'Lançar entrega' },
@@ -103,15 +110,29 @@ function LancarEntrega({ motoristas, caminhoes, onLancado, onErro }) {
   const [caminhaoId, setCaminhaoId] = useState('')
   const [data, setData] = useState(hojeChave)
   const [pedidoAtual, setPedidoAtual] = useState('')
+  const [metragemAtual, setMetragemAtual] = useState('')
+  const [valorAtual, setValorAtual] = useState('')
+  const [clienteAtual, setClienteAtual] = useState('')
   const [pedidos, setPedidos] = useState([])
   const [enviando, setEnviando] = useState(false)
   const [sucesso, setSucesso] = useState(null)
 
   function adicionarPedido() {
-    const valor = pedidoAtual.trim()
-    if (!valor) return
-    setPedidos((p) => [...p, valor])
+    const pedido = pedidoAtual.trim()
+    if (!pedido) return
+    setPedidos((p) => [
+      ...p,
+      {
+        pedido,
+        metragem: metragemAtual.trim() ? Number(metragemAtual) : null,
+        valor: valorAtual.trim() ? Number(valorAtual) : null,
+        cliente: clienteAtual.trim() || null,
+      },
+    ])
     setPedidoAtual('')
+    setMetragemAtual('')
+    setValorAtual('')
+    setClienteAtual('')
   }
 
   function removerPedido(indice) {
@@ -196,20 +217,43 @@ function LancarEntrega({ motoristas, caminhoes, onLancado, onErro }) {
 
       <div className="entregas__campo">
         <label htmlFor="entregas-pedido">Pedido entregue</label>
-        <div className="entregas__linha-adicionar">
+        <div className="entregas__linha-adicionar entregas__linha-adicionar--pedido">
           <input
             id="entregas-pedido"
-            className="modal__campo"
+            className="modal__campo entregas__campo-pedido"
             type="text"
-            placeholder="Número do pedido (ex.: PD 01038)"
+            placeholder="Nº do pedido"
             value={pedidoAtual}
             onChange={(e) => setPedidoAtual(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                adicionarPedido()
-              }
-            }}
+            onKeyDown={(e) => e.key === 'Enter' && adicionarPedido()}
+          />
+          <input
+            className="modal__campo entregas__campo-metragem"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Metragem (m²)"
+            value={metragemAtual}
+            onChange={(e) => setMetragemAtual(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && adicionarPedido()}
+          />
+          <input
+            className="modal__campo entregas__campo-valor"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Valor (R$)"
+            value={valorAtual}
+            onChange={(e) => setValorAtual(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && adicionarPedido()}
+          />
+          <input
+            className="modal__campo entregas__campo-cliente"
+            type="text"
+            placeholder="Cliente (opcional)"
+            value={clienteAtual}
+            onChange={(e) => setClienteAtual(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && adicionarPedido()}
           />
           <button className="botao botao--neutro botao--pequeno" onClick={adicionarPedido} type="button">
             Adicionar
@@ -220,12 +264,17 @@ function LancarEntrega({ motoristas, caminhoes, onLancado, onErro }) {
       {pedidos.length > 0 && (
         <ul className="entregas__lista-pedidos">
           {pedidos.map((p, i) => (
-            <li key={`${p}-${i}`}>
-              <span>{p}</span>
+            <li key={`${p.pedido}-${i}`}>
+              <span>
+                <strong>{p.pedido}</strong>
+                {p.metragem != null && ` · ${formatarNumeroBr(p.metragem)} m²`}
+                {p.valor != null && ` · ${formatarMoedaNumero(p.valor)}`}
+                {p.cliente && ` · ${p.cliente}`}
+              </span>
               <button
                 className="entregas__remover-pedido"
                 onClick={() => removerPedido(i)}
-                aria-label={`Remover pedido ${p}`}
+                aria-label={`Remover pedido ${p.pedido}`}
                 type="button"
               >
                 ×
@@ -380,6 +429,7 @@ function Relatorio({ entregas, motoristas, caminhoes }) {
   const periodo = useMemo(() => intervaloDoPeriodo(modo, referencia), [modo, referencia])
   const filtradas = useMemo(() => filtrarPorPeriodo(entregas, periodo), [entregas, periodo])
   const porMotorista = useMemo(() => agruparPorMotorista(filtradas, motoristas), [filtradas, motoristas])
+  const totais = useMemo(() => somarTotais(filtradas), [filtradas])
 
   const nomeMotorista = new Map(motoristas.map((m) => [m.id, m.nome]))
   const placaCaminhao = new Map(caminhoes.map((c) => [c.id, c.placa]))
@@ -419,6 +469,18 @@ function Relatorio({ entregas, motoristas, caminhoes }) {
           <span className="entregas__resumo-valor">{filtradas.length}</span>
           <span className="entregas__resumo-rotulo">Pedidos entregues no período</span>
         </div>
+        {totais.metragem > 0 && (
+          <div className="entregas__resumo-card">
+            <span className="entregas__resumo-valor">{formatarNumeroBr(totais.metragem)} m²</span>
+            <span className="entregas__resumo-rotulo">Metragem total</span>
+          </div>
+        )}
+        {totais.valor > 0 && (
+          <div className="entregas__resumo-card">
+            <span className="entregas__resumo-valor">{formatarMoedaNumero(totais.valor)}</span>
+            <span className="entregas__resumo-rotulo">Valor total</span>
+          </div>
+        )}
         {porMotorista.map((m) => (
           <div className="entregas__resumo-card" key={m.motoristaId}>
             <span className="entregas__resumo-valor">{m.total}</span>
@@ -438,6 +500,9 @@ function Relatorio({ entregas, motoristas, caminhoes }) {
                 <th>Motorista</th>
                 <th>Caminhão</th>
                 <th>Pedido</th>
+                <th>Cliente</th>
+                <th>Metragem</th>
+                <th>Valor</th>
               </tr>
             </thead>
             <tbody>
@@ -447,6 +512,9 @@ function Relatorio({ entregas, motoristas, caminhoes }) {
                   <td>{nomeMotorista.get(e.motoristaId) ?? '—'}</td>
                   <td>{placaCaminhao.get(e.caminhaoId) ?? '—'}</td>
                   <td>{e.pedido}</td>
+                  <td>{e.cliente ?? '—'}</td>
+                  <td>{e.metragem != null ? `${formatarNumeroBr(e.metragem)} m²` : '—'}</td>
+                  <td>{e.valor != null ? formatarMoedaNumero(e.valor) : '—'}</td>
                 </tr>
               ))}
             </tbody>

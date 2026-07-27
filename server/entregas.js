@@ -12,7 +12,8 @@ import { caminhoes } from './caminhoes.js'
  * local de server/pedidosOcultos.js. Um registro por PEDIDO entregue, nao por "viagem": um
  * motorista que entrega 5 pedidos numa saida so lanca uma vez na tela (ver POST /api/entregas),
  * mas isso vira 5 linhas aqui — deixa o relatorio (contar/agrupar por dia, motorista, caminhao)
- * trivial, sem precisar explodir array aninhado depois.
+ * trivial, sem precisar explodir array aninhado depois. Cada pedido pode trazer metragem/
+ * valor/cliente junto (todos opcionais, digitados pelo motorista — nao vem do Nomus).
  */
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -45,6 +46,31 @@ function gravar() {
 
 carregar()
 
+function normalizarNumero(valor) {
+  if (valor === null || valor === undefined || valor === '') return null
+  const n = Number(valor)
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * Um item de `pedidos` pode vir como string solta ("PD 01038", formato antigo) ou como
+ * objeto com os campos extras — os dois viram o mesmo formato aqui. `metragem`/`valor` sao
+ * numeros comuns (nao o formato BR "1.234,56" do Nomus — este campo e digitado pelo
+ * motorista num <input type="number">, nao vem do Nomus). Devolve `null` se nao tiver
+ * pedido, pra quem chama filtrar fora.
+ */
+function normalizarItemPedido(item) {
+  const bruto = typeof item === 'string' ? { pedido: item } : (item ?? {})
+  const pedido = String(bruto.pedido ?? '').trim()
+  if (!pedido) return null
+  return {
+    pedido,
+    metragem: normalizarNumero(bruto.metragem),
+    valor: normalizarNumero(bruto.valor),
+    cliente: String(bruto.cliente ?? '').trim() || null,
+  }
+}
+
 /** Parte pura: valida e normaliza o payload de lancamento, sem tocar no array/disco — dá pra
  * testar sem mockar fs. Lanca AppError no primeiro problema. */
 export function validarLancamento({ motoristaId, caminhaoId, data, pedidos }, { buscarMotorista, buscarCaminhao }) {
@@ -58,12 +84,10 @@ export function validarLancamento({ motoristaId, caminhaoId, data, pedidos }, { 
 
   if (!REGEX_DATA.test(data ?? '')) throw new AppError('data precisa estar no formato AAAA-MM-DD.', 400)
 
-  const pedidosNormalizados = (Array.isArray(pedidos) ? pedidos : [])
-    .map((p) => String(p ?? '').trim())
-    .filter(Boolean)
-  if (pedidosNormalizados.length === 0) throw new AppError('Informe ao menos um pedido entregue.', 400)
+  const itensNormalizados = (Array.isArray(pedidos) ? pedidos : []).map(normalizarItemPedido).filter(Boolean)
+  if (itensNormalizados.length === 0) throw new AppError('Informe ao menos um pedido entregue.', 400)
 
-  return { motoristaId, caminhaoId, data, pedidos: pedidosNormalizados }
+  return { motoristaId, caminhaoId, data, pedidos: itensNormalizados }
 }
 
 export const entregas = {
@@ -79,11 +103,14 @@ export const entregas = {
     })
 
     const criadoEm = new Date().toISOString()
-    const novos = valido.pedidos.map((pedido) => ({
+    const novos = valido.pedidos.map((item) => ({
       id: crypto.randomUUID(),
       motoristaId: valido.motoristaId,
       caminhaoId: valido.caminhaoId,
-      pedido,
+      pedido: item.pedido,
+      metragem: item.metragem,
+      valor: item.valor,
+      cliente: item.cliente,
       data: valido.data,
       criadoEm,
     }))
