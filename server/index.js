@@ -5,8 +5,10 @@ import { config, validarConfig } from './config.js'
 import { nomus, NomusError, ultimaAtualizacao, iniciarRefreshDeFundo } from './nomus.js'
 import { resolverOperacao, ResolucaoError } from './resolver.js'
 import { andamento, PRODUZINDO, PAUSADO } from './andamento.js'
+import PDFDocument from 'pdfkit'
 import { montarKanban } from './kanban.js'
 import { montarRelatorioProducao } from './relatorioProducao.js'
+import { gerarPdfRelatorioProducao } from './relatorioProducaoPdf.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
 import { mapaPedidosPorOrdem, buscarPedidoPorCodigo } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
@@ -467,22 +469,46 @@ app.get(
 // Relatorio de producao por centro de trabalho (Corte, Pintura...) num periodo — historico
 // ja apontado, diferente do /api/kanban (que mostra o que falta fazer agora). Ver
 // server/relatorioProducao.js.
+async function buscarRelatorioProducao(inicio, fim) {
+  if (!REGEX_DATA.test(inicio ?? '') || !REGEX_DATA.test(fim ?? '')) {
+    throw new AppError('inicio e fim devem estar no formato AAAA-MM-DD.', 400)
+  }
+  const [operacoes, apontamentos, funcionarios] = await Promise.all([
+    nomus.todasOperacoes(),
+    nomus.apontamentos(),
+    nomus.funcionarios(),
+  ])
+  return montarRelatorioProducao({ operacoes, apontamentos, funcionarios, inicio, fim })
+}
+
 app.get(
   '/api/relatorio-producao',
   asyncRoute(async (req, res) => {
-    const { inicio, fim } = req.query
-    if (!REGEX_DATA.test(inicio ?? '') || !REGEX_DATA.test(fim ?? '')) {
-      throw new AppError('inicio e fim devem estar no formato AAAA-MM-DD.', 400)
-    }
-    const [operacoes, apontamentos, funcionarios] = await Promise.all([
-      nomus.todasOperacoes(),
-      nomus.apontamentos(),
-      nomus.funcionarios(),
-    ])
-    res.json({
-      ...montarRelatorioProducao({ operacoes, apontamentos, funcionarios, inicio, fim }),
-      atualizadoEm: dataDeAtualizacaoDoQuadro().toISOString(),
+    const relatorio = await buscarRelatorioProducao(req.query.inicio, req.query.fim)
+    res.json({ ...relatorio, atualizadoEm: dataDeAtualizacaoDoQuadro().toISOString() })
+  }),
+)
+
+// PDF pra baixar direto (nao e window.print() — um arquivo de verdade, ver
+// server/relatorioProducaoPdf.js). `rotulo` vem do cliente, que ja calculou o texto exibido
+// na tela (ver client/src/producaoCampos.js) — evita duplicar a formatacao de periodo aqui.
+app.get(
+  '/api/relatorio-producao/pdf',
+  asyncRoute(async (req, res) => {
+    const { inicio, fim, rotulo } = req.query
+    const relatorio = await buscarRelatorioProducao(inicio, fim)
+
+    const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true })
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="relatorio-producao-${inicio}-a-${fim}.pdf"`)
+    doc.pipe(res)
+    gerarPdfRelatorioProducao(doc, {
+      periodoRotulo: rotulo || `${inicio} a ${fim}`,
+      porCentro: relatorio.porCentro,
+      detalhado: relatorio.detalhado,
+      geradoEm: new Date().toLocaleString('pt-BR'),
     })
+    doc.end()
   }),
 )
 

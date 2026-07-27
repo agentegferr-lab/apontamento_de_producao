@@ -87,6 +87,16 @@ export default function TelaRelatorioProducao() {
     })
   }, [dados, busca, filtroCentro])
 
+  // PDF de verdade pra baixar (nao e window.print()) — o servidor monta o arquivo (ver
+  // server/relatorioProducaoPdf.js) com os MESMOS dados/filtros ja carregados na tela, e o
+  // Content-Disposition da resposta ja dispara o download sozinho, sem precisar de blob aqui.
+  function baixarPdf() {
+    const params = new URLSearchParams({ inicio: periodo.inicio, fim: periodo.fim, rotulo: periodo.rotulo })
+    const a = document.createElement('a')
+    a.href = `/api/relatorio-producao/pdf?${params.toString()}`
+    a.click()
+  }
+
   function exportarCsv() {
     const csv = gerarCsvRelatorioProducao(detalhesFiltrados)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
@@ -255,6 +265,9 @@ export default function TelaRelatorioProducao() {
                 disabled={detalhesFiltrados.length === 0}
               >
                 Exportar CSV
+              </button>
+              <button type="button" className="botao botao--neutro botao--pequeno" onClick={baixarPdf}>
+                Baixar PDF
               </button>
             </div>
           </div>
