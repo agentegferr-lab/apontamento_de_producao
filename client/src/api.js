@@ -72,6 +72,9 @@ export const api = {
   },
   materiais: (idProduto, quantidade) =>
     chamar('/api/materiais', { method: 'POST', body: JSON.stringify({ idProduto, quantidade }) }),
+  // { cliente, valor, metragem } ja resolvidos do Nomus pra esse pedido, ou lanca 404 se
+  // ainda nao apareceu numa ordem (ver server/pedidos.js, buscarPedidoPorCodigo).
+  buscarPedido: (codigo) => chamar(`/api/pedidos/buscar?codigo=${encodeURIComponent(codigo)}`),
   caminhoes: {
     listar: () => chamar('/api/caminhoes'),
     criar: (dados) => chamar('/api/caminhoes', { method: 'POST', body: JSON.stringify(dados) }),

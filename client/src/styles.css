@@ -1673,6 +1673,12 @@ body {
 .entregas__campo-cliente {
   flex: 1.2 1 150px;
 }
+.entregas__buscando-pedido {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--tinta-fraca);
+  font-style: italic;
+}
 
 .entregas__lista-pedidos {
   display: flex;

@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { nomus, NomusError } from './nomus.js'
+import { normalizarPedido } from './pedidosOcultos.js'
 
 /**
  * Vincula cada ordem ao seu numero de pedido (e ao nome do cliente).
@@ -140,6 +141,10 @@ export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido
       statusItemPedido: itemPedido?.status ?? null,
       // Cru do Nomus (ex. "1.805,61" — ponto de milhar, virgula decimal), igual quantidade.
       valorTotal: pedido?.valorTotal ?? null,
+      // Vem do proprio ITEM (itensPedido[0].nomeCliente de /ordens), igual camposOrdem —
+      // nao depende do pedido ter resolvido. Usado pra preencher automaticamente o cliente
+      // no lancamento de Entregas (ver buscarPedidoPorCodigo abaixo).
+      cliente: item.nomeCliente ?? null,
     },
   ]
 }
@@ -240,4 +245,54 @@ function agendarAtualizacaoEmFundo(ordens) {
     .finally(() => {
       atualizandoEmFundo = null
     })
+}
+
+/** Mesmo parser de client/src/numero.js — nao ha import compartilhado entre client/server.
+ * So usado aqui pra agregar metragem/valor na busca por codigo (buscarPedidoPorCodigo
+ * abaixo); o resto do arquivo devolve tudo cru de proposito (quem formata pra exibir e o
+ * cliente). */
+function numeroBr(texto) {
+  if (texto == null || texto === '') return 0
+  const limpo = String(texto).trim().replace(/\./g, '').replace(',', '.')
+  const n = Number(limpo)
+  return Number.isFinite(n) ? n : 0
+}
+
+/**
+ * Parte pura: dado o mapa ja resolvido (ver mapaPedidosPorOrdem) e um codigo de pedido
+ * digitado livremente (ex. "1154" ou "PD 01154"), acha as entradas desse pedido e agrega
+ * cliente/metragem/valor — usado pra preencher automaticamente o formulario de "Lançar
+ * entrega" (ver TelaEntregas.jsx), que so tem o numero do pedido digitado pelo motorista.
+ *
+ * `metragem` soma so os itens com unidadeMedida "M2" — um pedido pode ter itens em unidades
+ * diferentes (ex. telha em M2 e acessorio em UN), somar tudo junto daria um numero sem
+ * sentido pra "metragem". `valorTotal` e do PEDIDO INTEIRO (mesmo valor em toda entrada que
+ * bater, ver entradaPedido), entao a primeira que tiver serve.
+ */
+export function encontrarPedidoNoMapa(mapa, codigoDigitado) {
+  const alvo = normalizarPedido(codigoDigitado)
+  if (!alvo) return null
+
+  const entradas = [...mapa.values()].filter((e) => e.pedido && normalizarPedido(e.pedido) === alvo)
+  if (entradas.length === 0) return null
+
+  const cliente = entradas.find((e) => e.cliente)?.cliente ?? null
+  const valorBruto = entradas.find((e) => e.valorTotal)?.valorTotal ?? null
+  const metragem = entradas
+    .filter((e) => String(e.unidadeMedida ?? '').trim().toUpperCase() === 'M2')
+    .reduce((soma, e) => soma + numeroBr(e.quantidade), 0)
+
+  return {
+    cliente,
+    valor: valorBruto != null ? numeroBr(valorBruto) : null,
+    metragem: metragem > 0 ? metragem : null,
+  }
+}
+
+/** Busca por codigo de pedido pra preencher automaticamente o form de Entregas — ver
+ * GET /api/pedidos/buscar em server/index.js. `null` se o pedido nao existir no mapa (ainda
+ * nao apareceu numa ordem, ou o lote de fundo ainda nao resolveu nenhuma entrada dele). */
+export async function buscarPedidoPorCodigo(codigo) {
+  const mapa = await mapaPedidosPorOrdem()
+  return encontrarPedidoNoMapa(mapa, codigo)
 }

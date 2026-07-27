@@ -116,6 +116,27 @@ function LancarEntrega({ motoristas, caminhoes, onLancado, onErro }) {
   const [pedidos, setPedidos] = useState([])
   const [enviando, setEnviando] = useState(false)
   const [sucesso, setSucesso] = useState(null)
+  const [buscandoPedido, setBuscandoPedido] = useState(false)
+
+  // Ao sair do campo "Pedido", tenta preencher cliente/metragem/valor sozinho com o que ja
+  // esta resolvido do Nomus (ver server/pedidos.js, buscarPedidoPorCodigo) — o motorista so
+  // digitou o numero. Silencioso quando nao acha (pedido ainda nao resolvido, ou digitado
+  // errado): nao trava o lancamento manual, so nao preenche nada.
+  async function buscarDadosDoPedido() {
+    const codigo = pedidoAtual.trim()
+    if (!codigo) return
+    setBuscandoPedido(true)
+    try {
+      const info = await api.buscarPedido(codigo)
+      if (info.cliente != null) setClienteAtual(info.cliente)
+      if (info.metragem != null) setMetragemAtual(String(info.metragem))
+      if (info.valor != null) setValorAtual(String(info.valor))
+    } catch {
+      // pedido nao encontrado/nao resolvido ainda — segue o form manual, sem erro na tela.
+    } finally {
+      setBuscandoPedido(false)
+    }
+  }
 
   function adicionarPedido() {
     const pedido = pedidoAtual.trim()
@@ -225,8 +246,13 @@ function LancarEntrega({ motoristas, caminhoes, onLancado, onErro }) {
             placeholder="Nº do pedido"
             value={pedidoAtual}
             onChange={(e) => setPedidoAtual(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && adicionarPedido()}
+            onBlur={buscarDadosDoPedido}
+            // Enter aqui so busca (preenche cliente/metragem/valor) — nao adiciona ainda,
+            // senao o lancamento ia com os campos vazios (a busca e assincrona, e o
+            // Enter nao tira o foco do campo sozinho).
+            onKeyDown={(e) => e.key === 'Enter' && buscarDadosDoPedido()}
           />
+          {buscandoPedido && <span className="entregas__buscando-pedido">Buscando...</span>}
           <input
             className="modal__campo entregas__campo-metragem"
             type="number"

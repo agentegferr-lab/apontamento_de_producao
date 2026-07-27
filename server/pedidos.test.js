@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { entradaPedido } from './pedidos.js'
+import { entradaPedido, encontrarPedidoNoMapa } from './pedidos.js'
 
 // Formato confirmado contra o Nomus real em 2026-07-15.
 const item = { id: 2717, idPedido: 1279, item: '00010', nomeCliente: 'CESAR EDUARDO' }
@@ -37,6 +37,7 @@ test('monta a entrada [idOrdem, {pedido, idPedido, ...camposOrdem, statusItemPed
       statusOrdem: 'Liberada',
       statusItemPedido: null,
       valorTotal: '1.805,61',
+      cliente: 'CESAR EDUARDO',
     },
   ])
 })
@@ -88,11 +89,11 @@ test('pedido nao resolvido (sem o campo esperado, ou nulo): gera entrada com ped
   // pedido (statusItemPedido PRECISA do pedido resolvido, diferente dos campos da ordem).
   assert.deepEqual(entradaPedido(1579, item, { id: 1279 }), [
     1579,
-    { pedido: null, idPedido: 1279, ...CAMPOS_VAZIOS, statusItemPedido: null, valorTotal: null },
+    { pedido: null, idPedido: 1279, ...CAMPOS_VAZIOS, statusItemPedido: null, valorTotal: null, cliente: 'CESAR EDUARDO' },
   ])
   assert.deepEqual(entradaPedido(1579, item, null), [
     1579,
-    { pedido: null, idPedido: 1279, ...CAMPOS_VAZIOS, statusItemPedido: null, valorTotal: null },
+    { pedido: null, idPedido: 1279, ...CAMPOS_VAZIOS, statusItemPedido: null, valorTotal: null, cliente: 'CESAR EDUARDO' },
   ])
 })
 
@@ -100,6 +101,68 @@ test('campo do pedido e configuravel (NOMUS_CAMPO_PEDIDO)', () => {
   const entrada = entradaPedido(1579, item, { numeroPedido: 'PV-2026-0431' }, 'numeroPedido')
   assert.deepEqual(entrada, [
     1579,
-    { pedido: 'PV-2026-0431', idPedido: 1279, ...CAMPOS_VAZIOS, statusItemPedido: null, valorTotal: null },
+    {
+      pedido: 'PV-2026-0431',
+      idPedido: 1279,
+      ...CAMPOS_VAZIOS,
+      statusItemPedido: null,
+      valorTotal: null,
+      cliente: 'CESAR EDUARDO',
+    },
   ])
+})
+
+test('cliente vem do ITEM (nomeCliente de /ordens), null se o item nao tiver', () => {
+  assert.equal(entradaPedido(1579, item, pedido)[1].cliente, 'CESAR EDUARDO')
+  const itemSemCliente = { id: 2717, idPedido: 1279, item: '00010' }
+  assert.equal(entradaPedido(1579, itemSemCliente, pedido)[1].cliente, null)
+})
+
+test('encontrarPedidoNoMapa: acha por codigo normalizado (com/sem prefixo, zeros), agrega cliente/valor/metragem', () => {
+  const mapa = new Map([
+    [
+      100,
+      {
+        pedido: 'PD 01154',
+        cliente: 'Fulano de Tal',
+        valorTotal: '1.000,00',
+        quantidade: '10,5',
+        unidadeMedida: 'M2',
+      },
+    ],
+    [
+      101,
+      {
+        // 2o item do MESMO pedido: mesmo valorTotal (e do pedido inteiro), metragem soma.
+        pedido: 'PD 01154',
+        cliente: null,
+        valorTotal: '1.000,00',
+        quantidade: '5',
+        unidadeMedida: 'M2',
+      },
+    ],
+    [
+      102,
+      {
+        // item em unidade diferente: nao entra na soma de metragem.
+        pedido: 'PD 01154',
+        cliente: null,
+        valorTotal: '1.000,00',
+        quantidade: '3',
+        unidadeMedida: 'UN',
+      },
+    ],
+    [200, { pedido: 'PD 00922', cliente: 'Outro Cliente', valorTotal: '500,00', quantidade: '2', unidadeMedida: 'M2' }],
+  ])
+
+  assert.deepEqual(encontrarPedidoNoMapa(mapa, '1154'), { cliente: 'Fulano de Tal', valor: 1000, metragem: 15.5 })
+  assert.deepEqual(encontrarPedidoNoMapa(mapa, 'PD 01154'), { cliente: 'Fulano de Tal', valor: 1000, metragem: 15.5 })
+  assert.deepEqual(encontrarPedidoNoMapa(mapa, '00922'), { cliente: 'Outro Cliente', valor: 500, metragem: 2 })
+})
+
+test('encontrarPedidoNoMapa: pedido nao encontrado ou codigo vazio devolve null', () => {
+  const mapa = new Map([[1, { pedido: 'PD 00001', cliente: 'X', valorTotal: '1,00', quantidade: '1', unidadeMedida: 'M2' }]])
+  assert.equal(encontrarPedidoNoMapa(mapa, '99999'), null)
+  assert.equal(encontrarPedidoNoMapa(mapa, ''), null)
+  assert.equal(encontrarPedidoNoMapa(mapa, null), null)
 })

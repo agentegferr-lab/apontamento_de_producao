@@ -7,7 +7,7 @@ import { resolverOperacao, ResolucaoError } from './resolver.js'
 import { andamento, PRODUZINDO, PAUSADO } from './andamento.js'
 import { montarKanban } from './kanban.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
-import { mapaPedidosPorOrdem } from './pedidos.js'
+import { mapaPedidosPorOrdem, buscarPedidoPorCodigo } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
 import { pedidosOcultos } from './pedidosOcultos.js'
 import { materiaisParaItens } from './materiais.js'
@@ -490,6 +490,20 @@ app.delete(
       throw new AppError('Pedido oculto nao encontrado.', 404)
     }
     res.status(204).end()
+  }),
+)
+
+// Preenchimento automatico de cliente/metragem/valor no lancamento de Entregas (ver
+// TelaEntregas.jsx) a partir do que ja esta resolvido do Nomus (ver server/pedidos.js,
+// buscarPedidoPorCodigo) — o motorista so digita o numero do pedido.
+app.get(
+  '/api/pedidos/buscar',
+  asyncRoute(async (req, res) => {
+    const { codigo } = req.query
+    if (!codigo) throw new AppError('codigo e obrigatorio.', 400)
+    const info = await buscarPedidoPorCodigo(codigo)
+    if (!info) throw new AppError('Pedido nao encontrado (ou ainda nao resolvido).', 404)
+    res.json(info)
   }),
 )
 
