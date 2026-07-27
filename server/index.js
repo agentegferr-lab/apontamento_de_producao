@@ -538,6 +538,14 @@ app.post(
   asyncRoute(async (req, res) => res.status(201).json(entregas.lancar(req.body ?? {}))),
 )
 
+app.delete(
+  '/api/entregas/:id',
+  asyncRoute(async (req, res) => {
+    if (!entregas.remover(req.params.id)) throw new AppError('Lancamento de entrega nao encontrado.', 404)
+    res.status(204).end()
+  }),
+)
+
 // --- Planejamento (PCP) ----------------------------------------------------------------
 // So nosso, nunca vai pro Nomus — ver server/planejamento.js.
 // Cada item volta com `materiais` (materia-prima explodida da lista de materiais do Nomus,

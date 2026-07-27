@@ -87,5 +87,6 @@ export const api = {
   entregas: {
     listar: () => chamar('/api/entregas'),
     lancar: (dados) => chamar('/api/entregas', { method: 'POST', body: JSON.stringify(dados) }),
+    remover: (id) => chamar(`/api/entregas/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },
 }

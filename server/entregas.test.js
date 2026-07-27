@@ -109,3 +109,18 @@ test('lancar cria um registro por pedido, todos com o mesmo motorista/caminhao/d
   assert.notEqual(criados[0].id, criados[1].id)
   assert.equal(entregas.listar().length, antes + 2)
 })
+
+test('remover tira o lancamento da lista e devolve true; id inexistente devolve false', () => {
+  const [criado] = entregas.lancar({
+    motoristaId: motorista.id,
+    caminhaoId: caminhao.id,
+    data: '2026-07-25',
+    pedidos: ['PD 05555'],
+  })
+  const antes = entregas.listar().length
+  assert.equal(entregas.remover(criado.id), true)
+  assert.equal(entregas.listar().length, antes - 1)
+  assert.equal(entregas.listar().some((e) => e.id === criado.id), false)
+  assert.equal(entregas.remover(criado.id), false, 'ja removido, segunda vez devolve false')
+  assert.equal(entregas.remover('nao-existe'), false)
+})

@@ -119,4 +119,14 @@ export const entregas = {
     gravar()
     return novos
   },
+
+  /** Remove um lancamento (um pedido) por id — mesmo padrao de planejamento.remover(): so
+   * grava se de fato achou e removeu, devolve boolean pra rota decidir 204 ou 404. */
+  remover(id) {
+    const antes = itens.length
+    itens = itens.filter((i) => i.id !== id)
+    if (itens.length === antes) return false
+    gravar()
+    return true
+  },
 }

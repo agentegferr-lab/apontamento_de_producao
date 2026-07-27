@@ -96,7 +96,7 @@ export default function TelaEntregas({ adminLiberado, onPedirSenha }) {
         <Cadastro motoristas={motoristas} caminhoes={caminhoes} onMudou={carregar} onErro={setErro} />
       )}
       {!carregando && subaba === 'relatorio' && (
-        <Relatorio entregas={entregas} motoristas={motoristas} caminhoes={caminhoes} />
+        <Relatorio entregas={entregas} motoristas={motoristas} caminhoes={caminhoes} onMudou={carregar} onErro={setErro} />
       )}
     </main>
   )
@@ -422,9 +422,10 @@ function Cadastro({ motoristas, caminhoes, onMudou, onErro }) {
   )
 }
 
-function Relatorio({ entregas, motoristas, caminhoes }) {
+function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
   const [modo, setModo] = useState('dia')
   const [referencia, setReferencia] = useState(() => new Date())
+  const [removendo, setRemovendo] = useState(null) // id da entrega sendo removida agora
 
   const periodo = useMemo(() => intervaloDoPeriodo(modo, referencia), [modo, referencia])
   const filtradas = useMemo(() => filtrarPorPeriodo(entregas, periodo), [entregas, periodo])
@@ -435,6 +436,20 @@ function Relatorio({ entregas, motoristas, caminhoes }) {
   const placaCaminhao = new Map(caminhoes.map((c) => [c.id, c.placa]))
 
   const ordenadas = [...filtradas].sort((a, b) => b.data.localeCompare(a.data) || b.criadoEm.localeCompare(a.criadoEm))
+
+  async function removerEntrega(item) {
+    if (!window.confirm(`Excluir a entrega do pedido ${item.pedido}? Essa ação não pode ser desfeita.`)) return
+    setRemovendo(item.id)
+    onErro(null)
+    try {
+      await api.entregas.remover(item.id)
+      await onMudou()
+    } catch (err) {
+      onErro(err.message)
+    } finally {
+      setRemovendo(null)
+    }
+  }
 
   return (
     <div className="entregas__painel">
@@ -503,6 +518,7 @@ function Relatorio({ entregas, motoristas, caminhoes }) {
                 <th>Cliente</th>
                 <th>Metragem</th>
                 <th>Valor</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -515,6 +531,15 @@ function Relatorio({ entregas, motoristas, caminhoes }) {
                   <td>{e.cliente ?? '—'}</td>
                   <td>{e.metragem != null ? `${formatarNumeroBr(e.metragem)} m²` : '—'}</td>
                   <td>{e.valor != null ? formatarMoedaNumero(e.valor) : '—'}</td>
+                  <td>
+                    <button
+                      className="botao botao--perigo botao--pequeno"
+                      onClick={() => removerEntrega(e)}
+                      disabled={removendo === e.id}
+                    >
+                      {removendo === e.id ? 'Removendo...' : 'Excluir'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
