@@ -11,7 +11,11 @@ import ModalSenha from './components/ModalSenha.jsx'
 // So um freio, nao seguranca de verdade (fica no bundle do cliente) — ver ModalSenha.jsx.
 // Mesma senha protege o Planejamento e o Cadastro de caminhoes/motoristas dentro de Entregas.
 const SENHA_ADMIN = 'Adm@2026'
+// So pro Planejamento: entra e ve tudo (calendario, fila, relatorio), mas sem arrastar,
+// agendar, reagendar ou remover nada — ver TelaPlanejamento.jsx, prop somenteLeitura.
+const SENHA_VISUALIZACAO_PLANEJAMENTO = 'Comercial@gferro'
 const CHAVE_SESSAO = 'planejamento-liberado'
+const CHAVE_SESSAO_VISUALIZACAO = 'planejamento-visualizacao'
 
 export default function App() {
   const [tela, setTela] = useState('leitura')
@@ -21,6 +25,9 @@ export default function App() {
   // Liberado uma vez por sessao do navegador (sessionStorage) — nao pede nas trocas de aba
   // seguintes, so de novo se a aba/navegador fechar.
   const [adminLiberado, setAdminLiberado] = useState(() => sessionStorage.getItem(CHAVE_SESSAO) === '1')
+  const [planejamentoVisualizacao, setPlanejamentoVisualizacao] = useState(
+    () => sessionStorage.getItem(CHAVE_SESSAO_VISUALIZACAO) === '1',
+  )
   const [pedindoSenha, setPedindoSenha] = useState(false)
   const [senhaErrada, setSenhaErrada] = useState(false)
   // Pra onde ir depois de confirmar a senha — Planejamento troca de aba sozinho; pedido vindo
@@ -42,7 +49,7 @@ export default function App() {
   const aoMudarAndamento = useCallback(() => setVersaoAndamento((v) => v + 1), [])
 
   function abrirPlanejamento() {
-    if (adminLiberado) {
+    if (adminLiberado || planejamentoVisualizacao) {
       setTela('planejamento')
     } else {
       setOrigemSenha('planejamento')
@@ -63,6 +70,11 @@ export default function App() {
       setAdminLiberado(true)
       setPedindoSenha(false)
       if (origemSenha === 'planejamento') setTela('planejamento')
+    } else if (origemSenha === 'planejamento' && senha === SENHA_VISUALIZACAO_PLANEJAMENTO) {
+      sessionStorage.setItem(CHAVE_SESSAO_VISUALIZACAO, '1')
+      setPlanejamentoVisualizacao(true)
+      setPedindoSenha(false)
+      setTela('planejamento')
     } else {
       setSenhaErrada(true)
     }
@@ -97,41 +109,48 @@ export default function App() {
   return (
     <div className="app">
       <header className="cabecalho">
-        <Logo />
+        {/* Logo+abas agrupados: sem isso, o cabecalho quebrava em 3 linhas separadas (logo /
+            abas / relogio) em larguras de tablet — juntos, eles quebram como um bloco so,
+            deixando so 2 linhas (logo+abas / relogio) e sobrando mais altura pro conteudo. */}
+        <div className="cabecalho__nav">
+          <Logo />
 
-        <nav className="abas">
-          <button
-            className={`aba ${tela === 'leitura' ? 'aba--ativa' : ''}`}
-            onClick={() => setTela('leitura')}
-          >
-            Apontamento
-          </button>
-          <button
-            className={`aba ${tela === 'kanban' ? 'aba--ativa' : ''}`}
-            onClick={() => setTela('kanban')}
-          >
-            Acompanhamento
-          </button>
-          <button
-            className={`aba ${tela === 'planejamento' ? 'aba--ativa' : ''}`}
-            onClick={abrirPlanejamento}
-          >
-            Planejamento
-          </button>
-          <button
-            className={`aba ${tela === 'entregas' ? 'aba--ativa' : ''}`}
-            onClick={() => setTela('entregas')}
-          >
-            Entregas
-          </button>
-        </nav>
+          <nav className="abas">
+            <button
+              className={`aba ${tela === 'leitura' ? 'aba--ativa' : ''}`}
+              onClick={() => setTela('leitura')}
+            >
+              Apontamento
+            </button>
+            <button
+              className={`aba ${tela === 'kanban' ? 'aba--ativa' : ''}`}
+              onClick={() => setTela('kanban')}
+            >
+              Acompanhamento
+            </button>
+            <button
+              className={`aba ${tela === 'planejamento' ? 'aba--ativa' : ''}`}
+              onClick={abrirPlanejamento}
+            >
+              Planejamento
+            </button>
+            <button
+              className={`aba ${tela === 'entregas' ? 'aba--ativa' : ''}`}
+              onClick={() => setTela('entregas')}
+            >
+              Entregas
+            </button>
+          </nav>
+        </div>
 
         <Relogio />
       </header>
 
       {tela === 'leitura' && <TelaLeitura terminal={terminal} onMudouAndamento={aoMudarAndamento} />}
       {tela === 'kanban' && <TelaKanban recarregarEm={versaoAndamento} />}
-      {tela === 'planejamento' && adminLiberado && <TelaPlanejamento />}
+      {tela === 'planejamento' && (adminLiberado || planejamentoVisualizacao) && (
+        <TelaPlanejamento somenteLeitura={!adminLiberado} />
+      )}
       {tela === 'entregas' && <TelaEntregas adminLiberado={adminLiberado} onPedirSenha={pedirSenhaParaEntregas} />}
 
       {pedindoSenha && (

@@ -53,16 +53,18 @@ export default function ModalDetalheDia({ data, itens, onFechar, onAbrirItem, on
                       <p className="planejamento-card__valor">{formatarMoedaBr(item.valorTotal)}</p>
                     )}
                   </div>
-                  <button
-                    className="planejamento-card__remover"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onRemoverItem(item, e)
-                    }}
-                    aria-label={`Remover ${item.nomeOrdem} do planejamento`}
-                  >
-                    ×
-                  </button>
+                  {onRemoverItem && (
+                    <button
+                      className="planejamento-card__remover"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onRemoverItem(item, e)
+                      }}
+                      aria-label={`Remover ${item.nomeOrdem} do planejamento`}
+                    >
+                      ×
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

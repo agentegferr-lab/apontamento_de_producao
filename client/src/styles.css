@@ -88,10 +88,28 @@ body {
   line-height: 1;
 }
 
+/* Agrupa logo+abas num so item flex do .cabecalho, pra quebrar como bloco (ver App.jsx) —
+   nowrap aqui dentro e de proposito: sem isso, logo e abas quebravam entre si tambem, e o
+   cabecalho voltava a ter 3 linhas em vez de 2 nas larguras de tablet. */
+.cabecalho__nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 16px 24px;
+  min-width: 0;
+}
+/* Abaixo da largura onde logo+abas cabem juntos numa linha so (~760px), volta a poder
+   quebrar entre os dois — sem isso o nowrap acima cria scroll horizontal em telas de celular. */
+@media (max-width: 760px) {
+  .cabecalho__nav {
+    flex-wrap: wrap;
+  }
+}
+
 .abas {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  margin-left: 8px;
 }
 .aba {
   min-height: 44px;
@@ -372,6 +390,30 @@ body {
   background: var(--amarelo);
   font-weight: 700;
   letter-spacing: 0;
+}
+/* Acao primaria com a cor de marca (ex. "Nova entrega") — nao usa --iniciar (verde) porque
+   aqui a cor e identidade visual, nao um sinal de "processo em andamento". */
+.botao--amarelo {
+  color: var(--preto);
+  background: var(--amarelo);
+}
+.botao--icone {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+}
+
+/* Utilitario: some visualmente mas continua legivel por leitor de tela. */
+.visualmente-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* --- avisos ------------------------------------------------------------------------- */
@@ -677,6 +719,7 @@ body {
 }
 .kanban__controles {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -1039,6 +1082,20 @@ body {
   font-weight: 700;
   letter-spacing: 0.3px;
 }
+.planejamento__etiqueta-leitura {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 3px 10px;
+  vertical-align: middle;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: none;
+  color: var(--tinta-fraca);
+  background: var(--fundo);
+  border: 1px solid var(--linha);
+  border-radius: 999px;
+}
 .planejamento__subtitulo {
   margin: 4px 0 0;
   color: var(--tinta-fraca);
@@ -1211,6 +1268,47 @@ body {
   border-radius: var(--raio);
   cursor: grab;
   overflow-wrap: anywhere;
+}
+/* Alternativa por toque ao arrastar-e-soltar (touchscreen nao dispara drag nativo) — ver
+   TelaPlanejamento.jsx, alternarAgendamentoPorToque/tocarNoDia. */
+.planejamento-card__agendar {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.planejamento-card--selecionado {
+  border-color: var(--amarelo-escuro);
+  border-width: 2px;
+  background: var(--amarelo-tenue);
+}
+.planejamento__aviso-agendamento {
+  flex-shrink: 0;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  background: var(--amarelo-tenue);
+  border: 1px solid var(--amarelo);
+  border-radius: var(--raio);
+  font-size: 14px;
+  color: var(--grafite);
+}
+.planejamento__aviso-agendamento-cancelar {
+  padding: 2px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tinta);
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  cursor: pointer;
+}
+/* Enquanto ha um card selecionado pra agendar por toque, todos os dias ganham essa borda
+   tracejada — sinaliza "toque aqui" sem precisar do hover que touchscreen nao tem. */
+.planejamento__dia--selecionavel {
+  border-style: dashed;
+  border-color: var(--amarelo-escuro);
 }
 .planejamento-card:active {
   cursor: grabbing;
@@ -1590,25 +1688,10 @@ body {
   color: var(--tinta-fraca);
   font-size: 14px;
 }
-.entregas__subabas {
+.entregas__acoes-topo {
   display: flex;
-  gap: 8px;
-}
-.entregas__subaba {
-  min-height: 44px;
-  padding: 0 18px;
-  font: inherit;
-  font-weight: 700;
-  color: var(--tinta-fraca);
-  background: var(--papel);
-  border: 1px solid var(--linha);
-  border-radius: var(--raio);
-  cursor: pointer;
-}
-.entregas__subaba--ativa {
-  background: var(--amarelo);
-  border-color: var(--amarelo);
-  color: var(--preto);
+  flex-wrap: wrap;
+  gap: 10px;
 }
 .entregas__vazio {
   color: var(--tinta-tenue);
@@ -1755,10 +1838,32 @@ body {
   gap: 12px;
   margin-bottom: 20px;
 }
-.entregas__modos {
-  display: flex;
-  gap: 8px;
+
+/* --- controle segmentado (Dia/Semana/Mes) -------------------------------------------- */
+.segmentado {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--fundo);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
 }
+.segmentado__item {
+  min-height: 38px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tinta-fraca);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.segmentado__item--ativo {
+  color: var(--preto);
+  background: var(--amarelo);
+}
+
 .entregas__navegacao {
   display: flex;
   align-items: center;
@@ -1769,42 +1874,139 @@ body {
   text-align: center;
   font-weight: 700;
   letter-spacing: 0.3px;
-  text-transform: capitalize;
+}
+.entregas__data-oculta {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.entregas__resumo {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+/* --- 4 cards de indicadores ----------------------------------------------------------- */
+.entregas__indicadores {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
   margin-bottom: 20px;
 }
-.entregas__resumo-card {
+.indicador {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 108px;
-  padding: 8px 18px;
-  background: var(--fundo);
+  gap: 4px;
+  padding: 16px 18px;
+  background: var(--papel);
   border: 1px solid var(--linha);
-  border-radius: var(--raio);
+  border-radius: 10px;
 }
-.entregas__resumo-valor {
-  font-size: 24px;
-  font-weight: 800;
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
-  color: var(--tinta);
-}
-.entregas__resumo-rotulo {
-  margin-top: 2px;
-  font-size: 11px;
+.indicador__titulo {
+  font-size: 12px;
   font-weight: 700;
   color: var(--tinta-fraca);
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
+.indicador__valor {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+.indicador__aux {
+  font-size: 12px;
+  color: var(--tinta-fraca);
+}
 
+/* --- cabecalho da listagem: titulo+contagem, busca, filtros, exportar ----------------- */
+.entregas__lista-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.entregas__lista-titulo {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.entregas__lista-contagem {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--tinta-fraca);
+}
+.entregas__lista-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.entregas__busca-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.entregas__busca-icone {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: var(--tinta-tenue);
+  pointer-events: none;
+}
+.entregas__busca {
+  min-height: 44px;
+  min-width: 220px;
+  padding: 0 12px 0 36px;
+  font: inherit;
+  color: var(--tinta);
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+.entregas__busca:focus {
+  outline: none;
+  border-color: var(--preto);
+  box-shadow: 0 0 0 3px var(--amarelo);
+}
+.entregas__filtros-wrap {
+  position: relative;
+}
+.entregas__filtros-painel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 240px;
+  padding: 16px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.12);
+}
+.entregas__filtros-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tinta-fraca);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.entregas__filtros-campo .seletor {
+  width: 100%;
+  text-transform: none;
+  font-weight: 400;
+}
+
+/* --- tabela ---------------------------------------------------------------------------- */
 .entregas__tabela-wrap {
   overflow-x: auto;
 }
@@ -1813,15 +2015,171 @@ body {
   border-collapse: collapse;
   font-size: 14px;
 }
-.entregas__tabela th,
-.entregas__tabela td {
+.entregas__tabela thead th {
   padding: 10px 12px;
+  color: var(--tinta-fraca);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  text-align: left;
+  background: var(--fundo);
+  border-bottom: 1px solid var(--linha);
+  white-space: nowrap;
+}
+.entregas__tabela tbody td {
+  padding: 14px 12px;
   text-align: left;
   border-bottom: 1px solid var(--linha);
   white-space: nowrap;
 }
+.entregas__tabela tbody tr:hover {
+  background: var(--fundo);
+}
+.entregas__col-cliente {
+  min-width: 200px;
+  max-width: 260px;
+}
+.entregas__celula-truncada {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entregas__col-numerica {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.entregas__col-acoes {
+  width: 56px;
+  text-align: right;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.status-badge--entregue {
+  color: var(--verde-escuro);
+  background: var(--verde-claro);
+}
+
+/* --- menu de acoes (3 pontinhos) -------------------------------------------------------- */
+.menu-acoes {
+  display: inline-flex;
+}
+.menu-acoes__gatilho {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--tinta-fraca);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.menu-acoes__gatilho svg {
+  width: 18px;
+  height: 18px;
+}
+.menu-acoes__gatilho:hover {
+  background: var(--fundo);
+  color: var(--tinta);
+}
+.menu-acoes__lista {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 6px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.16);
+}
+.menu-acoes__item {
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--tinta);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.menu-acoes__item:hover {
+  background: var(--fundo);
+}
+.menu-acoes__item--perigo {
+  color: var(--vermelho-escuro);
+}
+
+/* --- rodape: total + paginacao ---------------------------------------------------------- */
+.entregas__rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+.entregas__rodape-total {
+  font-size: 13px;
+  color: var(--tinta-fraca);
+}
+.entregas__paginacao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.entregas__paginacao-atual {
+  font-size: 13px;
+  color: var(--tinta-fraca);
+  white-space: nowrap;
+}
 
 /* --- telas estreitas (tablet retrato, monitores menores) ---------------------------- */
+/* --- tablet: os 4 cards de indicadores viram 2 colunas -------------------------------- */
+@media (max-width: 1100px) {
+  .entregas__indicadores {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* --- tablet retrato (ex. 768px): a mesma pilha vertical que a media query de 720px ja usa
+   pra leitura/planejamento, so que num limiar mais largo — sem isso, entre 721px e 900px
+   o campo de leitura de codigo de barras ficava espremido (~330px uteis) e as celulas do
+   calendario de planejamento ficavam pequenas demais pra arrastar com o dedo (~58px). */
+@media (max-width: 900px) {
+  .leitura__linha {
+    flex-direction: column;
+  }
+  .leitura__rotulo {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--linha);
+  }
+
+  .planejamento__corpo {
+    flex-direction: column;
+  }
+  .planejamento__fila {
+    width: 100%;
+    max-height: 240px;
+  }
+  .planejamento__grade {
+    grid-template-rows: auto repeat(6, minmax(70px, 1fr));
+  }
+}
+
 @media (max-width: 720px) {
   .entregas {
     padding: 16px;
@@ -1832,6 +2190,101 @@ body {
   .entregas__relatorio-controles {
     flex-direction: column;
     align-items: stretch;
+  }
+  .segmentado {
+    width: 100%;
+  }
+  .segmentado__item {
+    flex: 1;
+  }
+  .entregas__navegacao {
+    flex-wrap: wrap;
+  }
+  .entregas__indicadores {
+    grid-template-columns: 1fr;
+  }
+  .entregas__lista-cabecalho,
+  .entregas__lista-acoes {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .entregas__busca-wrap,
+  .entregas__busca,
+  .entregas__filtros-wrap,
+  .entregas__lista-acoes > .botao {
+    width: 100%;
+  }
+  .entregas__filtros-painel {
+    left: 0;
+    right: 0;
+    width: auto;
+  }
+
+  /* Tabela -> "cards": mesma marcacao (nao duplica logica de render), so o layout muda —
+     cada <tr> vira um cartao, cada <td> mostra o rotulo da coluna via data-rotulo (atributo
+     escrito em TelaEntregas.jsx) num pseudo-elemento ::before. */
+  .entregas__tabela thead {
+    display: none;
+  }
+  .entregas__tabela,
+  .entregas__tabela tbody,
+  .entregas__tabela tr,
+  .entregas__tabela td {
+    display: block;
+    width: 100%;
+  }
+  .entregas__tabela tr {
+    margin-bottom: 12px;
+    padding: 4px 12px;
+    background: var(--papel);
+    border: 1px solid var(--linha);
+    border-radius: var(--raio);
+  }
+  .entregas__tabela tbody tr:hover {
+    background: var(--papel);
+  }
+  .entregas__tabela td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--linha);
+    white-space: normal;
+    text-align: right;
+  }
+  .entregas__tabela tr td:last-child {
+    border-bottom: none;
+  }
+  .entregas__tabela td::before {
+    content: attr(data-rotulo);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--tinta-fraca);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    text-align: left;
+  }
+  .entregas__col-cliente {
+    min-width: 0;
+    max-width: none;
+  }
+  .entregas__celula-truncada {
+    max-width: 60%;
+  }
+  .entregas__col-acoes {
+    width: auto;
+  }
+  .entregas__col-acoes::before {
+    display: none;
+  }
+
+  .entregas__rodape {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .entregas__paginacao {
+    justify-content: space-between;
   }
 
   .cabecalho {

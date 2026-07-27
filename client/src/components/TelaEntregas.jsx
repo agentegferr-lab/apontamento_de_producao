@@ -1,20 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { formatarDataBr } from '../planejamentoCampos.js'
-import { formatarNumeroBr, formatarMoedaNumero } from '../numero.js'
+import { formatarMoedaNumero } from '../numero.js'
+import MenuAcoes from './MenuAcoes.jsx'
+import ModalConfirmar from './ModalConfirmar.jsx'
 import {
   intervaloDoPeriodo,
   navegarPeriodo,
   filtrarPorPeriodo,
-  agruparPorMotorista,
   somarTotais,
+  motoristasAtivos,
+  pluralizar,
+  textoRegistros,
+  formatarMetragem,
+  filtrarPorBusca,
+  filtrarPorSelecao,
+  paginar,
+  gerarCsvEntregas,
 } from '../entregasCampos.js'
-
-const SUBABAS = [
-  { valor: 'lancar', texto: 'Lançar entrega' },
-  { valor: 'relatorio', texto: 'Relatório' },
-  { valor: 'cadastro', texto: 'Cadastro' },
-]
 
 const MODOS_PERIODO = [
   { valor: 'dia', texto: 'Dia' },
@@ -22,14 +25,17 @@ const MODOS_PERIODO = [
   { valor: 'mes', texto: 'Mês' },
 ]
 
-function hojeChave() {
-  const d = new Date()
+const TAMANHO_PAGINA = 10
+
+function chaveDoDia(d) {
   const p = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
 export default function TelaEntregas({ adminLiberado, onPedirSenha }) {
-  const [subaba, setSubaba] = useState('lancar')
+  // 'relatorio' e a visao principal da tela — "Nova entrega"/"Caminhões e motoristas" no
+  // cabecalho sao acoes que abrem as outras duas visoes, nao abas de mesmo peso.
+  const [subaba, setSubaba] = useState('relatorio')
   const [motoristas, setMotoristas] = useState(null)
   const [caminhoes, setCaminhoes] = useState(null)
   const [entregas, setEntregas] = useState(null)
@@ -65,19 +71,19 @@ export default function TelaEntregas({ adminLiberado, onPedirSenha }) {
     <main className="entregas">
       <div className="entregas__topo">
         <div>
-          <h1 className="entregas__titulo">ENTREGAS</h1>
-          <p className="entregas__subtitulo">Cadastro de caminhões e motoristas, lançamento e relatório de entregas.</p>
+          <h1 className="entregas__titulo">Entregas</h1>
+          <p className="entregas__subtitulo">Acompanhe pedidos, motoristas e resultados de entrega.</p>
         </div>
-        <div className="entregas__subabas">
-          {SUBABAS.map((s) => (
-            <button
-              key={s.valor}
-              className={`entregas__subaba ${subaba === s.valor ? 'entregas__subaba--ativa' : ''}`}
-              onClick={() => abrirSubaba(s.valor)}
-            >
-              {s.texto}
-            </button>
-          ))}
+        <div className="entregas__acoes-topo">
+          <button type="button" className="botao botao--neutro botao--pequeno" onClick={() => abrirSubaba('cadastro')}>
+            Caminhões e motoristas
+          </button>
+          <button type="button" className="botao botao--neutro botao--pequeno" onClick={() => abrirSubaba('relatorio')}>
+            Relatório
+          </button>
+          <button type="button" className="botao botao--amarelo botao--pequeno" onClick={() => abrirSubaba('lancar')}>
+            Nova entrega
+          </button>
         </div>
       </div>
 
@@ -103,12 +109,12 @@ export default function TelaEntregas({ adminLiberado, onPedirSenha }) {
 }
 
 function LancarEntrega({ motoristas, caminhoes, onLancado, onErro }) {
-  const motoristasAtivos = motoristas.filter((m) => m.ativo)
+  const motoristasAtivosLista = motoristas.filter((m) => m.ativo)
   const caminhoesAtivos = caminhoes.filter((c) => c.ativo)
 
   const [motoristaId, setMotoristaId] = useState('')
   const [caminhaoId, setCaminhaoId] = useState('')
-  const [data, setData] = useState(hojeChave)
+  const [data, setData] = useState(() => chaveDoDia(new Date()))
   const [pedidoAtual, setPedidoAtual] = useState('')
   const [metragemAtual, setMetragemAtual] = useState('')
   const [valorAtual, setValorAtual] = useState('')
@@ -180,7 +186,7 @@ function LancarEntrega({ motoristas, caminhoes, onLancado, onErro }) {
     }
   }
 
-  if (motoristasAtivos.length === 0 || caminhoesAtivos.length === 0) {
+  if (motoristasAtivosLista.length === 0 || caminhoesAtivos.length === 0) {
     return (
       <p className="entregas__vazio">
         Cadastre ao menos um motorista e um caminhão ativos (aba Cadastro) antes de lançar uma entrega.
@@ -199,7 +205,7 @@ function LancarEntrega({ motoristas, caminhoes, onLancado, onErro }) {
           onChange={(e) => setMotoristaId(e.target.value)}
         >
           <option value="">Selecione...</option>
-          {motoristasAtivos.map((m) => (
+          {motoristasAtivosLista.map((m) => (
             <option key={m.id} value={m.id}>
               {m.nome}
             </option>
@@ -293,7 +299,7 @@ function LancarEntrega({ motoristas, caminhoes, onLancado, onErro }) {
             <li key={`${p.pedido}-${i}`}>
               <span>
                 <strong>{p.pedido}</strong>
-                {p.metragem != null && ` · ${formatarNumeroBr(p.metragem)} m²`}
+                {p.metragem != null && ` · ${formatarMetragem(p.metragem)}`}
                 {p.valor != null && ` · ${formatarMoedaNumero(p.valor)}`}
                 {p.cliente && ` · ${p.cliente}`}
               </span>
@@ -451,40 +457,108 @@ function Cadastro({ motoristas, caminhoes, onMudou, onErro }) {
 function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
   const [modo, setModo] = useState('dia')
   const [referencia, setReferencia] = useState(() => new Date())
-  const [removendo, setRemovendo] = useState(null) // id da entrega sendo removida agora
+  const [busca, setBusca] = useState('')
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false)
+  const [filtroMotoristaId, setFiltroMotoristaId] = useState('')
+  const [filtroCaminhaoId, setFiltroCaminhaoId] = useState('')
+  const [pagina, setPagina] = useState(1)
+  const [entregaParaExcluir, setEntregaParaExcluir] = useState(null)
+  const [excluindo, setExcluindo] = useState(false)
+  const [sucesso, setSucesso] = useState(null)
+
+  const dataOcultaRef = useRef(null)
+  const filtrosPainelRef = useRef(null)
+  const filtrosBotaoRef = useRef(null)
 
   const periodo = useMemo(() => intervaloDoPeriodo(modo, referencia), [modo, referencia])
-  const filtradas = useMemo(() => filtrarPorPeriodo(entregas, periodo), [entregas, periodo])
-  const porMotorista = useMemo(() => agruparPorMotorista(filtradas, motoristas), [filtradas, motoristas])
-  const totais = useMemo(() => somarTotais(filtradas), [filtradas])
+  const doPeriodo = useMemo(() => filtrarPorPeriodo(entregas, periodo), [entregas, periodo])
+  const totais = useMemo(() => somarTotais(doPeriodo), [doPeriodo])
+  const ativos = useMemo(() => motoristasAtivos(motoristas), [motoristas])
 
-  const nomeMotorista = new Map(motoristas.map((m) => [m.id, m.nome]))
-  const placaCaminhao = new Map(caminhoes.map((c) => [c.id, c.placa]))
+  const nomeMotorista = useMemo(() => new Map(motoristas.map((m) => [m.id, m.nome])), [motoristas])
+  const placaCaminhao = useMemo(() => new Map(caminhoes.map((c) => [c.id, c.placa])), [caminhoes])
 
-  const ordenadas = [...filtradas].sort((a, b) => b.data.localeCompare(a.data) || b.criadoEm.localeCompare(a.criadoEm))
+  const filtradas = useMemo(() => {
+    const porSelecao = filtrarPorSelecao(doPeriodo, { motoristaId: filtroMotoristaId, caminhaoId: filtroCaminhaoId })
+    const porBusca = filtrarPorBusca(porSelecao, busca)
+    return [...porBusca].sort((a, b) => b.data.localeCompare(a.data) || b.criadoEm.localeCompare(a.criadoEm))
+  }, [doPeriodo, filtroMotoristaId, filtroCaminhaoId, busca])
 
-  async function removerEntrega(item) {
-    if (!window.confirm(`Excluir a entrega do pedido ${item.pedido}? Essa ação não pode ser desfeita.`)) return
-    setRemovendo(item.id)
+  // Volta pra pagina 1 sempre que o conjunto filtrado muda de base — senao o usuario podia
+  // ficar "preso" numa pagina 3 que nao existe mais depois de um filtro reduzir o total.
+  useEffect(() => {
+    setPagina(1)
+  }, [periodo.inicio, periodo.fim, busca, filtroMotoristaId, filtroCaminhaoId])
+
+  const { itens: paginaAtual, totalPaginas } = useMemo(() => paginar(filtradas, pagina, TAMANHO_PAGINA), [filtradas, pagina])
+
+  useEffect(() => {
+    if (!filtrosAbertos) return
+    function aoClicarFora(e) {
+      if (filtrosPainelRef.current?.contains(e.target) || filtrosBotaoRef.current?.contains(e.target)) return
+      setFiltrosAbertos(false)
+    }
+    function aoTeclar(e) {
+      if (e.key === 'Escape') setFiltrosAbertos(false)
+    }
+    document.addEventListener('mousedown', aoClicarFora)
+    document.addEventListener('keydown', aoTeclar)
+    return () => {
+      document.removeEventListener('mousedown', aoClicarFora)
+      document.removeEventListener('keydown', aoTeclar)
+    }
+  }, [filtrosAbertos])
+
+  function abrirSeletorDeData() {
+    const el = dataOcultaRef.current
+    if (!el) return
+    if (typeof el.showPicker === 'function') el.showPicker()
+    else el.focus()
+  }
+
+  function exportarCsv() {
+    const csv = gerarCsvEntregas(filtradas, { nomeMotorista, placaCaminhao })
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `entregas-${periodo.inicio}-a-${periodo.fim}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  async function confirmarExclusao() {
+    if (!entregaParaExcluir) return
+    setExcluindo(true)
     onErro(null)
     try {
-      await api.entregas.remover(item.id)
+      const pedidoExcluido = entregaParaExcluir.pedido
+      await api.entregas.remover(entregaParaExcluir.id)
+      setEntregaParaExcluir(null)
+      setSucesso(`Entrega do pedido ${pedidoExcluido} excluída com sucesso.`)
       await onMudou()
     } catch (err) {
       onErro(err.message)
     } finally {
-      setRemovendo(null)
+      setExcluindo(false)
     }
   }
+
+  const filtrosAtivos = Boolean(filtroMotoristaId || filtroCaminhaoId)
+  const quantidadeFiltrosAtivos = [filtroMotoristaId, filtroCaminhaoId].filter(Boolean).length
 
   return (
     <div className="entregas__painel">
       <div className="entregas__relatorio-controles">
-        <div className="entregas__modos">
+        <div className="segmentado" role="group" aria-label="Período do relatório">
           {MODOS_PERIODO.map((m) => (
             <button
               key={m.valor}
-              className={`botao botao--neutro botao--pequeno ${modo === m.valor ? 'botao--ativo' : ''}`}
+              type="button"
+              className={`segmentado__item ${modo === m.valor ? 'segmentado__item--ativo' : ''}`}
+              aria-pressed={modo === m.valor}
               onClick={() => setModo(m.valor)}
             >
               {m.texto}
@@ -492,85 +566,256 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
           ))}
         </div>
         <div className="entregas__navegacao">
-          <button className="botao botao--neutro botao--pequeno" onClick={() => setReferencia((r) => navegarPeriodo(modo, r, -1))}>
+          <button
+            type="button"
+            className="botao botao--neutro botao--pequeno botao--icone"
+            aria-label="Período anterior"
+            onClick={() => setReferencia((r) => navegarPeriodo(modo, r, -1))}
+          >
             ‹
           </button>
           <span className="entregas__periodo-rotulo">{periodo.rotulo}</span>
-          <button className="botao botao--neutro botao--pequeno" onClick={() => setReferencia((r) => navegarPeriodo(modo, r, 1))}>
+          <button
+            type="button"
+            className="botao botao--neutro botao--pequeno botao--icone"
+            aria-label="Próximo período"
+            onClick={() => setReferencia((r) => navegarPeriodo(modo, r, 1))}
+          >
             ›
           </button>
-          <button className="botao botao--neutro botao--pequeno" onClick={() => setReferencia(new Date())}>
+          <button type="button" className="botao botao--neutro botao--pequeno" onClick={() => setReferencia(new Date())}>
             Hoje
+          </button>
+          <button
+            type="button"
+            className="botao botao--neutro botao--pequeno botao--icone"
+            aria-label="Escolher uma data"
+            onClick={abrirSeletorDeData}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path d="M3 9h18M8 3v4M16 3v4" />
+            </svg>
+          </button>
+          <input
+            ref={dataOcultaRef}
+            type="date"
+            className="entregas__data-oculta"
+            aria-hidden="true"
+            tabIndex={-1}
+            value={chaveDoDia(referencia)}
+            onChange={(e) => e.target.value && setReferencia(new Date(`${e.target.value}T00:00:00`))}
+          />
+        </div>
+      </div>
+
+      <div className="entregas__indicadores">
+        <div className="indicador">
+          <span className="indicador__titulo">Entregas no período</span>
+          <span className="indicador__valor">{doPeriodo.length}</span>
+          <span className="indicador__aux">{pluralizar(doPeriodo.length, 'pedido concluído', 'pedidos concluídos')}</span>
+        </div>
+        <div className="indicador">
+          <span className="indicador__titulo">Metragem total</span>
+          <span className="indicador__valor">{formatarMetragem(totais.metragem)}</span>
+          <span className="indicador__aux">no período selecionado</span>
+        </div>
+        <div className="indicador">
+          <span className="indicador__titulo">Valor total</span>
+          <span className="indicador__valor">{formatarMoedaNumero(totais.valor)}</span>
+          <span className="indicador__aux">faturamento entregue no período</span>
+        </div>
+        <div className="indicador">
+          <span className="indicador__titulo">Motoristas ativos</span>
+          <span className="indicador__valor">{ativos.length}</span>
+          <span className="indicador__aux">
+            {ativos.length === 0 ? 'nenhum motorista ativo' : ativos.length === 1 ? ativos[0].nome : 'cadastrados'}
+          </span>
+        </div>
+      </div>
+
+      {sucesso && <p className="aviso aviso--ok">{sucesso}</p>}
+
+      <div className="entregas__lista-cabecalho">
+        <div>
+          <h2 className="entregas__lista-titulo">Entregas do período</h2>
+          <p className="entregas__lista-contagem">{textoRegistros(filtradas.length)}</p>
+        </div>
+        <div className="entregas__lista-acoes">
+          <div className="entregas__busca-wrap">
+            <svg className="entregas__busca-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              type="search"
+              className="entregas__busca"
+              placeholder="Buscar cliente ou pedido"
+              aria-label="Buscar por cliente ou pedido"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
+
+          <div className="entregas__filtros-wrap">
+            <button
+              ref={filtrosBotaoRef}
+              type="button"
+              className={`botao botao--neutro botao--pequeno ${filtrosAtivos ? 'botao--ativo' : ''}`}
+              aria-expanded={filtrosAbertos}
+              aria-haspopup="dialog"
+              onClick={() => setFiltrosAbertos((a) => !a)}
+            >
+              Filtros{quantidadeFiltrosAtivos > 0 ? ` (${quantidadeFiltrosAtivos})` : ''}
+            </button>
+            {filtrosAbertos && (
+              <div ref={filtrosPainelRef} className="entregas__filtros-painel" role="dialog" aria-label="Filtros da listagem">
+                <label className="entregas__filtros-campo">
+                  Motorista
+                  <select
+                    className="seletor"
+                    value={filtroMotoristaId}
+                    onChange={(e) => setFiltroMotoristaId(e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {motoristas.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.nome}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="entregas__filtros-campo">
+                  Caminhão
+                  <select
+                    className="seletor"
+                    value={filtroCaminhaoId}
+                    onChange={(e) => setFiltroCaminhaoId(e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {caminhoes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.placa}
+                        {c.modelo ? ` · ${c.modelo}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {filtrosAtivos && (
+                  <button
+                    type="button"
+                    className="botao botao--neutro botao--pequeno"
+                    onClick={() => {
+                      setFiltroMotoristaId('')
+                      setFiltroCaminhaoId('')
+                    }}
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button type="button" className="botao botao--neutro botao--pequeno" onClick={exportarCsv} disabled={filtradas.length === 0}>
+            Exportar CSV
           </button>
         </div>
       </div>
 
-      <div className="entregas__resumo">
-        <div className="entregas__resumo-card">
-          <span className="entregas__resumo-valor">{filtradas.length}</span>
-          <span className="entregas__resumo-rotulo">Pedidos entregues no período</span>
-        </div>
-        {totais.metragem > 0 && (
-          <div className="entregas__resumo-card">
-            <span className="entregas__resumo-valor">{formatarNumeroBr(totais.metragem)} m²</span>
-            <span className="entregas__resumo-rotulo">Metragem total</span>
-          </div>
-        )}
-        {totais.valor > 0 && (
-          <div className="entregas__resumo-card">
-            <span className="entregas__resumo-valor">{formatarMoedaNumero(totais.valor)}</span>
-            <span className="entregas__resumo-rotulo">Valor total</span>
-          </div>
-        )}
-        {porMotorista.map((m) => (
-          <div className="entregas__resumo-card" key={m.motoristaId}>
-            <span className="entregas__resumo-valor">{m.total}</span>
-            <span className="entregas__resumo-rotulo">{m.nome}</span>
-          </div>
-        ))}
-      </div>
-
-      {ordenadas.length === 0 ? (
-        <p className="entregas__vazio">Nenhuma entrega lançada neste período.</p>
+      {filtradas.length === 0 ? (
+        <p className="entregas__vazio">Nenhuma entrega encontrada para os filtros selecionados.</p>
       ) : (
-        <div className="entregas__tabela-wrap">
-          <table className="entregas__tabela">
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Motorista</th>
-                <th>Caminhão</th>
-                <th>Pedido</th>
-                <th>Cliente</th>
-                <th>Metragem</th>
-                <th>Valor</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {ordenadas.map((e) => (
-                <tr key={e.id}>
-                  <td>{formatarDataBr(e.data)}</td>
-                  <td>{nomeMotorista.get(e.motoristaId) ?? '—'}</td>
-                  <td>{placaCaminhao.get(e.caminhaoId) ?? '—'}</td>
-                  <td>{e.pedido}</td>
-                  <td>{e.cliente ?? '—'}</td>
-                  <td>{e.metragem != null ? `${formatarNumeroBr(e.metragem)} m²` : '—'}</td>
-                  <td>{e.valor != null ? formatarMoedaNumero(e.valor) : '—'}</td>
-                  <td>
-                    <button
-                      className="botao botao--perigo botao--pequeno"
-                      onClick={() => removerEntrega(e)}
-                      disabled={removendo === e.id}
-                    >
-                      {removendo === e.id ? 'Removendo...' : 'Excluir'}
-                    </button>
-                  </td>
+        <>
+          <div className="entregas__tabela-wrap">
+            <table className="entregas__tabela">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Motorista</th>
+                  <th>Caminhão</th>
+                  <th>Pedido</th>
+                  <th className="entregas__col-cliente">Cliente</th>
+                  <th className="entregas__col-numerica">Metragem</th>
+                  <th className="entregas__col-numerica">Valor</th>
+                  <th>Status</th>
+                  <th className="entregas__col-acoes">
+                    <span className="visualmente-oculto">Ações</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {paginaAtual.map((e) => (
+                  <tr key={e.id}>
+                    <td data-rotulo="Data">{formatarDataBr(e.data)}</td>
+                    <td data-rotulo="Motorista">{nomeMotorista.get(e.motoristaId) ?? '—'}</td>
+                    <td data-rotulo="Caminhão">{placaCaminhao.get(e.caminhaoId) ?? '—'}</td>
+                    <td data-rotulo="Pedido">{e.pedido}</td>
+                    <td data-rotulo="Cliente" className="entregas__col-cliente entregas__celula-truncada" title={e.cliente ?? '—'}>
+                      {e.cliente ?? '—'}
+                    </td>
+                    <td data-rotulo="Metragem" className="entregas__col-numerica">
+                      {e.metragem != null ? formatarMetragem(e.metragem) : '—'}
+                    </td>
+                    <td data-rotulo="Valor" className="entregas__col-numerica">
+                      {e.valor != null ? formatarMoedaNumero(e.valor) : '—'}
+                    </td>
+                    <td data-rotulo="Status">
+                      <span className="status-badge status-badge--entregue">Entregue</span>
+                    </td>
+                    <td data-rotulo="Ações" className="entregas__col-acoes">
+                      <MenuAcoes
+                        rotulo={`a entrega do pedido ${e.pedido}`}
+                        itens={[{ texto: 'Excluir entrega', perigo: true, aoClicar: () => setEntregaParaExcluir(e) }]}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="entregas__rodape">
+            <span className="entregas__rodape-total">
+              Mostrando {paginaAtual.length} de {filtradas.length} {pluralizar(filtradas.length, 'entrega', 'entregas')}
+            </span>
+            {totalPaginas > 1 && (
+              <div className="entregas__paginacao">
+                <button
+                  type="button"
+                  className="botao botao--neutro botao--pequeno"
+                  disabled={pagina <= 1}
+                  onClick={() => setPagina((p) => p - 1)}
+                >
+                  Anterior
+                </button>
+                <span className="entregas__paginacao-atual">
+                  Página {pagina} de {totalPaginas}
+                </span>
+                <button
+                  type="button"
+                  className="botao botao--neutro botao--pequeno"
+                  disabled={pagina >= totalPaginas}
+                  onClick={() => setPagina((p) => p + 1)}
+                >
+                  Próxima
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {entregaParaExcluir && (
+        <ModalConfirmar
+          titulo="Excluir entrega?"
+          mensagem={`Esta ação não poderá ser desfeita. Deseja excluir a entrega do pedido ${entregaParaExcluir.pedido}?`}
+          textoConfirmar="Excluir entrega"
+          textoConfirmando="Excluindo..."
+          confirmando={excluindo}
+          onConfirmar={confirmarExclusao}
+          onCancelar={() => setEntregaParaExcluir(null)}
+        />
       )}
     </div>
   )

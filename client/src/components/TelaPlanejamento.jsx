@@ -31,8 +31,13 @@ function gerarGradeMes(ano, mes) {
  * Calendario de planejamento do PCP: arrasta ordens da fila (que ainda nao comecaram nenhum
  * processo, ver kanban.js/filaAguardando) pra um dia do mes. So local — nunca toca o Nomus,
  * ver server/planejamento.js.
+ *
+ * `somenteLeitura`: acesso via a senha "Comercial@gferro" (ver App.jsx) — ve tudo (calendario,
+ * fila, relatorio, imprimir) mas nao arrasta, agenda, reagenda nem remove nada. So um freio de
+ * UI (mesmo espirito do resto da senha neste app): esconde/desliga os controles de escrita em
+ * vez de duplicar a tela inteira.
  */
-export default function TelaPlanejamento() {
+export default function TelaPlanejamento({ somenteLeitura = false }) {
   const hoje = useMemo(() => new Date(), [])
   const [mesAtual, setMesAtual] = useState({ ano: hoje.getFullYear(), mes: hoje.getMonth() })
   const [quadro, setQuadro] = useState(null)
@@ -42,6 +47,11 @@ export default function TelaPlanejamento() {
   const [busca, setBusca] = useState('')
   const [arrastando, setArrastando] = useState(null) // { tipo: 'fila'|'planejado', card|item }
   const [diaSobre, setDiaSobre] = useState(null) // chave do dia com highlight de drop
+  // Card da fila escolhido pra agendar por toque (ver botao "Agendar" do card e tocarNoDia
+  // abaixo) — alternativa ao arrastar-e-soltar, que nao existe em touchscreen (tablet nao
+  // dispara dragstart/dragover/drop nativos). Reagendar um item JA planejado nao precisa
+  // disso: o modal de detalhes (ModalDetalheCard, onMudarDia) ja resolve por toque.
+  const [agendando, setAgendando] = useState(null)
   const [agora, setAgora] = useState(() => new Date())
   const [detalhe, setDetalhe] = useState(null) // { card, extra } pro modal de detalhes
   const [diaDetalhe, setDiaDetalhe] = useState(null) // chave do dia (AAAA-MM-DD) pro modal do dia inteiro
@@ -284,6 +294,30 @@ export default function TelaPlanejamento() {
     setMesAtual({ ano: hoje.getFullYear(), mes: hoje.getMonth() })
   }
 
+  // Agenda um card da fila num dia — usado tanto pelo drop (mouse) quanto pelo toque
+  // (ver tocarNoDia). Extraido pra nao duplicar os dois caminhos.
+  async function agendarCard(c, chave) {
+    try {
+      const novo = await api.agendar({
+        idOrdem: c.idOrdem,
+        idOperacaoOrdem: c.idOperacaoOrdem,
+        nomeOrdem: c.nomeOrdem,
+        pedido: c.pedido,
+        idPedido: c.idPedido,
+        idProduto: c.idProduto,
+        produto: c.produto,
+        codigoProduto: c.codigoProduto,
+        quantidade: c.quantidade,
+        unidadeMedida: c.unidadeMedida,
+        valorTotal: c.valorTotal,
+        data: chave,
+      })
+      setPlano((p) => [...p, novo])
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
+
   async function soltarEmDia(chave) {
     const alvo = arrastando
     setArrastando(null)
@@ -291,26 +325,7 @@ export default function TelaPlanejamento() {
     if (!alvo) return
 
     if (alvo.tipo === 'fila') {
-      const c = alvo.card
-      try {
-        const novo = await api.agendar({
-          idOrdem: c.idOrdem,
-          idOperacaoOrdem: c.idOperacaoOrdem,
-          nomeOrdem: c.nomeOrdem,
-          pedido: c.pedido,
-          idPedido: c.idPedido,
-          idProduto: c.idProduto,
-          produto: c.produto,
-          codigoProduto: c.codigoProduto,
-          quantidade: c.quantidade,
-          unidadeMedida: c.unidadeMedida,
-          valorTotal: c.valorTotal,
-          data: chave,
-        })
-        setPlano((p) => [...p, novo])
-      } catch (e) {
-        setErro(e.message)
-      }
+      await agendarCard(alvo.card, chave)
     } else {
       const item = alvo.item
       if (item.data === chave) return
@@ -321,6 +336,23 @@ export default function TelaPlanejamento() {
         setErro(e.message)
       }
     }
+  }
+
+  // Clicar num dia: se ha um card da fila selecionado pra agendar por toque, agenda ali e
+  // sai do modo de selecao; senao, comportamento normal (abre o modal do dia inteiro).
+  function tocarNoDia(chave) {
+    if (agendando) {
+      const c = agendando
+      setAgendando(null)
+      agendarCard(c, chave)
+      return
+    }
+    setDiaDetalhe(chave)
+  }
+
+  function alternarAgendamentoPorToque(c, evento) {
+    evento.stopPropagation()
+    setAgendando((atual) => (atual?.idOperacaoOrdem === c.idOperacaoOrdem ? null : c))
   }
 
   async function soltarNaFila() {
@@ -398,9 +430,14 @@ export default function TelaPlanejamento() {
     <main className="planejamento">
       <div className="planejamento__topo">
         <div>
-          <h1 className="planejamento__titulo">PLANEJAMENTO DA PRODUÇÃO</h1>
+          <h1 className="planejamento__titulo">
+            PLANEJAMENTO DA PRODUÇÃO
+            {somenteLeitura && <span className="planejamento__etiqueta-leitura">Somente visualização</span>}
+          </h1>
           <p className="planejamento__subtitulo">
-            Arraste as ordens da fila para o dia em que devem começar a ser produzidas.
+            {somenteLeitura
+              ? 'Acompanhe o calendário e a fila de produção.'
+              : 'Arraste as ordens da fila para o dia em que devem começar a ser produzidas.'}
           </p>
         </div>
         <div className="planejamento__navegacao">
@@ -422,9 +459,11 @@ export default function TelaPlanejamento() {
           <button className="botao botao--neutro botao--pequeno" onClick={() => setImprimindo(true)}>
             Imprimir relatório
           </button>
-          <button className="botao botao--iniciar botao--pequeno" onClick={() => setPedindoSugestao(true)}>
-            Gerar sugestão com IA
-          </button>
+          {!somenteLeitura && (
+            <button className="botao botao--iniciar botao--pequeno" onClick={() => setPedindoSugestao(true)}>
+              Gerar sugestão com IA
+            </button>
+          )}
         </div>
       </div>
 
@@ -465,6 +504,15 @@ export default function TelaPlanejamento() {
         )}
       </div>
 
+      {agendando && (
+        <p className="planejamento__aviso-agendamento" role="status">
+          Toque no dia em que <strong>{agendando.nomeOrdem}</strong> deve começar a ser produzida.{' '}
+          <button type="button" className="planejamento__aviso-agendamento-cancelar" onClick={() => setAgendando(null)}>
+            Cancelar
+          </button>
+        </p>
+      )}
+
       <div className="planejamento__corpo">
         <aside
           className={`planejamento__fila ${arrastando?.tipo === 'planejado' ? 'planejamento__fila--alvo' : ''}`}
@@ -499,8 +547,10 @@ export default function TelaPlanejamento() {
                 key={`${c.idOrdem}-${c.idOperacaoOrdem}`}
                 // A fila e por definicao so ordens intocadas (ver kanban.js/filaAguardando)
                 // — sempre "nao iniciado", sem precisar consultar o status ao vivo.
-                className="planejamento-card planejamento-card--nao-iniciado"
-                draggable
+                className={`planejamento-card planejamento-card--nao-iniciado ${
+                  agendando?.idOperacaoOrdem === c.idOperacaoOrdem ? 'planejamento-card--selecionado' : ''
+                }`}
+                draggable={!somenteLeitura}
                 onDragStart={() => setArrastando({ tipo: 'fila', card: c })}
                 onDragEnd={() => setArrastando(null)}
                 onClick={() => abrirDetalheDaFila(c)}
@@ -510,6 +560,15 @@ export default function TelaPlanejamento() {
                 {c.produto && <p className="planejamento-card__produto">{c.produto}</p>}
                 {c.valorTotal != null && (
                   <p className="planejamento-card__valor">{formatarMoedaBr(c.valorTotal)}</p>
+                )}
+                {!somenteLeitura && (
+                  <button
+                    type="button"
+                    className="botao botao--neutro botao--pequeno planejamento-card__agendar"
+                    onClick={(e) => alternarAgendamentoPorToque(c, e)}
+                  >
+                    {agendando?.idOperacaoOrdem === c.idOperacaoOrdem ? 'Cancelar' : 'Agendar'}
+                  </button>
                 )}
               </article>
             ))}
@@ -535,6 +594,7 @@ export default function TelaPlanejamento() {
                   chave === chaveHoje && 'planejamento__dia--hoje',
                   diaSobre === chave && 'planejamento__dia--alvo',
                   diaEmDestaque === chave && 'planejamento__dia--destaque',
+                  agendando && 'planejamento__dia--selecionavel',
                 ]
                   .filter(Boolean)
                   .join(' ')}
@@ -544,7 +604,7 @@ export default function TelaPlanejamento() {
                 }}
                 onDragLeave={() => setDiaSobre((atual) => (atual === chave ? null : atual))}
                 onDrop={() => soltarEmDia(chave)}
-                onClick={() => setDiaDetalhe(chave)}
+                onClick={() => tocarNoDia(chave)}
               >
                 <span className="planejamento__numero-dia">{dia.getDate()}</span>
                 <div className="planejamento__dia-cards">
@@ -552,7 +612,7 @@ export default function TelaPlanejamento() {
                     <article
                       key={item.id}
                       className={`planejamento-card planejamento-card--mini ${classeDoCard(item)}`}
-                      draggable
+                      draggable={!somenteLeitura}
                       onDragStart={() => setArrastando({ tipo: 'planejado', item })}
                       onDragEnd={() => setArrastando(null)}
                       onClick={(e) => {
@@ -562,13 +622,15 @@ export default function TelaPlanejamento() {
                       title={`${item.nomeOrdem}${item.produto ? ' · ' + item.produto : ''}`}
                     >
                       <span className="planejamento-card__os">{item.nomeOrdem}</span>
-                      <button
-                        className="planejamento-card__remover"
-                        onClick={(e) => removerCard(item, e)}
-                        aria-label={`Remover ${item.nomeOrdem} do planejamento`}
-                      >
-                        ×
-                      </button>
+                      {!somenteLeitura && (
+                        <button
+                          className="planejamento-card__remover"
+                          onClick={(e) => removerCard(item, e)}
+                          aria-label={`Remover ${item.nomeOrdem} do planejamento`}
+                        >
+                          ×
+                        </button>
+                      )}
                     </article>
                   ))}
                 </div>
@@ -585,7 +647,9 @@ export default function TelaPlanejamento() {
         mostrarValor
         dataPlanejada={detalhe?.data}
         onMudarDia={
-          detalhe?.planejamentoId ? (novaData) => moverDetalhePlanejado(detalhe.planejamentoId, novaData) : undefined
+          !somenteLeitura && detalhe?.planejamentoId
+            ? (novaData) => moverDetalhePlanejado(detalhe.planejamentoId, novaData)
+            : undefined
         }
         onFechar={() => setDetalhe(null)}
       />
@@ -598,7 +662,7 @@ export default function TelaPlanejamento() {
         }
         onFechar={() => setDiaDetalhe(null)}
         onAbrirItem={abrirItemDoDia}
-        onRemoverItem={removerCard}
+        onRemoverItem={somenteLeitura ? undefined : removerCard}
       />
       <RelatorioImpressao itens={itensRelatorio} periodoLabel={periodoLabel} />
       {imprimindo && <ModalImprimir onImprimir={handleImprimir} onFechar={() => setImprimindo(false)} />}
