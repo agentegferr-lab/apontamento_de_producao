@@ -28,10 +28,26 @@ function chaveDoDia(d) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
-/** "METRO QUADRADO" -> "Metro quadrado" — a unidade vem do Nomus em maiusculas, formatada so
- * pra nao gritar na tela; nao ha lista fixa de unidades conhecidas, entao e so um title-case. */
+// Unidades comuns do Nomus abreviadas ("METRO QUADRADO" -> "m²") — o nome por extenso e o que
+// mais ocupava espaco nos cards/tabela, a ponto de estourar a largura. Unidade fora dessa
+// lista (nao ha uma lista fixa/completa vinda do Nomus) cai no title-case de antes.
+const ABREVIACOES_UNIDADE = {
+  'METRO QUADRADO': 'm²',
+  'METRO CUBICO': 'm³',
+  METRO: 'm',
+  QUILOGRAMA: 'kg',
+  GRAMA: 'g',
+  TONELADA: 't',
+  LITRO: 'l',
+  UNIDADE: 'un',
+  PECA: 'pç',
+  CAIXA: 'cx',
+}
+
 function formatarUnidade(unidade) {
   if (!unidade) return ''
+  const chave = unidade.trim().toUpperCase()
+  if (ABREVIACOES_UNIDADE[chave]) return ABREVIACOES_UNIDADE[chave]
   return unidade.charAt(0) + unidade.slice(1).toLowerCase()
 }
 

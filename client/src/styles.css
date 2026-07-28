@@ -2242,7 +2242,7 @@ body {
    entao auto-fit em vez da grade fixa de 4 colunas do Relatorio de Entregas. */
 .relatorio-producao__indicadores {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 14px;
   margin-bottom: 20px;
 }
@@ -2355,6 +2355,10 @@ body {
   height: 18px;
 }
 .indicador-producao__titulo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 700;
   color: var(--tinta-fraca);
@@ -2365,18 +2369,21 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 .indicador-producao__valor {
-  font-size: 24px;
+  min-width: 0;
+  flex: 1;
+  font-size: 18px;
   font-weight: 800;
   color: var(--tinta);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  line-height: 1.2;
+  overflow-wrap: break-word;
 }
 .indicador-producao__sparkline {
-  width: 88px;
-  height: 30px;
+  width: 64px;
+  height: 26px;
   flex-shrink: 0;
 }
 .indicador-producao__rodape {
@@ -2515,15 +2522,15 @@ body {
   flex-shrink: 0;
 }
 .grafico-donut__valor {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 800;
   fill: var(--tinta);
 }
 .grafico-donut__legenda-central {
-  font-size: 10px;
+  font-size: 9px;
   fill: var(--tinta-fraca);
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
 }
 .grafico-donut__legenda {
   display: flex;
