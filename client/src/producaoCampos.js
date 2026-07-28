@@ -136,6 +136,17 @@ export function paginar(itens, pagina, tamanhoPagina) {
   return { pagina: paginaValida, totalPaginas, total, itens: itens.slice(inicio, inicio + tamanhoPagina) }
 }
 
+/**
+ * Soma o valor estimado (rateado do pedido, ver server/relatorioProducao.js) de todos os
+ * centros do periodo — null quando NENHUM centro tem valor resolvido ainda (pedido nao
+ * encontrado/ainda em cache), pra distinguir de "somou e deu zero".
+ */
+export function somarValorProduzido(porCentro) {
+  const comValor = (porCentro ?? []).filter((c) => c.valorProduzido != null)
+  if (comValor.length === 0) return null
+  return comValor.reduce((soma, c) => soma + c.valorProduzido, 0)
+}
+
 /** Paleta fixa (nao semantica — nao e verde=ok/vermelho=erro) pra identificar cada centro nos
  * graficos/cards, na mesma ordem que ja vem do servidor (fluxo fisico: Corte, Pintura...). */
 const PALETA_CENTROS = ['#16a34a', '#2563eb', '#ea580c', '#7c3aed', '#db2777', '#0891b2', '#65a30d', '#d97706']

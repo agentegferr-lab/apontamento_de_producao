@@ -12,6 +12,7 @@ import {
   serieDiariaPorCentro,
   paginar,
   corDoCentro,
+  somarValorProduzido,
 } from '../producaoCampos.js'
 
 const MODOS_PERIODO = [
@@ -327,6 +328,8 @@ export default function TelaRelatorioProducao() {
     })
   }, [dados, dadosAnterior, dadosSpark, diasSparkChaves])
 
+  const valorTotalPeriodo = useMemo(() => somarValorProduzido(dados?.porCentro), [dados])
+
   // Barras/rosca so fazem sentido somando a MESMA unidade — pega a mais comum entre os
   // centros do periodo e deixa de fora quem produziu numa unidade diferente (raro na pratica).
   const dadosGrafico = useMemo(() => {
@@ -535,6 +538,16 @@ export default function TelaRelatorioProducao() {
             <p className="vazio">Nenhum apontamento registrado neste período.</p>
           ) : (
             <>
+              {valorTotalPeriodo != null && (
+                <div
+                  className="relatorio-producao__valor-total"
+                  title="Soma do valor estimado (rateado do pedido pela quantidade produzida) de todos os centros no período — não é um valor exato do Nomus."
+                >
+                  <span className="relatorio-producao__valor-total-rotulo">Valor total do período</span>
+                  <span className="relatorio-producao__valor-total-numero">{formatarMoedaNumero(valorTotalPeriodo)}</span>
+                  <span className="relatorio-producao__valor-total-tag">estimado</span>
+                </div>
+              )}
               <div className="relatorio-producao__indicadores">
                 {cartoes.map((c) => (
                   <div className="indicador-producao" key={c.centro}>

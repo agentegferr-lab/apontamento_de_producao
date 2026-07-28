@@ -12,6 +12,7 @@ import {
   serieDiariaPorCentro,
   paginar,
   corDoCentro,
+  somarValorProduzido,
 } from './producaoCampos.js'
 
 // 2026-07-25 e sabado.
@@ -128,6 +129,20 @@ test('paginar fatia a lista e ajusta pagina fora do intervalo', () => {
   const itens = Array.from({ length: 25 }, (_, i) => i)
   assert.deepEqual(paginar(itens, 1, 10), { pagina: 1, totalPaginas: 3, total: 25, itens: itens.slice(0, 10) })
   assert.equal(paginar(itens, 99, 10).pagina, 3)
+})
+
+test('somarValorProduzido: soma so os centros com valor resolvido; null quando nenhum tem', () => {
+  assert.equal(
+    somarValorProduzido([{ centro: 'CORTE', valorProduzido: 500 }, { centro: 'PINTURA', valorProduzido: 300 }]),
+    800,
+  )
+  assert.equal(
+    somarValorProduzido([{ centro: 'CORTE', valorProduzido: 500 }, { centro: 'SEM PEDIDO', valorProduzido: null }]),
+    500,
+  )
+  assert.equal(somarValorProduzido([{ centro: 'CORTE', valorProduzido: null }]), null)
+  assert.equal(somarValorProduzido([]), null)
+  assert.equal(somarValorProduzido(undefined), null)
 })
 
 test('corDoCentro e deterministico e ciclico', () => {
