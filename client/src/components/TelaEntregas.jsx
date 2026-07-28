@@ -792,12 +792,12 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
             </table>
           </div>
 
-          <div className="entregas__rodape">
-            <span className="entregas__rodape-total">
+          <div className="rodape">
+            <span className="rodape-total">
               Mostrando {paginaAtual.length} de {filtradas.length} {pluralizar(filtradas.length, 'entrega', 'entregas')}
             </span>
             {totalPaginas > 1 && (
-              <div className="entregas__paginacao">
+              <div className="paginacao">
                 <button
                   type="button"
                   className="botao botao--neutro botao--pequeno"
@@ -806,7 +806,7 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
                 >
                   Anterior
                 </button>
-                <span className="entregas__paginacao-atual">
+                <span className="paginacao-atual">
                   Página {pagina} de {totalPaginas}
                 </span>
                 <button

@@ -2176,7 +2176,7 @@ body {
 }
 
 /* --- rodape: total + paginacao ---------------------------------------------------------- */
-.entregas__rodape {
+.rodape {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2184,16 +2184,16 @@ body {
   gap: 10px;
   margin-top: 16px;
 }
-.entregas__rodape-total {
+.rodape-total {
   font-size: 13px;
   color: var(--tinta-fraca);
 }
-.entregas__paginacao {
+.paginacao {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.entregas__paginacao-atual {
+.paginacao-atual {
   font-size: 13px;
   color: var(--tinta-fraca);
   white-space: nowrap;
@@ -2279,11 +2279,340 @@ body {
   text-align: right;
 }
 
+/* --- dropdown generico (Exportar, Mais filtros) --------------------------------------- */
+.dropdown-wrap {
+  position: relative;
+}
+.dropdown-lista {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  padding: 10px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.16);
+}
+.dropdown-lista--formulario {
+  width: 220px;
+}
+.dropdown-item {
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--tinta);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.dropdown-item:hover:not(:disabled) {
+  background: var(--fundo);
+}
+.dropdown-item:disabled {
+  color: var(--tinta-tenue);
+  cursor: not-allowed;
+}
+.botao--amarelo svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* --- cards de indicador do Relatorio de Producao (icone + sparkline + tendencia) ------ */
+.indicador-producao {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: 10px;
+}
+.indicador-producao__topo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.indicador-producao__icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  color: var(--cor-centro, var(--tinta-fraca));
+  background: color-mix(in srgb, var(--cor-centro, var(--tinta-fraca)) 16%, white);
+}
+.indicador-producao__icone svg {
+  width: 18px;
+  height: 18px;
+}
+.indicador-producao__titulo {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tinta-fraca);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.indicador-producao__meio {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.indicador-producao__valor {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.indicador-producao__sparkline {
+  width: 88px;
+  height: 30px;
+  flex-shrink: 0;
+}
+.indicador-producao__rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.indicador-producao__aux {
+  font-size: 12px;
+  color: var(--tinta-fraca);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tendencia-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.tendencia-badge--alta {
+  color: var(--verde-escuro);
+  background: var(--verde-claro);
+}
+.tendencia-badge--baixa {
+  color: var(--vermelho-escuro);
+  background: var(--vermelho-claro);
+}
+.tendencia-badge--estavel {
+  color: var(--tinta-fraca);
+  background: var(--fundo);
+}
+
+/* --- paineis de grafico (barras + rosca) ----------------------------------------------- */
+.relatorio-producao__graficos {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.painel-grafico {
+  padding: 20px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: 10px;
+}
+.painel-grafico__titulo {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.painel-grafico__subtitulo {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--tinta-fraca);
+}
+.painel-grafico__legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 14px 0 4px;
+}
+.painel-grafico__legenda-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--tinta-fraca);
+}
+.painel-grafico__marcador {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.grafico-barras {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  height: 220px;
+  margin-top: 12px;
+}
+.grafico-barras__coluna {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
+.grafico-barras__valor {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tinta);
+  white-space: nowrap;
+}
+.grafico-barras__trilho {
+  display: flex;
+  align-items: flex-end;
+  flex: 1;
+  width: 100%;
+}
+.grafico-barras__barra {
+  width: 100%;
+  min-height: 4px;
+  border-radius: 6px 6px 0 0;
+  transition: height 0.2s ease;
+}
+.grafico-barras__rotulo {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tinta-fraca);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.grafico-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 12px;
+}
+.grafico-donut {
+  width: 160px;
+  height: 160px;
+  flex-shrink: 0;
+}
+.grafico-donut__valor {
+  font-size: 20px;
+  font-weight: 800;
+  fill: var(--tinta);
+}
+.grafico-donut__legenda-central {
+  font-size: 10px;
+  fill: var(--tinta-fraca);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.grafico-donut__legenda {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex: 1;
+  min-width: 0;
+}
+.grafico-donut__legenda li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.grafico-donut__marcador {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+.grafico-donut__legenda-nome {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tinta);
+}
+.grafico-donut__legenda-percentual {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-fraca);
+}
+
+/* --- badges/pills da tabela detalhada --------------------------------------------------- */
+.pill-centro {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--cor-centro, var(--tinta)) 70%, black);
+  background: color-mix(in srgb, var(--cor-centro, var(--tinta-fraca)) 16%, white);
+}
+.pill-neutro {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tinta-fraca);
+  background: var(--fundo);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.os-destaque {
+  font-weight: 700;
+  color: #2563eb;
+}
+
+/* --- paginacao com numero da pagina em destaque ---------------------------------------- */
+.paginacao__pagina-atual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--preto);
+  background: var(--amarelo);
+  border-radius: var(--raio);
+}
+
 /* --- telas estreitas (tablet retrato, monitores menores) ---------------------------- */
 /* --- tablet: os 4 cards de indicadores viram 2 colunas -------------------------------- */
 @media (max-width: 1100px) {
   .entregas__indicadores {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .relatorio-producao__graficos {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -2342,6 +2671,24 @@ body {
   }
   .relatorio-producao__navegacao {
     flex-wrap: wrap;
+  }
+  .grafico-donut-wrap {
+    flex-direction: column;
+  }
+  .grafico-donut__legenda {
+    width: 100%;
+  }
+  .dropdown-lista {
+    left: 0;
+    right: 0;
+    width: auto;
+  }
+  .rodape {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .paginacao {
+    justify-content: center;
   }
   .lista-cabecalho,
   .lista-acoes {
@@ -2462,11 +2809,11 @@ body {
     text-align: left;
   }
 
-  .entregas__rodape {
+  .rodape {
     flex-direction: column;
     align-items: stretch;
   }
-  .entregas__paginacao {
+  .paginacao {
     justify-content: space-between;
   }
 
