@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
-import { formatarNumeroBr } from '../numero.js'
+import { formatarNumeroBr, formatarMoedaNumero } from '../numero.js'
 import {
   intervaloDoPeriodo,
   navegarPeriodo,
@@ -556,6 +556,15 @@ export default function TelaRelatorioProducao() {
                       </span>
                       <BadgeTendencia tendencia={c.tendencia} />
                     </div>
+                    {c.valorProduzido != null && (
+                      <div
+                        className="indicador-producao__valor-estimado"
+                        title="Valor do pedido rateado pela quantidade produzida em cada etapa da OS — estimativa, o Nomus nao informa valor por centro de trabalho."
+                      >
+                        {formatarMoedaNumero(c.valorProduzido)}
+                        <span className="indicador-producao__valor-estimado-rotulo">estimado</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -694,6 +703,9 @@ export default function TelaRelatorioProducao() {
                     <th className="col-numerica">Produção</th>
                     <th>Colaborador</th>
                     <th className="col-numerica">Duração</th>
+                    <th className="col-numerica" title="Valor do pedido rateado pela quantidade produzida — estimativa, o Nomus nao informa valor por etapa.">
+                      Valor (estimado)
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -720,6 +732,9 @@ export default function TelaRelatorioProducao() {
                         <td data-rotulo="Colaborador">{d.funcionario ?? '—'}</td>
                         <td data-rotulo="Duração" className="col-numerica">
                           {formatarDuracao(d.duracaoMs)}
+                        </td>
+                        <td data-rotulo="Valor (estimado)" className="col-numerica">
+                          {d.valorProduzido != null ? formatarMoedaNumero(d.valorProduzido) : '—'}
                         </td>
                       </tr>
                     )

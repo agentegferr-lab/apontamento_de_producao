@@ -12,6 +12,10 @@ function formatarNumeroBr(n) {
   return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
 }
 
+function formatarMoedaNumero(n) {
+  return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
 function formatarUnidade(unidade) {
   if (!unidade) return ''
   return unidade.charAt(0) + unidade.slice(1).toLowerCase()
@@ -88,10 +92,13 @@ export function gerarPdfRelatorioProducao(doc, { periodoRotulo, porCentro, detal
     const producaoTexto = c.quantidades.length
       ? c.quantidades.map((q) => `${formatarNumeroBr(q.total)} ${formatarUnidade(q.unidade)}`).join(', ')
       : 'sem produção registrada'
+    // Estimativa: valor do pedido rateado pela quantidade produzida (ver server/relatorioProducao.js) —
+    // so aparece quando ha OS com pedido/valor resolvido no periodo.
+    const valorTexto = c.valorProduzido != null ? ` · ${formatarMoedaNumero(c.valorProduzido)} (estimado)` : ''
     doc.fillColor('#000').font('Helvetica-Bold').text(c.centro, margemX, y, { continued: true })
     doc
       .font('Helvetica')
-      .text(`  ${producaoTexto} · ${c.ordens} ${c.ordens === 1 ? 'ordem' : 'ordens'} · ${formatarDuracao(c.tempoMs)}`)
+      .text(`  ${producaoTexto} · ${c.ordens} ${c.ordens === 1 ? 'ordem' : 'ordens'} · ${formatarDuracao(c.tempoMs)}${valorTexto}`)
     y = doc.y + 4
   }
 

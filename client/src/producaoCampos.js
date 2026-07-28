@@ -151,9 +151,13 @@ function escaparCsv(valor) {
 /**
  * CSV pronto pra abrir no Excel em pt-BR: BOM UTF-8, `;` como separador, quantidade com
  * virgula decimal (o Nomus ja manda data/hora em DD/MM/AAAA, entao dataHoraFinal vai direto).
+ *
+ * "Valor estimado" e o valor do pedido rateado pela quantidade produzida em cada apontamento
+ * (ver server/relatorioProducao.js) — nao e um valor exato do Nomus, por isso o rotulo deixa
+ * isso explicito. Fica vazio quando a OS nao tem pedido/valor resolvido.
  */
 export function gerarCsvRelatorioProducao(linhas) {
-  const cabecalho = ['Data/hora final', 'Centro de trabalho', 'OS', 'Etapa', 'Quantidade', 'Unidade', 'Colaborador', 'Duração']
+  const cabecalho = ['Data/hora final', 'Centro de trabalho', 'OS', 'Etapa', 'Quantidade', 'Unidade', 'Colaborador', 'Duração', 'Valor estimado (R$)']
   const corpo = linhas.map((d) =>
     [
       d.dataHoraFinal ?? '',
@@ -164,6 +168,7 @@ export function gerarCsvRelatorioProducao(linhas) {
       d.unidadeMedida ?? '',
       d.funcionario ?? '',
       formatarDuracao(d.duracaoMs),
+      d.valorProduzido != null ? d.valorProduzido.toFixed(2).replace('.', ',') : '',
     ]
       .map(escaparCsv)
       .join(';'),

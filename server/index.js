@@ -473,12 +473,13 @@ async function buscarRelatorioProducao(inicio, fim) {
   if (!REGEX_DATA.test(inicio ?? '') || !REGEX_DATA.test(fim ?? '')) {
     throw new AppError('inicio e fim devem estar no formato AAAA-MM-DD.', 400)
   }
-  const [operacoes, apontamentos, funcionarios] = await Promise.all([
+  const [operacoes, apontamentos, funcionarios, pedidosPorOrdem] = await Promise.all([
     nomus.todasOperacoes(),
     nomus.apontamentos(),
     nomus.funcionarios(),
+    mapaPedidosPorOrdem(),
   ])
-  return montarRelatorioProducao({ operacoes, apontamentos, funcionarios, inicio, fim })
+  return montarRelatorioProducao({ operacoes, apontamentos, funcionarios, pedidosPorOrdem, inicio, fim })
 }
 
 app.get(

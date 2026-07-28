@@ -61,23 +61,24 @@ test('gerarCsvRelatorioProducao: BOM + cabecalho + linha formatada', () => {
       unidadeMedida: 'METRO QUADRADO',
       funcionario: 'DIOGO RODRIGO ESPINDOLA FRANCO',
       duracaoMs: 919_000,
+      valorProduzido: 1234.5,
     },
   ])
   assert.ok(csv.startsWith('﻿'))
   const linhas = csv.slice(1).split('\r\n')
-  assert.equal(linhas[0], 'Data/hora final;Centro de trabalho;OS;Etapa;Quantidade;Unidade;Colaborador;Duração')
+  assert.equal(linhas[0], 'Data/hora final;Centro de trabalho;OS;Etapa;Quantidade;Unidade;Colaborador;Duração;Valor estimado (R$)')
   assert.equal(
     linhas[1],
-    '27/07/2026 17:53:07;CORTE;OS 01632 - 001;Corte da telha;210;METRO QUADRADO;DIOGO RODRIGO ESPINDOLA FRANCO;15min',
+    '27/07/2026 17:53:07;CORTE;OS 01632 - 001;Corte da telha;210;METRO QUADRADO;DIOGO RODRIGO ESPINDOLA FRANCO;15min;1234,50',
   )
 })
 
-test('gerarCsvRelatorioProducao: quantidade null vira campo vazio, nao "null"', () => {
+test('gerarCsvRelatorioProducao: quantidade e valor null viram campo vazio, nao "null"', () => {
   const csv = gerarCsvRelatorioProducao([
-    { dataHoraFinal: '27/07/2026 17:37:48', centro: 'CORTE', nomeOrdem: 'OS 01632 - 001', descricaoEtapa: 'Corte', quantidade: null, unidadeMedida: null, funcionario: null, duracaoMs: 60_000 },
+    { dataHoraFinal: '27/07/2026 17:37:48', centro: 'CORTE', nomeOrdem: 'OS 01632 - 001', descricaoEtapa: 'Corte', quantidade: null, unidadeMedida: null, funcionario: null, duracaoMs: 60_000, valorProduzido: null },
   ])
   const linha = csv.slice(1).split('\r\n')[1]
-  assert.equal(linha, '27/07/2026 17:37:48;CORTE;OS 01632 - 001;Corte;;;;1min')
+  assert.equal(linha, '27/07/2026 17:37:48;CORTE;OS 01632 - 001;Corte;;;;1min;')
 })
 
 test('quantidadePrincipal escolhe a unidade de maior total; lista vazia devolve null', () => {

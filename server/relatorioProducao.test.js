@@ -78,6 +78,46 @@ test('agrupa quantidade por centro de trabalho e por unidade, so contando aponta
   assert.deepEqual(pintura.quantidades, [{ unidade: 'METRO QUADRADO', total: 210 }])
 })
 
+test('valorProduzido: rateia o valor do pedido pela quantidade produzida, sem inflar entre centros', () => {
+  // OS 1 (idOrdem 1) passa por Corte (210) e Pintura (210) no periodo — mesma quantidade em
+  // cada etapa, como e comum numa linha de producao. Pedido vale 1.000,00.
+  // OS 2 (idOrdem 2) so tem apontamento no Corte (80) — pedido vale 500,00, tudo pro Corte.
+  const apontamentos = [
+    { id: 2, idOperacaoOrdem: 100, idFuncionario: 3, dataHoraInicial: '27/07/2026 09:00:00', dataHoraFinal: '27/07/2026 10:30:00', quantidade: '210.000000', unidadeMedida: 'METRO QUADRADO' },
+    { id: 3, idOperacaoOrdem: 102, idFuncionario: 3, dataHoraInicial: '27/07/2026 11:00:00', dataHoraFinal: '27/07/2026 11:45:00', quantidade: '80.000000', unidadeMedida: 'METRO QUADRADO' },
+    { id: 4, idOperacaoOrdem: 101, idFuncionario: 3, dataHoraInicial: '27/07/2026 13:00:00', dataHoraFinal: '27/07/2026 14:00:00', quantidade: '210.000000', unidadeMedida: 'METRO QUADRADO' },
+  ]
+  const pedidosPorOrdem = new Map([
+    [1, { valorTotal: '1.000,00' }],
+    [2, { valorTotal: '500,00' }],
+  ])
+
+  const r = montarRelatorioProducao({ operacoes: OPERACOES, apontamentos, funcionarios: FUNCIONARIOS, pedidosPorOrdem, inicio: '2026-07-27', fim: '2026-07-27' })
+
+  const corte = r.porCentro.find((c) => c.centro === 'CORTE')
+  const pintura = r.porCentro.find((c) => c.centro === 'PINTURA')
+  // Corte: metade do pedido 1 (500, porque Pintura ficou com a outra metade) + o pedido 2 inteiro (500).
+  assert.equal(corte.valorProduzido, 1000)
+  // Pintura: a outra metade do pedido 1.
+  assert.equal(pintura.valorProduzido, 500)
+  // Soma entre os centros bate exatamente com a soma dos dois pedidos (1000+500), sem inflar.
+  assert.equal(corte.valorProduzido + pintura.valorProduzido, 1500)
+
+  assert.equal(r.detalhado.find((d) => d.id === 2).valorProduzido, 500)
+  assert.equal(r.detalhado.find((d) => d.id === 3).valorProduzido, 500)
+  assert.equal(r.detalhado.find((d) => d.id === 4).valorProduzido, 500)
+})
+
+test('valorProduzido: null quando a OS nao tem pedido resolvido, ou quando o apontamento nao tem quantidade', () => {
+  const apontamentos = [
+    { id: 1, idOperacaoOrdem: 100, dataHoraInicial: '27/07/2026 08:00:00', dataHoraFinal: '27/07/2026 09:00:00', quantidade: '0.000000', unidadeMedida: 'METRO QUADRADO' },
+    { id: 2, idOperacaoOrdem: 100, dataHoraInicial: '27/07/2026 09:00:00', dataHoraFinal: '27/07/2026 10:00:00', quantidade: '210.000000', unidadeMedida: 'METRO QUADRADO' },
+  ]
+  const semPedidos = montarRelatorioProducao({ operacoes: OPERACOES, apontamentos, inicio: '2026-07-27', fim: '2026-07-27' })
+  assert.equal(semPedidos.detalhado.every((d) => d.valorProduzido === null), true)
+  assert.equal(semPedidos.porCentro.find((c) => c.centro === 'CORTE').valorProduzido, null)
+})
+
 test('apontamento conta pro dia em que TERMINOU (dataHoraFinal), nao em que comecou', () => {
   const apontamentos = [
     {
