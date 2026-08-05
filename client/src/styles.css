@@ -2693,6 +2693,56 @@ body {
   .planejamento__grade {
     grid-template-rows: auto repeat(6, minmax(70px, 1fr));
   }
+
+  /* Acompanhamento: colunas lado a lado nao cabem num tablet retrato — empilha uma
+     coluna abaixo da outra, cada uma ocupando a largura toda. Com os KPIs e os controles
+     tambem empilhados (ver 720px abaixo), o topo fica alto demais pra sobrar uma faixa
+     util pro quadro rolar sozinho — em vez disso, a aba inteira passa a rolar (mesmo
+     padrao da aba Entregas), com o cabecalho subindo junto em vez de comer o espaco fixo. */
+  .kanban {
+    overflow-y: auto;
+  }
+  .kanban__colunas {
+    flex: none;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+  .coluna {
+    flex-shrink: 0;
+  }
+  .coluna__cards {
+    flex: none;
+    overflow: visible;
+  }
+  .coluna__nome {
+    font-size: 15px;
+  }
+  .ficha {
+    padding: 12px 14px;
+  }
+  .ficha__os {
+    font-size: 13px;
+  }
+  .ficha__pedido {
+    font-size: 11px;
+  }
+  .ficha__produto {
+    font-size: 13px;
+  }
+  .ficha__descricao {
+    font-size: 13px;
+  }
+  .ficha__etapas {
+    font-size: 12px;
+  }
+  .ficha__parada {
+    font-size: 12px;
+  }
+  .ficha__tempo {
+    font-size: 13px;
+  }
 }
 
 @media (max-width: 720px) {
@@ -2901,6 +2951,20 @@ body {
 
   .kanban {
     padding: 16px;
+  }
+  .kanban__kpis {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .kanban__controles {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .kanban__busca,
+  .kanban__controles .seletor,
+  .kanban__controles .botao {
+    width: 100%;
   }
 
   .planejamento {
