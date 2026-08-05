@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api.js'
 import Logo from './components/Logo.jsx'
 import Relogio from './components/Relogio.jsx'
@@ -34,6 +34,28 @@ export default function App() {
   // Pra onde ir depois de confirmar a senha — Planejamento troca de aba sozinho; pedido vindo
   // de dentro de Entregas so libera o Cadastro, o usuario ja esta na aba certa.
   const [origemSenha, setOrigemSenha] = useState(null)
+  // So aparece/funciona em telas de tablet/celular (ver CSS, @media max-width 880px) — em
+  // telas largas as abas ficam sempre visiveis e este estado nunca chega a importar.
+  const [menuAberto, setMenuAberto] = useState(false)
+  const menuRef = useRef(null)
+  const hamburguerRef = useRef(null)
+
+  useEffect(() => {
+    if (!menuAberto) return
+    function aoClicarFora(e) {
+      if (menuRef.current?.contains(e.target) || hamburguerRef.current?.contains(e.target)) return
+      setMenuAberto(false)
+    }
+    function aoTeclar(e) {
+      if (e.key === 'Escape') setMenuAberto(false)
+    }
+    document.addEventListener('mousedown', aoClicarFora)
+    document.addEventListener('keydown', aoTeclar)
+    return () => {
+      document.removeEventListener('mousedown', aoClicarFora)
+      document.removeEventListener('keydown', aoTeclar)
+    }
+  }, [menuAberto])
 
   useEffect(() => {
     let cancelado = false
@@ -49,7 +71,15 @@ export default function App() {
   // Finalizar um processo muda o kanban (o card anda de coluna): forca a releitura.
   const aoMudarAndamento = useCallback(() => setVersaoAndamento((v) => v + 1), [])
 
+  // Troca de aba pelo menu (ver nav abaixo) — fecha o hamburguer junto, senao ele fica
+  // aberto sobre a tela nova depois de escolher um item.
+  function irPara(novaTela) {
+    setTela(novaTela)
+    setMenuAberto(false)
+  }
+
   function abrirPlanejamento() {
+    setMenuAberto(false)
     if (adminLiberado || planejamentoVisualizacao) {
       setTela('planejamento')
     } else {
@@ -60,6 +90,7 @@ export default function App() {
   }
 
   function pedirSenhaParaEntregas() {
+    setMenuAberto(false)
     setOrigemSenha('entregas')
     setSenhaErrada(false)
     setPedindoSenha(true)
@@ -116,16 +147,16 @@ export default function App() {
         <div className="cabecalho__nav">
           <Logo />
 
-          <nav className="abas">
+          <nav ref={menuRef} className={`abas ${menuAberto ? 'abas--aberta' : ''}`}>
             <button
               className={`aba ${tela === 'leitura' ? 'aba--ativa' : ''}`}
-              onClick={() => setTela('leitura')}
+              onClick={() => irPara('leitura')}
             >
               Apontamento
             </button>
             <button
               className={`aba ${tela === 'kanban' ? 'aba--ativa' : ''}`}
-              onClick={() => setTela('kanban')}
+              onClick={() => irPara('kanban')}
             >
               Acompanhamento
             </button>
@@ -137,18 +168,37 @@ export default function App() {
             </button>
             <button
               className={`aba ${tela === 'entregas' ? 'aba--ativa' : ''}`}
-              onClick={() => setTela('entregas')}
+              onClick={() => irPara('entregas')}
             >
               Entregas
             </button>
             <button
               className={`aba ${tela === 'relatorio-producao' ? 'aba--ativa' : ''}`}
-              onClick={() => setTela('relatorio-producao')}
+              onClick={() => irPara('relatorio-producao')}
             >
               Relatório
             </button>
           </nav>
         </div>
+
+        {/* So visivel em tablet/celular (CSS) — em telas largas as abas ja ficam sempre a
+            mostra, sem precisar de menu nenhum. */}
+        <button
+          ref={hamburguerRef}
+          type="button"
+          className="cabecalho__hamburguer"
+          onClick={() => setMenuAberto((v) => !v)}
+          aria-label={menuAberto ? 'Fechar menu' : 'Abrir menu'}
+          aria-expanded={menuAberto}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            {menuAberto ? (
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            ) : (
+              <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+            )}
+          </svg>
+        </button>
 
         <Relogio />
       </header>

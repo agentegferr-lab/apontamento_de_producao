@@ -70,6 +70,7 @@ body {
 
 /* --- cabecalho --------------------------------------------------------------------- */
 .cabecalho {
+  position: relative; /* ancora o menu hamburguer (.abas--aberta), ver @media 880px abaixo */
   display: flex;
   flex-shrink: 0;
   flex-wrap: wrap;
@@ -98,16 +99,6 @@ body {
   gap: 16px 24px;
   min-width: 0;
 }
-/* Abaixo da largura onde logo+abas cabem juntos numa linha so, volta a poder quebrar entre
-   os dois — sem isso o nowrap acima cria scroll horizontal em telas de celular. Recalculado
-   pra 880px quando a aba "Relatório" (producao) foi adicionada — o texto das 5 abas juntas
-   ficou mais largo que o antigo limiar de 760px. */
-@media (max-width: 880px) {
-  .cabecalho__nav {
-    flex-wrap: wrap;
-  }
-}
-
 .abas {
   display: flex;
   flex-wrap: wrap;
@@ -127,6 +118,60 @@ body {
 .aba--ativa {
   background: var(--amarelo);
   color: var(--preto);
+}
+
+/* Botao hamburguer: some no desktop, as abas ficam sempre visiveis ali (ver @media abaixo). */
+.cabecalho__hamburguer {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--amarelo);
+  background: transparent;
+  border: none;
+  border-radius: var(--raio);
+  cursor: pointer;
+}
+.cabecalho__hamburguer svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* Abaixo da largura onde logo+abas cabem juntos numa linha so, as 5 abas nao cabem mais lado
+   a lado (nem quebrando em 2-3 linhas — isso so empurrava o conteudo pra baixo sem ficar
+   legivel). Recalculado pra 880px quando a aba "Relatório" (producao) foi adicionada — o
+   texto das 5 abas juntas ficou mais largo que o antigo limiar de 760px. Em vez de quebrar,
+   as abas viram um menu hamburguer: escondidas por padrao, aparecem como um painel solto
+   embaixo do cabecalho (ver .cabecalho { position:relative }) so quando .abas--aberta. */
+@media (max-width: 880px) {
+  .cabecalho__hamburguer {
+    display: flex;
+  }
+  .abas {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 2px;
+    padding: 8px;
+    background: var(--preto);
+    border-top: 1px solid rgb(255 255 255 / 0.12);
+    box-shadow: 0 12px 24px rgb(0 0 0 / 0.3);
+    z-index: 45;
+  }
+  .abas--aberta {
+    display: flex;
+  }
+  .aba {
+    width: 100%;
+    text-align: left;
+  }
 }
 
 /* Relogio na barra preta: fonte branca. */
