@@ -3002,14 +3002,11 @@ body {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
+  /* Busca, filtro e "Atualizar" somem no celular — o quadro ja se atualiza sozinho a cada
+     30s (ver TelaKanban.jsx), e esses 3 campos empilhados tomavam a tela toda antes de
+     qualquer card aparecer. */
   .kanban__controles {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .kanban__busca,
-  .kanban__controles .seletor,
-  .kanban__controles .botao {
-    width: 100%;
+    display: none;
   }
 
   .planejamento {
