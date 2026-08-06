@@ -96,8 +96,22 @@ export default function TelaPlanejamento({ somenteLeitura = false }) {
 
   const idsPlanejados = useMemo(() => new Set(plano.map((i) => i.idOperacaoOrdem)), [plano])
 
+  // So entra na fila quem tem pedido de ate 90 dias — pedido mais antigo que isso nao
+  // aparece mais em "Aguardando 1º processo" (mas continua existindo e disponivel na API,
+  // igual concluidos/pedidos ocultos). `dataPedido` (ver server/pedidos.js) so existe depois
+  // que o pedido resolve no lote de fundo — sem ela ainda, deixa passar (nao esconde por
+  // falta de dado, so por idade confirmada).
+  const LIMITE_DIAS_PEDIDO = 90
+  function dentroDoLimiteDePedido(item) {
+    if (!item.dataPedido) return true
+    const dias = (hoje.getTime() - new Date(item.dataPedido).getTime()) / 86_400_000
+    return dias <= LIMITE_DIAS_PEDIDO
+  }
+
   const fila = useMemo(() => {
-    const todos = (quadro?.filaAguardando ?? []).filter((c) => !idsPlanejados.has(c.idOperacaoOrdem))
+    const todos = (quadro?.filaAguardando ?? [])
+      .filter((c) => !idsPlanejados.has(c.idOperacaoOrdem))
+      .filter(dentroDoLimiteDePedido)
     const alvo = busca.trim().toLowerCase()
     if (!alvo) return todos
     return todos.filter(

@@ -10,7 +10,7 @@ import { montarKanban } from './kanban.js'
 import { montarRelatorioProducao } from './relatorioProducao.js'
 import { gerarPdfRelatorioProducao } from './relatorioProducaoPdf.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
-import { mapaPedidosPorOrdem, buscarPedidoPorCodigo } from './pedidos.js'
+import { mapaPedidosPorOrdem, buscarPedidoPorCodigo, iniciarRefreshDeFundoPedidos } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
 import { pedidosOcultos } from './pedidosOcultos.js'
 import { materiaisParaItens } from './materiais.js'
@@ -779,3 +779,4 @@ app.listen(config.porta, () => {
 })
 
 iniciarRefreshDeFundo()
+iniciarRefreshDeFundoPedidos()

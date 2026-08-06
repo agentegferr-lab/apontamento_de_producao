@@ -192,6 +192,9 @@ export function montarKanban({
       statusItemPedido: pedidoInfo?.statusItemPedido ?? null,
       // Valor TOTAL do pedido (nao so do item desta OS) — cru do Nomus, ver pedidos.js.
       valorTotal: pedidoInfo?.valorTotal ?? null,
+      // Data de emissao do pedido (ISO) — usada pro filtro de "no maximo 90 dias" da fila
+      // "Aguardando 1º processo" (ver TelaPlanejamento.jsx). Null ate o pedido resolver.
+      dataPedido: pedidoInfo?.dataPedido ?? null,
       descricao: referencia.descricao,
       operacao: referencia.operacao,
       idOperacaoOrdem: referencia.id,

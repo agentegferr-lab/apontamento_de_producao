@@ -1,8 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { config } from './config.js'
 import { nomus, NomusError } from './nomus.js'
 import { normalizarPedido } from './pedidosOcultos.js'
+import { parseDataNomus } from './kanban.js'
 
 /**
  * Vincula cada ordem ao seu numero de pedido (e ao nome do cliente).
@@ -141,6 +143,11 @@ export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido
       statusItemPedido: itemPedido?.status ?? null,
       // Cru do Nomus (ex. "1.805,61" — ponto de milhar, virgula decimal), igual quantidade.
       valorTotal: pedido?.valorTotal ?? null,
+      // Data de emissao do PEDIDO (nao da ordem) — ISO, ja convertida do formato Nomus
+      // "DD/MM/YYYY HH:mm:ss" (ver parseDataNomus). Igual statusItemPedido/valorTotal, so
+      // existe depois que o pedido resolve (lote de fundo); usado pro filtro de "no maximo
+      // 90 dias" na fila "Aguardando 1º processo" (ver TelaPlanejamento.jsx).
+      dataPedido: pedido?.dataEmissao ? (parseDataNomus(pedido.dataEmissao)?.toISOString() ?? null) : null,
       // Vem do proprio ITEM (itensPedido[0].nomeCliente de /ordens), igual camposOrdem —
       // nao depende do pedido ter resolvido. Usado pra preencher automaticamente o cliente
       // no lancamento de Entregas (ver buscarPedidoPorCodigo abaixo).
@@ -295,4 +302,23 @@ export function encontrarPedidoNoMapa(mapa, codigoDigitado) {
 export async function buscarPedidoPorCodigo(codigo) {
   const mapa = await mapaPedidosPorOrdem()
   return encontrarPedidoNoMapa(mapa, codigo)
+}
+
+/**
+ * Mantem o vinculo ordem->pedido (e o lote de fundo que resolve pedidos novos, ver
+ * agendarAtualizacaoEmFundo acima) se atualizando sozinho, independente de alguem estar com
+ * o Kanban ou o Planejamento aberto — mesma ideia de nomus.js/iniciarRefreshDeFundo, so que
+ * pra `/ordens` + `/pedidos`. Sem isto, numa madrugada sem ninguem olhando a tela, o cache de
+ * `/ordens` (e portanto `dataPedido`, usado pro filtro de 90 dias na fila) so voltaria a
+ * atualizar na proxima vez que alguem abrisse a tela DEPOIS do TTL vencer. Precisa ser
+ * chamado explicitamente no boot (ver server/index.js) pelo mesmo motivo que a de nomus.js:
+ * nao disparar rede so por causa de um import em teste. `.unref()` pra nunca travar o
+ * encerramento do processo.
+ */
+export function iniciarRefreshDeFundoPedidos() {
+  const id = setInterval(() => {
+    mapaPedidosPorOrdem().catch(() => {}) // erro ja logado dentro de mapaPedidosPorOrdem/comCache
+  }, config.refreshFundoIntervaloMs)
+  id.unref?.()
+  return id
 }
