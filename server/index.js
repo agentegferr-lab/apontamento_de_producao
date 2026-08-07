@@ -2,7 +2,7 @@ import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { config, validarConfig } from './config.js'
-import { nomus, NomusError, ultimaAtualizacao, iniciarRefreshDeFundo } from './nomus.js'
+import { nomus, NomusError, ultimaAtualizacao } from './nomus.js'
 import { resolverOperacao, ResolucaoError } from './resolver.js'
 import { andamento, PRODUZINDO, PAUSADO } from './andamento.js'
 import PDFDocument from 'pdfkit'
@@ -10,7 +10,7 @@ import { montarKanban } from './kanban.js'
 import { montarRelatorioProducao } from './relatorioProducao.js'
 import { gerarPdfRelatorioProducao } from './relatorioProducaoPdf.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
-import { mapaPedidosPorOrdem, buscarPedidoPorCodigo, iniciarRefreshDeFundoPedidos } from './pedidos.js'
+import { mapaPedidosPorOrdem, buscarPedidoPorCodigo } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
 import { pedidosOcultos } from './pedidosOcultos.js'
 import { materiaisParaItens } from './materiais.js'
@@ -778,5 +778,30 @@ app.listen(config.porta, () => {
   console.log(`Nomus: ${config.baseUrl} | matricula do terminal: ${config.matricula}`)
 })
 
-iniciarRefreshDeFundo()
-iniciarRefreshDeFundoPedidos()
+/**
+ * Um so timer pra tudo (operacoes, apontamentos, ordens/pedidos), rodando SEQUENCIAL, nao em
+ * paralelo — mesmo motivo do comentario em montarQuadroAtual acima: dois timers
+ * independentes na mesma cadencia (ver INCIDENTE abaixo) disparam quase no mesmo instante a
+ * cada ciclo, somando (nao intercalando) a taxa de requisicoes ao Nomus.
+ *
+ * INCIDENTE (2026-08-07): iniciarRefreshDeFundo() (operacoes+apontamentos) e
+ * iniciarRefreshDeFundoPedidos() (ordens+pedidos) foram chamadas como DOIS setInterval
+ * separados, ambos com o mesmo REFRESH_FUNDO_INTERVALO_MS e iniciados um logo apos o outro
+ * no boot — na pratica, disparam juntos a cada ciclo. Isso dobrou a carga simultanea sobre
+ * a mesma cota do Nomus (cada ciclo virou operacoes+apontamentos+ordens+ate 20 pedidos de
+ * uma vez, em vez de intercalado com o polling de 30s do navegador) e gerou uma avalanche de
+ * 429 sustentada: nada terminava de resolver entre um ciclo e o proximo, entao o Acompanhamento
+ * passou a mostrar so a OS (pedido/valorTotal/dataPedido dependem do pedido resolvido, que
+ * nunca conseguia terminar — ver server/pedidos.js). Um timer so, sequencial, evita isso.
+ */
+function iniciarAtualizacaoDeFundo() {
+  const id = setInterval(async () => {
+    await nomus.todasOperacoes().catch(() => {})
+    await nomus.apontamentos().catch(() => {})
+    await mapaPedidosPorOrdem().catch(() => {})
+  }, config.refreshFundoIntervaloMs)
+  id.unref?.()
+  return id
+}
+
+iniciarAtualizacaoDeFundo()

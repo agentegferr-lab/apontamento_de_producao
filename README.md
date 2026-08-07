@@ -360,10 +360,12 @@ Investigando um caso real (OS 01621/01622/01623), duas coisas confirmadas:
   reproduzido ao investigar este caso) só era tentada de novo na próxima vez que alguém
   abrisse a tela** depois do cache vencer de novo — em período de pouco uso, o dado podia
   ficar parado por muito mais que `CACHE_TTL_MS`. Agora o servidor tenta se atualizar
-  sozinho a cada `REFRESH_FUNDO_INTERVALO_MS` (padrão 60s — `server/nomus.js`,
-  `iniciarRefreshDeFundo()`, chamada só no boot real do servidor, nunca em teste), e as
+  sozinho a cada `REFRESH_FUNDO_INTERVALO_MS` (padrão 60s — `server/index.js`,
+  `iniciarAtualizacaoDeFundo()`, chamada só no boot real do servidor, nunca em teste), e as
   telas de Acompanhamento/Planejamento se atualizam sozinhas a cada 30s, sem precisar
-  clicar em "Atualizar".
+  clicar em "Atualizar". **Um timer só, sequencial** (operações → apontamentos → ordens/
+  pedidos, nunca em paralelo): dois timers independentes na mesma cadência já causaram uma
+  avalanche de 429 (2026-08-07) por dobrar a carga simultânea sobre a mesma cota do Nomus.
 - **`CACHE_TTL_MS` continua em 3 minutos de propósito** — reduzir isso aumenta as chamadas
   ao Nomus e o risco do avalanche de 429 acima. O refresh de fundo veio pra dar mais
   resiliência dentro da mesma janela, não pra encurtá-la.

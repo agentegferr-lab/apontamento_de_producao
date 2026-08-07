@@ -428,26 +428,10 @@ export const nomus = {
 }
 
 /**
- * Mantem o roteiro/apontamentos completos tentando se atualizar sozinhos, independente de
- * alguem estar com uma tela aberta. Precisa ser chamado explicitamente no boot do servidor
- * (ver index.js) — NAO roda so por importar este modulo, pra nao disparar chamadas de rede
- * de verdade (inclusive contra o Nomus real) so por causa de um `import` em teste.
- *
- * Por que isto existe: uma atualizacao de fundo pode falhar no meio (ex.: 429 numa
- * varredura de 30+ paginas — ja aconteceu). Sem um agendamento proprio, essa tentativa so
- * seria refeita na PROXIMA vez que uma pessoa abrisse o Acompanhamento/Planejamento depois
- * do cache ja estar vencido de novo — num periodo de pouco uso (fim de turno, madrugada),
- * o dado podia ficar parado por muito mais que CACHE_TTL_MS sem ninguem perceber (ver
- * ultimaAtualizacao acima, exposta em /api/kanban pra tornar isto visivel).
- * Cada chamada aqui e barata quando o cache ja esta fresco: comCache() so faz um fetch de
- * verdade se estiver mesmo vencido. `.unref()` pra este timer nunca ser o motivo de o
- * processo nao conseguir encerrar.
+ * O agendamento de fundo (roteiro/apontamentos/ordens/pedidos, tudo num timer SO e
+ * SEQUENCIAL) vive em server/index.js (iniciarAtualizacaoDeFundo) — nao aqui. Ter dois
+ * timers independentes (um so pra isto, outro so pra pedidos.js) foi o que causou o
+ * INCIDENTE (2026-08-07): ambos com a mesma cadencia, disparando quase juntos a cada ciclo,
+ * dobraram a carga simultanea sobre a mesma cota do Nomus (ver index.js pro relato
+ * completo).
  */
-export function iniciarRefreshDeFundo() {
-  const id = setInterval(() => {
-    nomus.todasOperacoes().catch(() => {}) // erro ja logado dentro de comCache()
-    nomus.apontamentos().catch(() => {})
-  }, config.refreshFundoIntervaloMs)
-  id.unref?.()
-  return id
-}
