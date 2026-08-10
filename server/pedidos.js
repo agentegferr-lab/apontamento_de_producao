@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { nomus, NomusError } from './nomus.js'
+import { nomus, NomusError, ultimaAtualizacao } from './nomus.js'
 import { normalizarPedido } from './pedidosOcultos.js'
 import { parseDataNomus } from './kanban.js'
 
@@ -153,6 +153,20 @@ export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido
       cliente: item.nomeCliente ?? null,
     },
   ]
+}
+
+/**
+ * Quando a lista de `/ordens` foi buscada de verdade no Nomus pela ULTIMA vez com sucesso —
+ * mesma ideia de nomus.js/ultimaAtualizacao, so que pra ESTA chave especifica. Sem isto,
+ * "Ultima atualizacao" no Acompanhamento/Planejamento (ver server/index.js,
+ * dataDeAtualizacaoDoQuadro) so refletia operacoes/apontamentos: a varredura de `/ordens`
+ * podia ficar dias travada num valor velho (mesmo padrao do incidente com operacoes:todas,
+ * ver server/nomus.js) sem NENHUM sinal pra quem olha a tela — o pedido simplesmente sumia
+ * de ordens novas (idOrdem alto) que ainda nao tinham entrado na varredura, com todo o
+ * resto do quadro parecendo "atualizado agora".
+ */
+export function ultimaAtualizacaoOrdens() {
+  return ultimaAtualizacao(`lista:${ENDPOINT_ORDENS()}`)
 }
 
 let atualizandoEmFundo = null

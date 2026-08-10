@@ -10,7 +10,7 @@ import { montarKanban } from './kanban.js'
 import { montarRelatorioProducao } from './relatorioProducao.js'
 import { gerarPdfRelatorioProducao } from './relatorioProducaoPdf.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
-import { mapaPedidosPorOrdem, buscarPedidoPorCodigo } from './pedidos.js'
+import { mapaPedidosPorOrdem, buscarPedidoPorCodigo, ultimaAtualizacaoOrdens } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
 import { pedidosOcultos } from './pedidosOcultos.js'
 import { materiaisParaItens } from './materiais.js'
@@ -450,11 +450,19 @@ function estaIniciadoNoQuadro(quadro) {
 /**
  * A data de "quando os dados foram buscados de verdade no Nomus" — NAO "agora", que
  * mentiria sempre que o cache estivesse servindo um valor vencido (stale-while-revalidate,
- * ver server/nomus.js). Pega a mais ANTIGA das duas fontes: se uma delas estiver atrasada,
+ * ver server/nomus.js). Pega a mais ANTIGA das tres fontes: se uma delas estiver atrasada,
  * o quadro inteiro pode estar incompleto por causa dela.
+ *
+ * INCIDENTE (2026-08-07): faltava a lista de `/ordens` aqui (so tinha operacoes/apontamentos)
+ * — ela ficou presa numa varredura velha por dias (mesmo padrao do incidente de
+ * operacoes:todas em 2026-07-27, ver server/nomus.js) sem NENHUM sinal na tela: o rotulo
+ * dizia "atualizado agora" enquanto ordens novas (idOrdem alto) apareciam sem pedido/produto/
+ * valor, porque ainda nao tinham entrado na ultima varredura bem-sucedida.
  */
 function dataDeAtualizacaoDoQuadro() {
-  const datas = [ultimaAtualizacao('operacoes:todas'), ultimaAtualizacao('apontamentos')].filter(Boolean)
+  const datas = [ultimaAtualizacao('operacoes:todas'), ultimaAtualizacao('apontamentos'), ultimaAtualizacaoOrdens()].filter(
+    Boolean,
+  )
   return datas.length ? new Date(Math.min(...datas.map((d) => d.getTime()))) : new Date()
 }
 
