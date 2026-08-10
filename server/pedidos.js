@@ -169,6 +169,42 @@ export function ultimaAtualizacaoOrdens() {
   return ultimaAtualizacao(`lista:${ENDPOINT_ORDENS()}`)
 }
 
+/**
+ * INCIDENTE (2026-08-10): confirmado contra o Nomus real que `GET /ordens?pagina=10` devolve
+ * 400 (corpo so `{"status":400}`, sem mensagem) — SEMPRE, nao e rate limit (429 se resolve
+ * sozinho recuando; 400 nao). E um bug do lado do Nomus (provavelmente um registro especifico
+ * entre as posicoes ~451-500 que a serializacao deles nao aguenta), nao nosso — mas trava a
+ * paginacao PRA SEMPRE a partir dali: nenhuma ordem criada depois da pagina 9 (idOrdem crescente)
+ * jamais entra na lista via `?pagina=N`, e o pedido/produto/valor somem dos cards mesmo com o
+ * cache saudavel e sem nenhum 429 rolando.
+ *
+ * Contorno confirmado: `?query=id>N` (RSQL, mesma sintaxe ja usada em componentesDeProduto)
+ * devolve as ordens SEM passar pela paginacao por posicao que esta quebrada — testado direto
+ * contra o Nomus real. So busca o que tem id MAIOR que o maior id ja presente na lista
+ * principal (que fica presa no valor da ultima varredura completa bem-sucedida, mesmo que essa
+ * varredura nunca mais volte a fechar por causa do bug acima) e MESCLA — nao substitui a
+ * varredura normal, so tapa o buraco que ela deixa. Se um dia o Nomus corrigir o registro
+ * quebrado, a varredura normal volta a incluir tudo e isto vira um no-op (nenhuma ordem nova
+ * pra complementar).
+ */
+async function complementarComOrdensRecentes(ordens) {
+  if (!ordens.length) return ordens
+  const maiorId = Math.max(...ordens.map((o) => Number(o?.id ?? o?.idOrdem)).filter(Number.isFinite))
+  if (!Number.isFinite(maiorId)) return ordens
+
+  const separador = ENDPOINT_ORDENS().includes('?') ? '&' : '?'
+  try {
+    const recentes = await nomus.listaGenerica(`${ENDPOINT_ORDENS()}${separador}query=id>${maiorId}`)
+    if (!recentes.length) return ordens
+    const vistos = new Set(ordens.map((o) => Number(o?.id ?? o?.idOrdem)))
+    const novas = recentes.filter((o) => !vistos.has(Number(o?.id ?? o?.idOrdem)))
+    return novas.length ? [...ordens, ...novas] : ordens
+  } catch (erro) {
+    console.warn(`[pedidos] falha ao complementar ordens recentes (id>${maiorId}): ${erro.message}`)
+    return ordens
+  }
+}
+
 let atualizandoEmFundo = null
 
 export async function mapaPedidosPorOrdem() {
@@ -185,6 +221,8 @@ export async function mapaPedidosPorOrdem() {
     )
     return new Map()
   }
+
+  ordens = await complementarComOrdensRecentes(ordens)
 
   const campoPedido = CAMPO_PEDIDO()
   const mapa = new Map()
