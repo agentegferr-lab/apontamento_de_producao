@@ -177,13 +177,26 @@ export default function TelaKanban({ recarregarEm }) {
         </div>
 
         <div className="kanban__controles">
-          <input
-            className="kanban__busca"
-            type="text"
-            placeholder="Buscar OS, pedido ou produto..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-          />
+          <div className="kanban__busca-grupo">
+            <svg
+              className="kanban__busca-icone"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" strokeLinecap="round" />
+            </svg>
+            <input
+              className="kanban__busca"
+              type="text"
+              placeholder="Buscar OS, pedido ou produto..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
           <select className="seletor" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
             {FILTROS.map((f) => (
               <option key={f.valor} value={f.valor}>
@@ -197,6 +210,10 @@ export default function TelaKanban({ recarregarEm }) {
             </svg>
             {carregando ? 'Atualizando...' : 'Atualizar'}
           </button>
+          <span className="kanban__auto">
+            <span className="kanban__auto-ponto" aria-hidden="true" />
+            Atualização automática
+          </span>
         </div>
       </div>
 
@@ -265,8 +282,18 @@ export default function TelaKanban({ recarregarEm }) {
                     <p className="ficha__descricao">{card.descricao || 'Sem descrição'}</p>
                     <p className="ficha__etapas">
                       Etapa {card.operacao} · {card.etapasConcluidas}/{card.totalEtapas} concluídas
-                      {card.operadorAtual ? ` · ${card.operadorAtual}` : ''}
                     </p>
+                    <div className="ficha__progresso" aria-hidden="true">
+                      <div
+                        className="ficha__progresso-preenchido"
+                        style={{
+                          width: card.totalEtapas
+                            ? `${Math.min(100, (card.etapasConcluidas / card.totalEtapas) * 100)}%`
+                            : '0%',
+                        }}
+                      />
+                    </div>
+                    {card.operadorAtual && <p className="ficha__operador">{card.operadorAtual}</p>}
                     {card.motivoParada && <p className="ficha__parada">⏸ {card.motivoParada}</p>}
                     <div className="ficha__rodape">
                       <span className={`etiqueta ${CLASSE_STATUS[card.status]}`}>{ROTULO_STATUS[card.status]}</span>
@@ -287,12 +314,16 @@ export default function TelaKanban({ recarregarEm }) {
         </div>
       )}
 
-      {atualizadoEm && (
-        <p className="kanban__rodape">
-          Última atualização: {atualizadoEm.toLocaleDateString('pt-BR')}{' '}
-          {atualizadoEm.toLocaleTimeString('pt-BR')}
-        </p>
-      )}
+      <div className="kanban__rodape">
+        <span>
+          {atualizadoEm &&
+            `Última atualização: ${atualizadoEm.toLocaleDateString('pt-BR')} ${atualizadoEm.toLocaleTimeString('pt-BR')}`}
+        </span>
+        <span className={`kanban__conectado ${erro ? 'kanban__conectado--erro' : ''}`}>
+          <span className="kanban__conectado-ponto" aria-hidden="true" />
+          {erro ? 'sistema desconectado' : 'sistema conectado'}
+        </span>
+      </div>
 
       <ModalDetalheCard
         card={detalhe}
