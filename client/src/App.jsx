@@ -203,7 +203,7 @@ export default function App() {
         <Relogio />
       </header>
 
-      {tela === 'leitura' && <TelaLeitura terminal={terminal} onMudouAndamento={aoMudarAndamento} />}
+      {tela === 'leitura' && <TelaLeitura onMudouAndamento={aoMudarAndamento} />}
       {tela === 'kanban' && <TelaKanban recarregarEm={versaoAndamento} />}
       {tela === 'planejamento' && (adminLiberado || planejamentoVisualizacao) && (
         <TelaPlanejamento somenteLeitura={!adminLiberado} />

@@ -31,7 +31,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 app.use(express.json({ limit: '256kb' }))
 
-/** O funcionario do terminal vem da matricula em .env — nunca do cliente. */
+/**
+ * So pro boot do terminal (GET /api/terminal, ver App.jsx): confirma que a conexao com o
+ * Nomus funciona usando a matricula fixa do .env como referencia. NAO e mais quem assina os
+ * apontamentos — isso agora e por operador, ver resolverFuncionarioPorMatricula abaixo. Um
+ * erro aqui e sempre do SERVIDOR (a matricula de referencia esta errada no .env), por isso
+ * NomusError com status 500 continua fazendo sentido.
+ */
 async function funcionarioDoTerminal() {
   const funcionario = await nomus.funcionarioPorMatricula(config.matricula)
   if (!funcionario) {
@@ -41,6 +47,27 @@ async function funcionarioDoTerminal() {
   }
   if (funcionario.ativo === false) {
     throw new NomusError(`O funcionario ${funcionario.nome} esta inativo no Nomus.`, { status: 500 })
+  }
+  return funcionario
+}
+
+/**
+ * Quem assina o apontamento: a matricula que o OPERADOR bipou no cracha (ver
+ * TelaLeitura.jsx), uma por pessoa — nao mais a matricula fixa do terminal em .env. Erro
+ * aqui e do OPERADOR (bipou errado, ou esta inativo no Nomus), por isso AppError 400/403 em
+ * vez do NomusError 500 de funcionarioDoTerminal (aquele e erro de configuracao do servidor).
+ */
+async function resolverFuncionarioPorMatricula(matricula) {
+  const alvo = String(matricula ?? '').trim()
+  if (!alvo) {
+    throw new AppError('Leia o crachá (matrícula do colaborador) antes de iniciar.', 400, 'MATRICULA_OBRIGATORIA')
+  }
+  const funcionario = await nomus.funcionarioPorMatricula(alvo)
+  if (!funcionario) {
+    throw new AppError(`Nenhum colaborador com a matrícula ${alvo} no Nomus.`, 404, 'MATRICULA_INVALIDA')
+  }
+  if (funcionario.ativo === false) {
+    throw new AppError(`${funcionario.nome} está inativo no Nomus.`, 403, 'FUNCIONARIO_INATIVO')
   }
   return funcionario
 }
@@ -214,7 +241,7 @@ app.get('/api/andamento', (_req, res) => res.json(andamento.listar()))
 app.post(
   '/api/iniciar',
   asyncRoute(async (req, res) => {
-    const { codigoOrdem, codigoProcesso, idAtividade } = req.body ?? {}
+    const { codigoOrdem, codigoProcesso, idAtividade, matricula } = req.body ?? {}
     const operacao = await resolverOperacao(codigoOrdem, codigoProcesso)
 
     // O recurso sai do centro de trabalho da etapa lida, nao do terminal: uma unica maquina
@@ -245,7 +272,7 @@ app.post(
     }
 
     const [funcionario, atividade] = await Promise.all([
-      funcionarioDoTerminal(),
+      resolverFuncionarioPorMatricula(matricula),
       resolverAtividade(idRecurso, idAtividade),
     ])
 

@@ -417,12 +417,6 @@ body {
   margin-top: 28px;
 }
 
-.leitura__nota {
-  margin-top: 28px;
-  color: var(--tinta-tenue);
-  font-size: 14px;
-}
-
 /* --- botoes ------------------------------------------------------------------------- */
 .botao {
   display: inline-flex;

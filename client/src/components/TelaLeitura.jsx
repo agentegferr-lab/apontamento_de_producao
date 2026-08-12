@@ -31,9 +31,12 @@ const IconeMatricula = () => (
  * le o processo e o operador escolhe Iniciar ou Finalizar. Nao ha submit implicito — o
  * Enter e tratado na mao, pra leitura nunca depender do numero de campos do form.
  */
-export default function TelaLeitura({ terminal, onMudouAndamento }) {
-  // Ainda nao entra no apontamento (nao e obrigatorio, nao vai no corpo de iniciar/pausar/
-  // finalizar) — so o campo, preparando terreno pra quando isso virar exigencia de verdade.
+export default function TelaLeitura({ onMudouAndamento }) {
+  // Cada operador bipa o proprio cracha antes de iniciar — e essa matricula (nao mais uma
+  // fixa no .env do servidor, ver server/index.js resolverFuncionarioPorMatricula) que
+  // assina o apontamento. NAO limpa em limpar() de proposito: um operador que aponta varias
+  // ordens seguidas so bipa o cracha uma vez, igual um leitor fisico de cartao continuaria
+  // "logado" ate outra pessoa bipar o dela por cima.
   const [matricula, setMatricula] = useState('')
   const [ordem, setOrdem] = useState('')
   const [processo, setProcesso] = useState('')
@@ -50,7 +53,7 @@ export default function TelaLeitura({ terminal, onMudouAndamento }) {
 
   useEffect(() => {
     if (pedindo) refQuantidade.current?.focus()
-    else refOrdem.current?.focus()
+    else (matricula.trim() ? refOrdem : refMatricula).current?.focus()
   }, [pedindo])
 
   function limpar() {
@@ -59,10 +62,18 @@ export default function TelaLeitura({ terminal, onMudouAndamento }) {
     setPedindo(null)
     setEscolhendoAtividade(null)
     setEscolhendoMotivo(null)
-    refOrdem.current?.focus()
+    ;(matricula.trim() ? refOrdem : refMatricula).current?.focus()
   }
 
   async function acionar(acao, extras = {}) {
+    // So iniciar precisa do cracha: pausar/finalizar agem sobre um apontamento JA aberto,
+    // que ja tem o funcionario que o iniciou (ver server/index.js) — bipar nao muda quem
+    // assina um processo em andamento.
+    if (acao === 'iniciar' && !matricula.trim()) {
+      setAviso({ tipo: 'erro', texto: 'Leia o crachá (matrícula do colaborador) antes de iniciar.' })
+      refMatricula.current?.focus()
+      return
+    }
     if (!ordem.trim() || !processo.trim()) {
       setAviso({ tipo: 'erro', texto: 'Leia a ordem de servico e a etapa do processo antes de continuar.' })
       ;(!ordem.trim() ? refOrdem : refProcesso).current?.focus()
@@ -71,7 +82,7 @@ export default function TelaLeitura({ terminal, onMudouAndamento }) {
     setOcupado(true)
     setAviso(null)
     try {
-      const corpo = { codigoOrdem: ordem.trim(), codigoProcesso: processo.trim(), ...extras }
+      const corpo = { codigoOrdem: ordem.trim(), codigoProcesso: processo.trim(), matricula: matricula.trim(), ...extras }
 
       if (acao === 'iniciar') {
         const r = await api.iniciar(corpo)
@@ -210,7 +221,7 @@ export default function TelaLeitura({ terminal, onMudouAndamento }) {
             </span>
             <span>
               <strong>MATRÍCULA DO COLABORADOR</strong>
-              <small>Opcional por enquanto</small>
+              <small>Bipe o crachá antes de iniciar um processo</small>
             </span>
           </div>
           <div className="leitura__campo">
@@ -219,9 +230,14 @@ export default function TelaLeitura({ terminal, onMudouAndamento }) {
               value={matricula}
               onChange={(e) => setMatricula(e.target.value)}
               onKeyDown={aoTeclar(refOrdem)}
+              // Campo fica com a matricula do operador anterior (de proposito, ver estado
+              // acima) — selecionar tudo ao focar garante que o proximo cracha bipado
+              // SUBSTITUI o valor antigo em vez de concatenar em cima dele.
+              onFocus={(e) => e.target.select()}
               disabled={bloqueado}
               autoComplete="off"
               aria-label="Matrícula do colaborador"
+              autoFocus
             />
             <span className="leitura__marca" aria-hidden="true">
               <IconeMatricula />
@@ -248,7 +264,6 @@ export default function TelaLeitura({ terminal, onMudouAndamento }) {
               disabled={bloqueado}
               autoComplete="off"
               aria-label="Código de barras da ordem de serviço"
-              autoFocus
             />
             <span className="leitura__marca" aria-hidden="true">
               <IconeBarcode />
@@ -320,9 +335,6 @@ export default function TelaLeitura({ terminal, onMudouAndamento }) {
           </p>
         )}
 
-        <p className="leitura__nota">
-          Operador: <strong>{terminal.funcionario.nome}</strong> · matrícula {terminal.funcionario.matricula}
-        </p>
       </main>
 
       {escolhendoMotivo && (
