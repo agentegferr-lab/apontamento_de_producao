@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
-import { ROTULO_STATUS, CLASSE_STATUS, tempoDoCard } from '../kanbanCampos.js'
+import { ROTULO_STATUS, CLASSE_STATUS, tempoDoCard, etapasParaExibir } from '../kanbanCampos.js'
 import ModalDetalheCard from './ModalDetalheCard.jsx'
 
 const FILTROS = [
@@ -281,14 +281,14 @@ export default function TelaKanban({ recarregarEm }) {
                     {card.produto && <p className="ficha__produto">{card.produto}</p>}
                     <p className="ficha__descricao">{card.descricao || 'Sem descrição'}</p>
                     <p className="ficha__etapas">
-                      Etapa {card.operacao} · {card.etapasConcluidas}/{card.totalEtapas} concluídas
+                      Etapa {card.operacao} · {etapasParaExibir(card)}/{card.totalEtapas} concluídas
                     </p>
                     <div className="ficha__progresso" aria-hidden="true">
                       <div
                         className="ficha__progresso-preenchido"
                         style={{
                           width: card.totalEtapas
-                            ? `${Math.min(100, (card.etapasConcluidas / card.totalEtapas) * 100)}%`
+                            ? `${Math.min(100, (etapasParaExibir(card) / card.totalEtapas) * 100)}%`
                             : '0%',
                         }}
                       />

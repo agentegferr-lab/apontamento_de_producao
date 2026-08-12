@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ROTULO_STATUS, CLASSE_STATUS, tempoDoCard } from '../kanbanCampos.js'
+import { ROTULO_STATUS, CLASSE_STATUS, tempoDoCard, etapasParaExibir } from '../kanbanCampos.js'
 import { formatarMoedaBr, formatarNumeroBr } from '../numero.js'
 import { api } from '../api.js'
 
@@ -106,7 +106,7 @@ export default function ModalDetalheCard({
             <div className="detalhes__linha">
               <dt className="detalhes__rotulo">Progresso do roteiro</dt>
               <dd>
-                {card.etapasConcluidas}/{card.totalEtapas} etapas concluídas
+                {etapasParaExibir(card)}/{card.totalEtapas} etapas concluídas
               </dd>
             </div>
           )}
