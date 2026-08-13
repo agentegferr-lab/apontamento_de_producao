@@ -147,6 +147,43 @@ export function somarValorProduzido(porCentro) {
   return comValor.reduce((soma, c) => soma + c.valorProduzido, 0)
 }
 
+/**
+ * Metas mensais de producao, combinadas com o usuario em 2026-08-13 — nao vem do Nomus (o
+ * ERP nao tem conceito de meta, so o que foi de fato apontado). Corte/Pintura/Colagem em m²
+ * (mesma unidade do numero principal do card, ver quantidadePrincipal); Logística em R$
+ * (mesma unidade da caixa "estimado" que ela substitui, ja que logística nao tem uma
+ * quantidade fisica unica pra comparar). Centro sem entrada aqui mantem a caixa de "R$
+ * estimado" de sempre — ver TelaRelatorioProducao.jsx.
+ */
+const METAS_MENSAIS = {
+  CORTE: { valor: 36_000, tipo: 'quantidade' },
+  PINTURA: { valor: 22_000, tipo: 'quantidade' },
+  COLAGEM: { valor: 13_000, tipo: 'quantidade' },
+  'LOGÍSTICA': { valor: 1_500_000, tipo: 'moeda' },
+}
+const DIAS_UTEIS_MES = 22
+
+/**
+ * Meta do centro escalada pro periodo selecionado (modo do segmentado Dia/Semana/Mês) — a
+ * mensal (METAS_MENSAIS) vira diaria dividindo por DIAS_UTEIS_MES; semana assume 5 dias
+ * uteis FIXOS (nao conta quantos dias uteis a semana escolhida realmente tem, nem feriado);
+ * mes usa a mensal cheia. `null` se o centro nao tem meta definida.
+ */
+export function metaDoPeriodo(centro, modo) {
+  const meta = METAS_MENSAIS[centro]
+  if (!meta) return null
+  const diaria = meta.valor / DIAS_UTEIS_MES
+  const valor = modo === 'dia' ? diaria : modo === 'semana' ? diaria * 5 : meta.valor
+  return { tipo: meta.tipo, valor }
+}
+
+/** % da meta ja atingido no periodo — 0 (nao null) quando a meta e 0, so pra nunca dividir
+ * por zero; nao deveria acontecer com os valores fixos de METAS_MENSAIS acima. */
+export function progressoMeta(atual, metaValor) {
+  if (!metaValor) return 0
+  return ((atual ?? 0) / metaValor) * 100
+}
+
 /** Paleta fixa (nao semantica — nao e verde=ok/vermelho=erro) pra identificar cada centro nos
  * graficos/cards, na mesma ordem que ja vem do servidor (fluxo fisico: Corte, Pintura...). */
 const PALETA_CENTROS = ['#16a34a', '#2563eb', '#ea580c', '#7c3aed', '#db2777', '#0891b2', '#65a30d', '#d97706']

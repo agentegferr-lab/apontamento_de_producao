@@ -13,6 +13,8 @@ import {
   paginar,
   corDoCentro,
   somarValorProduzido,
+  metaDoPeriodo,
+  progressoMeta,
 } from '../producaoCampos.js'
 
 const MODOS_PERIODO = [
@@ -313,8 +315,9 @@ export default function TelaRelatorioProducao() {
   }
 
   // Um cartao por centro: numero principal (unidade de maior total), tendencia contra o
-  // periodo equivalente anterior (mesmo modo — ex.: dia contra o dia anterior) e um
-  // "sparkline" com os ultimos 7 dias, sempre na mesma janela, independente do modo escolhido.
+  // periodo equivalente anterior (mesmo modo — ex.: dia contra o dia anterior), um
+  // "sparkline" com os ultimos 7 dias (sempre na mesma janela, independente do modo
+  // escolhido) e a meta do periodo (so pros centros com meta definida, ver producaoCampos.js).
   const cartoes = useMemo(() => {
     if (!dados) return []
     const anteriorPorCentro = new Map((dadosAnterior?.porCentro ?? []).map((c) => [c.centro, c]))
@@ -324,9 +327,14 @@ export default function TelaRelatorioProducao() {
       const anteriorPrincipal = anteriorCentro ? quantidadePrincipal(anteriorCentro.quantidades) : null
       const tendencia = calcularTendencia(principal?.total ?? 0, anteriorPrincipal?.total ?? 0)
       const serie = dadosSpark ? serieDiariaPorCentro(dadosSpark.detalhado, c.centro, diasSparkChaves) : diasSparkChaves.map(() => 0)
-      return { ...c, cor: corDoCentro(i), principal, tendencia, serie }
+      const metaBase = metaDoPeriodo(c.centro, modo)
+      const meta = metaBase && {
+        ...metaBase,
+        percentual: progressoMeta(metaBase.tipo === 'moeda' ? c.valorProduzido : principal?.total, metaBase.valor),
+      }
+      return { ...c, cor: corDoCentro(i), principal, tendencia, serie, meta }
     })
-  }, [dados, dadosAnterior, dadosSpark, diasSparkChaves])
+  }, [dados, dadosAnterior, dadosSpark, diasSparkChaves, modo])
 
   const valorTotalPeriodo = useMemo(() => somarValorProduzido(dados?.porCentro), [dados])
 
@@ -569,14 +577,40 @@ export default function TelaRelatorioProducao() {
                       </span>
                       <BadgeTendencia tendencia={c.tendencia} />
                     </div>
-                    {c.valorProduzido != null && (
+                    {c.meta ? (
                       <div
-                        className="indicador-producao__valor-estimado"
-                        title="Valor do pedido rateado pela quantidade produzida em cada etapa da OS — estimativa, o Nomus nao informa valor por centro de trabalho."
+                        className="indicador-producao__meta"
+                        title="Meta mensal dividida por 22 dias úteis e escalada pro período — não vem do Nomus, é combinada com a operação."
                       >
-                        {formatarMoedaNumero(c.valorProduzido)}
-                        <span className="indicador-producao__valor-estimado-rotulo">estimado</span>
+                        <div className="indicador-producao__meta-linha">
+                          <span>
+                            Meta: {c.meta.tipo === 'moeda' ? formatarMoedaNumero(c.meta.valor) : `${formatarNumeroBr(c.meta.valor)} m²`}
+                          </span>
+                          <span
+                            className={`indicador-producao__meta-percentual ${
+                              c.meta.percentual >= 100 ? 'indicador-producao__meta-percentual--ok' : ''
+                            }`}
+                          >
+                            {formatarNumeroBr(c.meta.percentual)}%
+                          </span>
+                        </div>
+                        <div className="indicador-producao__meta-barra">
+                          <div
+                            className="indicador-producao__meta-barra-preenchida"
+                            style={{ width: `${Math.min(100, c.meta.percentual)}%` }}
+                          />
+                        </div>
                       </div>
+                    ) : (
+                      c.valorProduzido != null && (
+                        <div
+                          className="indicador-producao__valor-estimado"
+                          title="Valor do pedido rateado pela quantidade produzida em cada etapa da OS — estimativa, o Nomus nao informa valor por centro de trabalho."
+                        >
+                          {formatarMoedaNumero(c.valorProduzido)}
+                          <span className="indicador-producao__valor-estimado-rotulo">estimado</span>
+                        </div>
+                      )
                     )}
                   </div>
                 ))}

@@ -2584,6 +2584,40 @@ body {
   color: var(--tinta-fraca);
 }
 
+.indicador-producao__meta {
+  padding-top: 8px;
+  border-top: 1px dashed var(--linha);
+}
+.indicador-producao__meta-linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+.indicador-producao__meta-percentual {
+  color: var(--tinta-fraca);
+}
+.indicador-producao__meta-percentual--ok {
+  color: var(--verde-escuro);
+}
+.indicador-producao__meta-barra {
+  margin-top: 6px;
+  height: 5px;
+  background: var(--linha);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.indicador-producao__meta-barra-preenchida {
+  height: 100%;
+  background: var(--amarelo);
+  border-radius: 999px;
+  transition: width 0.2s;
+}
+
 .tendencia-badge {
   flex-shrink: 0;
   display: inline-flex;
