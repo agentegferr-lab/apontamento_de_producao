@@ -81,11 +81,6 @@ export const config = {
     return nomes.length ? nomes : null
   },
 
-  // Usado apenas se o funcionario nao tiver limiteApontamentosSimultaneos definido no Nomus.
-  get limiteFallback() {
-    return num('LIMITE_APONTAMENTOS_FALLBACK', 0)
-  },
-
   /**
    * TTL do cache de operacoes/apontamentos/ordens (paginados por inteiro). 3 minutos e o
    * mesmo valor validado por um projeto irmao rodando contra este mesmo Nomus ha dias —

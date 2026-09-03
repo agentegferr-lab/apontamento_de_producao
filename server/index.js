@@ -165,12 +165,9 @@ app.get(
   asyncRoute(async (_req, res) => {
     const funcionario = await funcionarioDoTerminal()
 
-    const limiteNomus = Number(funcionario.limiteApontamentosSimultaneos)
-    const limite = Number.isFinite(limiteNomus) && limiteNomus > 0 ? limiteNomus : config.limiteFallback
-
     res.json({
       funcionario: { id: funcionario.id, nome: funcionario.nome, matricula: funcionario.matricula },
-      limiteApontamentosSimultaneos: limite, // 0 = sem limite
+      limiteApontamentosSimultaneos: 0,
     })
   }),
 )
@@ -275,16 +272,6 @@ app.post(
       resolverFuncionarioPorMatricula(matricula),
       resolverAtividade(idRecurso, idAtividade),
     ])
-
-    const limiteNomus = Number(funcionario.limiteApontamentosSimultaneos)
-    const limite = Number.isFinite(limiteNomus) && limiteNomus > 0 ? limiteNomus : config.limiteFallback
-    if (limite > 0 && andamento.contarPorFuncionario(funcionario.id) >= limite) {
-      throw new AppError(
-        `${funcionario.nome} ja esta com ${limite} apontamentos simultaneos (limite do Nomus). Finalize um antes de iniciar outro.`,
-        409,
-        'LIMITE_ATINGIDO',
-      )
-    }
 
     const registro = andamento.iniciar({
       idOperacaoOrdem: operacao.idOperacaoOrdem,

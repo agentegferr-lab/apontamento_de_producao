@@ -120,8 +120,4 @@ export const andamento = {
     if (emAndamento.length !== antes) gravar()
     return antes !== emAndamento.length
   },
-
-  contarPorFuncionario(idFuncionario) {
-    return emAndamento.filter((a) => Number(a.idFuncionario) === Number(idFuncionario)).length
-  },
 }
