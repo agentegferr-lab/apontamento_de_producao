@@ -2,7 +2,7 @@ import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { config, validarConfig } from './config.js'
-import { nomus, NomusError, ultimaAtualizacao } from './nomus.js'
+import { nomus, NomusError, ultimaAtualizacao, forcarAtualizacao } from './nomus.js'
 import { resolverOperacao, ResolucaoError } from './resolver.js'
 import { andamento, PRODUZINDO, PAUSADO } from './andamento.js'
 import PDFDocument from 'pdfkit'
@@ -483,6 +483,27 @@ function dataDeAtualizacaoDoQuadro() {
 app.get(
   '/api/kanban',
   asyncRoute(async (_req, res) => {
+    const quadro = await montarQuadroAtual()
+    res.json({ ...quadro, atualizadoEm: dataDeAtualizacaoDoQuadro().toISOString() })
+  }),
+)
+
+// Mesma chave que server/pedidos.js usa pra cachear a lista de /ordens (nomus.listaGenerica).
+const CHAVE_CACHE_ORDENS = `lista:${process.env.NOMUS_ENDPOINT_ORDENS?.trim() || '/ordens'}`
+
+/**
+ * Forca uma atualizacao nova no Nomus AGORA em vez de esperar o proximo ciclo de fundo
+ * (ate REFRESH_FUNDO_INTERVALO_MS + CACHE_TTL_MS, ver config.js) — pro botao "Atualizar" do
+ * Acompanhamento, quando uma ordem nova nao apareceu ainda. So MARCA como vencidas as
+ * chaves do quadro (operacoes/apontamentos/ordens); nao apaga nem espera a varredura
+ * terminar — devolve o quadro atual na hora e atualiza em segundo plano (ver
+ * nomus.forcarAtualizacao). Apagar o cache e esperar de verdade travaria essa chamada por
+ * minutos sob throttle do Nomus, o mesmo padrao do INCIDENTE 2026-07-27 em server/nomus.js.
+ */
+app.post(
+  '/api/kanban/atualizar',
+  asyncRoute(async (_req, res) => {
+    forcarAtualizacao(['operacoes:todas', 'apontamentos', CHAVE_CACHE_ORDENS])
     const quadro = await montarQuadroAtual()
     res.json({ ...quadro, atualizadoEm: dataDeAtualizacaoDoQuadro().toISOString() })
   }),

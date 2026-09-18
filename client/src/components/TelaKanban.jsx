@@ -45,10 +45,13 @@ export default function TelaKanban({ recarregarEm }) {
     }
   }
 
-  async function carregar() {
+  async function carregar(forcar = false) {
     setCarregando(true)
     try {
-      const [dados, listaOcultos] = await Promise.all([api.kanban(), api.pedidosOcultos.listar()])
+      const [dados, listaOcultos] = await Promise.all([
+        forcar ? api.kanbanForcarAtualizacao() : api.kanban(),
+        api.pedidosOcultos.listar(),
+      ])
       setQuadro(dados)
       setOcultos(listaOcultos)
       // Data real da ultima busca no Nomus (ver server/index.js, dataDeAtualizacaoDoQuadro)
@@ -204,7 +207,11 @@ export default function TelaKanban({ recarregarEm }) {
               </option>
             ))}
           </select>
-          <button className="botao botao--neutro botao--pequeno" onClick={carregar} disabled={carregando}>
+          <button
+            className="botao botao--neutro botao--pequeno"
+            onClick={() => carregar(true)}
+            disabled={carregando}
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

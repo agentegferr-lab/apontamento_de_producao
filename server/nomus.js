@@ -313,6 +313,23 @@ export function limparCache() {
 }
 
 /**
+ * "Forcar atualizacao" pro botao do Acompanhamento, quando uma ordem nova nao apareceu
+ * ainda e ninguem quer esperar o proximo ciclo de fundo. NAO apaga o cache (isso faria
+ * comCache esperar de verdade uma varredura completa antes de responder — sob throttle do
+ * Nomus isso trava a chamada por minutos, o mesmo padrao do INCIDENTE 2026-07-27 acima).
+ * Em vez disso, so marca como VENCIDAS as chaves passadas: comCache devolve o valor antigo
+ * NA HORA (a tela nao trava) e dispara a atualizacao de verdade em segundo plano — a mesma
+ * via stale-while-revalidate de sempre, so que sem esperar o TTL de 3min terminar sozinho.
+ */
+export function forcarAtualizacao(chaves) {
+  const agora = Date.now() - 1
+  for (const chave of chaves) {
+    const entrada = cache.get(chave)
+    if (entrada && entrada.valor !== undefined) cache.set(chave, { ...entrada, expiraEm: agora })
+  }
+}
+
+/**
  * Quando "chave" foi buscada de verdade no Nomus pela ULTIMA vez com sucesso — nao quando
  * alguem recebeu a resposta (que pode ter vindo do cache, na hora, mesmo com o dado velho).
  * Usado pra mostrar uma data de atualizacao real na tela (ver /api/kanban em index.js) em

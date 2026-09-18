@@ -47,6 +47,7 @@ export const api = {
   terminal: () => chamar('/api/terminal'),
   atividades: (idRecurso) => chamar(`/api/atividades?idRecurso=${encodeURIComponent(idRecurso)}`),
   kanban: () => chamar('/api/kanban'),
+  kanbanForcarAtualizacao: () => chamar('/api/kanban/atualizar', { method: 'POST' }),
   relatorioProducao: (inicio, fim) =>
     chamar(`/api/relatorio-producao?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`),
   andamento: () => chamar('/api/andamento'),
