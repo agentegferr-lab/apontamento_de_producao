@@ -236,6 +236,11 @@ export default function TelaLeitura({ onMudouAndamento }) {
               onFocus={(e) => e.target.select()}
               disabled={bloqueado}
               autoComplete="off"
+              // inputMode (nao type="number"): o leitor de codigo de barras digita como
+              // teclado normal, e type="number" cortaria zeros a esquerda da matricula/
+              // etiqueta — so troca o teclado virtual do celular pro numerico.
+              inputMode="numeric"
+              pattern="[0-9]*"
               aria-label="Matrícula do colaborador"
               autoFocus
             />
@@ -263,6 +268,8 @@ export default function TelaLeitura({ onMudouAndamento }) {
               onKeyDown={aoTeclar(refProcesso)}
               disabled={bloqueado}
               autoComplete="off"
+              inputMode="numeric"
+              pattern="[0-9]*"
               aria-label="Código de barras da ordem de serviço"
             />
             <span className="leitura__marca" aria-hidden="true">
@@ -289,6 +296,8 @@ export default function TelaLeitura({ onMudouAndamento }) {
               onKeyDown={aoTeclar(refProcesso)}
               disabled={bloqueado}
               autoComplete="off"
+              inputMode="numeric"
+              pattern="[0-9]*"
               aria-label="Código de barras da etapa do processo"
             />
             <span className="leitura__marca" aria-hidden="true">

@@ -3129,11 +3129,20 @@ body {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
-  /* Busca, filtro e "Atualizar" somem no celular — o quadro ja se atualiza sozinho a cada
-     30s (ver TelaKanban.jsx), e esses 3 campos empilhados tomavam a tela toda antes de
-     qualquer card aparecer. */
+  /* Filtro e "Atualizar" somem no celular — o quadro ja se atualiza sozinho a cada 30s (ver
+     TelaKanban.jsx), e os 3 campos empilhados tomavam a tela toda antes de qualquer card
+     aparecer. A busca fica: sem ela, achar uma OS/pedido especifico na lista significa
+     rolar a tela toda no celular, que e exatamente onde falta espaco pra isso. */
   .kanban__controles {
+    display: flex;
+  }
+  .kanban__controles > .seletor,
+  .kanban__controles > .botao,
+  .kanban__controles > .kanban__auto {
     display: none;
+  }
+  .kanban__busca-grupo {
+    width: 100%;
   }
 
   .planejamento {
