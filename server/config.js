@@ -110,7 +110,7 @@ export const config = {
 
   // Teto de espera por retry de 429. Acima disso o erro sobe pro cliente com o retryAfter.
   get maxEsperaThrottleMs() {
-    return num('MAX_ESPERA_THROTTLE_MS', 30_000)
+    return num('MAX_ESPERA_THROTTLE_MS', 60_000)
   },
   get maxTentativasThrottle() {
     return num('MAX_TENTATIVAS_THROTTLE', 3)
