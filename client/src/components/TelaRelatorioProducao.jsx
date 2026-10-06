@@ -369,6 +369,7 @@ export default function TelaRelatorioProducao() {
       if (!alvo) return true
       return (
         (d.nomeOrdem ?? '').toLowerCase().includes(alvo) ||
+        (d.pedido ?? '').toLowerCase().includes(alvo) ||
         (d.funcionario ?? '').toLowerCase().includes(alvo) ||
         (d.descricaoEtapa ?? '').toLowerCase().includes(alvo)
       )
@@ -659,8 +660,8 @@ export default function TelaRelatorioProducao() {
                 <input
                   type="search"
                   className="busca"
-                  placeholder="Buscar por OS, etapa ou colaborador..."
-                  aria-label="Buscar por OS, etapa ou colaborador"
+                  placeholder="Buscar por OS, pedido, etapa ou colaborador..."
+                  aria-label="Buscar por OS, pedido, etapa ou colaborador"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                 />
@@ -746,6 +747,7 @@ export default function TelaRelatorioProducao() {
                     <th>Data/hora</th>
                     <th>Centro</th>
                     <th>OS</th>
+                    <th>Pedido</th>
                     <th>Etapa</th>
                     <th className="col-numerica">Produção</th>
                     <th>Colaborador</th>
@@ -770,6 +772,7 @@ export default function TelaRelatorioProducao() {
                         <td data-rotulo="OS">
                           <span className="os-destaque">{d.nomeOrdem ?? '—'}</span>
                         </td>
+                        <td data-rotulo="Pedido">{d.pedido ?? '—'}</td>
                         <td data-rotulo="Etapa">
                           {d.descricaoEtapa ? <span className="pill-neutro">{d.descricaoEtapa}</span> : '—'}
                         </td>

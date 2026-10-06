@@ -42,13 +42,14 @@ function truncar(doc, texto, largura) {
 }
 
 const COLUNAS = [
-  { chave: 'dataHora', titulo: 'Data/Hora', largura: 85 },
-  { chave: 'centro', titulo: 'Centro', largura: 60 },
-  { chave: 'os', titulo: 'OS', largura: 65 },
-  { chave: 'etapa', titulo: 'Etapa', largura: 90 },
-  { chave: 'producao', titulo: 'Produção', largura: 65 },
-  { chave: 'colaborador', titulo: 'Colaborador', largura: 90 },
-  { chave: 'duracao', titulo: 'Duração', largura: 40 },
+  { chave: 'dataHora', titulo: 'Data/Hora', largura: 80 },
+  { chave: 'centro', titulo: 'Centro', largura: 55 },
+  { chave: 'os', titulo: 'OS', largura: 62 },
+  { chave: 'pedido', titulo: 'Pedido', largura: 55 },
+  { chave: 'etapa', titulo: 'Etapa', largura: 75 },
+  { chave: 'producao', titulo: 'Produção', largura: 62 },
+  { chave: 'colaborador', titulo: 'Colaborador', largura: 82 },
+  { chave: 'duracao', titulo: 'Duração', largura: 44 },
 ]
 
 function linhaDetalhado(d) {
@@ -56,6 +57,7 @@ function linhaDetalhado(d) {
     dataHora: d.dataHoraFinal ?? '—',
     centro: d.centro,
     os: d.nomeOrdem ?? '—',
+    pedido: d.pedido ?? '—',
     etapa: d.descricaoEtapa ?? '—',
     producao: d.quantidade != null ? `${formatarNumeroBr(d.quantidade)} ${formatarUnidade(d.unidadeMedida)}` : '—',
     colaborador: d.funcionario ?? '—',

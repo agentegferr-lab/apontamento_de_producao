@@ -104,6 +104,7 @@ export function montarRelatorioProducao({ operacoes, apontamentos, funcionarios 
       centro,
       idOrdem: op?.idOrdem ?? null,
       nomeOrdem: op?.nomeOrdem ?? null,
+      pedido: idOrdem != null ? pedidosPorOrdem.get(Number(idOrdem))?.pedido ?? null : null,
       operacao: op?.operacao ?? null,
       descricaoEtapa: op?.descricao ?? null,
       quantidade: quantidade > 0 ? quantidade : null,
