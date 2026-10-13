@@ -187,22 +187,49 @@ export function ultimaAtualizacaoOrdens() {
  * quebrado, a varredura normal volta a incluir tudo e isto vira um no-op (nenhuma ordem nova
  * pra complementar).
  */
+// Cache proprio das ordens recentes. NUNCA bloqueia quem pediu o kanban: devolve o que ja
+// tem e atualiza em segundo plano (antes, cada maiorId novo era uma chave nova sem cache, e
+// o kanban inteiro esperava essa busca — sob 429, ate o teto de espera inteiro).
+const TTL_RECENTES_MS = () => Number(process.env.ORDENS_RECENTES_TTL_MS) || 60_000
+const COOLDOWN_RECENTES_MS = 60_000
+const recentes = { lista: [], atualizadoEm: 0, proximaTentativaEm: 0, emVoo: null }
+
+function atualizarRecentesEmFundo(maiorId) {
+  const agora = Date.now()
+  const fresco = agora - recentes.atualizadoEm < TTL_RECENTES_MS()
+  if (recentes.emVoo || fresco || agora < recentes.proximaTentativaEm) return
+  const separador = ENDPOINT_ORDENS().includes('?') ? '&' : '?'
+  recentes.emVoo = nomus
+    .listaSemCache(`${ENDPOINT_ORDENS()}${separador}query=id>${maiorId}`)
+    .then((lista) => {
+      recentes.lista = lista
+      recentes.atualizadoEm = Date.now()
+    })
+    .catch((erro) => {
+      recentes.proximaTentativaEm = Date.now() + COOLDOWN_RECENTES_MS
+      console.warn(`[pedidos] falha ao complementar ordens recentes (id>${maiorId}): ${erro.message}`)
+    })
+    .finally(() => {
+      recentes.emVoo = null
+    })
+}
+
+/** Pro botao "Atualizar": a proxima leitura volta a buscar as ordens recentes em fundo. */
+export function forcarOrdensRecentes() {
+  recentes.atualizadoEm = 0
+  recentes.proximaTentativaEm = 0
+}
+
 async function complementarComOrdensRecentes(ordens) {
   if (!ordens.length) return ordens
   const maiorId = Math.max(...ordens.map((o) => Number(o?.id ?? o?.idOrdem)).filter(Number.isFinite))
   if (!Number.isFinite(maiorId)) return ordens
 
-  const separador = ENDPOINT_ORDENS().includes('?') ? '&' : '?'
-  try {
-    const recentes = await nomus.listaGenerica(`${ENDPOINT_ORDENS()}${separador}query=id>${maiorId}`)
-    if (!recentes.length) return ordens
-    const vistos = new Set(ordens.map((o) => Number(o?.id ?? o?.idOrdem)))
-    const novas = recentes.filter((o) => !vistos.has(Number(o?.id ?? o?.idOrdem)))
-    return novas.length ? [...ordens, ...novas] : ordens
-  } catch (erro) {
-    console.warn(`[pedidos] falha ao complementar ordens recentes (id>${maiorId}): ${erro.message}`)
-    return ordens
-  }
+  atualizarRecentesEmFundo(maiorId)
+  if (!recentes.lista.length) return ordens
+  const vistos = new Set(ordens.map((o) => Number(o?.id ?? o?.idOrdem)))
+  const novas = recentes.lista.filter((o) => !vistos.has(Number(o?.id ?? o?.idOrdem)))
+  return novas.length ? [...ordens, ...novas] : ordens
 }
 
 let atualizandoEmFundo = null

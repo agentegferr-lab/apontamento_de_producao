@@ -16,15 +16,18 @@ const FILTROS = [
 const PEDIDO_ACIONAVEL = new Set([1, 2])
 
 export default function TelaKanban({ recarregarEm }) {
-  const [quadro, setQuadro] = useState(null)
+  const [quadro, setQuadro] = useState(() => api.cacheLocal('/api/kanban'))
   const [erro, setErro] = useState(null)
   const [carregando, setCarregando] = useState(false)
   const [filtro, setFiltro] = useState('todas')
   const [busca, setBusca] = useState('')
   const [agora, setAgora] = useState(() => new Date())
-  const [atualizadoEm, setAtualizadoEm] = useState(null)
+  const [atualizadoEm, setAtualizadoEm] = useState(() => {
+    const antigo = api.cacheLocal('/api/kanban')
+    return antigo?.atualizadoEm ? new Date(antigo.atualizadoEm) : null
+  })
   const [detalhe, setDetalhe] = useState(null) // card clicado, pro modal de detalhes
-  const [ocultos, setOcultos] = useState(null) // [{codigo, rotulo, ocultadoEm}], so pro filtro "Ocultos"
+  const [ocultos, setOcultos] = useState(() => api.cacheLocal('/api/pedidos-ocultos')) // [{codigo, rotulo, ocultadoEm}], so pro filtro "Ocultos"
 
   async function ocultarPedido(card) {
     try {

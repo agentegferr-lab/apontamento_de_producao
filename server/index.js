@@ -10,7 +10,7 @@ import { montarKanban } from './kanban.js'
 import { montarRelatorioProducao } from './relatorioProducao.js'
 import { gerarPdfRelatorioProducao } from './relatorioProducaoPdf.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
-import { mapaPedidosPorOrdem, buscarPedidoPorCodigo, ultimaAtualizacaoOrdens } from './pedidos.js'
+import { mapaPedidosPorOrdem, buscarPedidoPorCodigo, ultimaAtualizacaoOrdens, forcarOrdensRecentes } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
 import { pedidosOcultos } from './pedidosOcultos.js'
 import { materiaisParaItens } from './materiais.js'
@@ -30,6 +30,15 @@ try {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 app.use(express.json({ limit: '256kb' }))
+
+// Registrado ANTES das rotas: toda escrita invalida o quadro em cache (ver montarQuadroAtual).
+app.use((req, res, next) => {
+  if (req.method !== 'GET') {
+    invalidarQuadro()
+    res.on('finish', invalidarQuadro)
+  }
+  next()
+})
 
 /**
  * So pro boot do terminal (GET /api/terminal, ver App.jsx): confirma que a conexao com o
@@ -437,7 +446,7 @@ app.delete(
 // (ver incidente 2026-07-15). So importa no boot frio (tudo sem cache); com o cache quente
 // (a maioria das vezes) isso e essencialmente instantaneo dos tres jeitos, entao nao ha
 // custo real em serializar. Compartilhado com /api/planejamento/sugestao (ver server/ia.js).
-async function montarQuadroAtual() {
+async function calcularQuadro() {
   const operacoes = await nomus.todasOperacoes()
   const apontamentos = await nomus.apontamentos()
   const pedidosPorOrdem = await mapaPedidosPorOrdem()
@@ -448,6 +457,26 @@ async function montarQuadroAtual() {
     pedidosPorOrdem,
     pedidosOcultos: pedidosOcultos.codigos(),
   })
+}
+
+// Varias telas e o polling de 30s de cada navegador pedem o mesmo quadro: recalcular
+// milhares de operacoes a cada chamada e trabalho jogado fora. Reaproveita o resultado por
+// poucos segundos e junta chamadas simultaneas numa so; qualquer escrita (POST/PATCH/DELETE)
+// invalida na hora, entao o card continua andando assim que o operador aponta.
+const TTL_QUADRO_MS = 5_000
+let quadroMemo = null // { em, promessa }
+function invalidarQuadro() {
+  quadroMemo = null
+}
+function montarQuadroAtual() {
+  if (quadroMemo && Date.now() - quadroMemo.em < TTL_QUADRO_MS) return quadroMemo.promessa
+  const promessa = calcularQuadro()
+  const memo = { em: Date.now(), promessa }
+  quadroMemo = memo
+  promessa.catch(() => {
+    if (quadroMemo === memo) quadroMemo = null
+  })
+  return promessa
 }
 
 /**
@@ -504,6 +533,8 @@ app.post(
   '/api/kanban/atualizar',
   asyncRoute(async (_req, res) => {
     forcarAtualizacao(['operacoes:todas', 'apontamentos', CHAVE_CACHE_ORDENS])
+    forcarOrdensRecentes()
+    invalidarQuadro()
     const quadro = await montarQuadroAtual()
     res.json({ ...quadro, atualizadoEm: dataDeAtualizacaoDoQuadro().toISOString() })
   }),

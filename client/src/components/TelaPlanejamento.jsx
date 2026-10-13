@@ -40,8 +40,8 @@ function gerarGradeMes(ano, mes) {
 export default function TelaPlanejamento({ somenteLeitura = false }) {
   const hoje = useMemo(() => new Date(), [])
   const [mesAtual, setMesAtual] = useState({ ano: hoje.getFullYear(), mes: hoje.getMonth() })
-  const [quadro, setQuadro] = useState(null)
-  const [plano, setPlano] = useState([])
+  const [quadro, setQuadro] = useState(() => api.cacheLocal('/api/kanban'))
+  const [plano, setPlano] = useState(() => api.cacheLocal('/api/planejamento') ?? [])
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState(null)
   const [busca, setBusca] = useState('')

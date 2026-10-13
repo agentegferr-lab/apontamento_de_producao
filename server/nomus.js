@@ -230,11 +230,15 @@ try {
   if (erro.code !== 'ENOENT') console.warn('[nomus] cache em disco ilegivel, comecando vazio:', erro.message)
 }
 
+// Gravar o cache inteiro (varios MB: roteiro + apontamentos + ordens + centenas de pedidos) e
+// um JSON.stringify sincrono que trava o event loop — e cada refresh de fundo, de cada
+// chave, pedia uma gravacao. Agora so grava no maximo uma vez por janela, e so o estado final.
+const GRAVACAO_DEBOUNCE_MS = 10_000
 let gravacaoAgendada = false
 function persistirCache() {
   if (gravacaoAgendada) return // varias atualizacoes seguidas viram uma gravacao so
   gravacaoAgendada = true
-  setImmediate(() => {
+  const timer = setTimeout(() => {
     gravacaoAgendada = false
     try {
       const paraGravar = {}
@@ -251,8 +255,14 @@ function persistirCache() {
     } catch (erro) {
       console.warn('[nomus] falha ao persistir cache em disco:', erro.message)
     }
-  })
+  }, GRAVACAO_DEBOUNCE_MS)
+  timer.unref?.()
 }
+
+// Depois de uma atualizacao de fundo que falhou (429, timeout), espera um pouco antes de
+// tentar de novo. Sem isso, cada requisicao (varias telas, polling de 30s) e cada tick do
+// timer reiniciava a varredura inteira do zero enquanto o Nomus ja estava limitando.
+const COOLDOWN_FALHA_MS = 60_000
 
 async function comCache(chave, produtor, ttlMsOverride) {
   const agora = Date.now()
@@ -264,7 +274,8 @@ async function comCache(chave, produtor, ttlMsOverride) {
   // Vencido, mas existe um valor (do disco ou de antes): devolve o valor velho JA e
   // atualiza em segundo plano, sem bloquear quem pediu. So um refresh de fundo por vez.
   if (entrada && entrada.valor !== undefined) {
-    if (!entrada.atualizandoEmFundo) {
+    const emCooldown = entrada.proximaTentativaEm && entrada.proximaTentativaEm > agora
+    if (!entrada.atualizandoEmFundo && !emCooldown) {
       const emFundo = produtor()
         .then((valor) => {
           cache.set(chave, {
@@ -277,7 +288,9 @@ async function comCache(chave, produtor, ttlMsOverride) {
         .catch((erro) => {
           console.warn(`[nomus] atualizacao em segundo plano de "${chave}" falhou, mantendo dado anterior: ${erro.message}`)
           const atual = cache.get(chave)
-          if (atual) cache.set(chave, { ...atual, atualizandoEmFundo: null })
+          if (atual) {
+            cache.set(chave, { ...atual, atualizandoEmFundo: null, proximaTentativaEm: Date.now() + COOLDOWN_FALHA_MS })
+          }
         })
       cache.set(chave, { ...entrada, atualizandoEmFundo: emFundo })
     }
@@ -325,7 +338,7 @@ export function forcarAtualizacao(chaves) {
   const agora = Date.now() - 1
   for (const chave of chaves) {
     const entrada = cache.get(chave)
-    if (entrada && entrada.valor !== undefined) cache.set(chave, { ...entrada, expiraEm: agora })
+    if (entrada && entrada.valor !== undefined) cache.set(chave, { ...entrada, expiraEm: agora, proximaTentativaEm: 0 })
   }
 }
 
@@ -385,6 +398,11 @@ export const nomus = {
     return comCache(`lista:${caminho}`, () => requisitarPaginado(caminho))
   },
 
+  /** Paginado SEM cache — pra quem mantem o proprio cache (ver pedidos.js, ordens recentes). */
+  async listaSemCache(caminho) {
+    return requisitarPaginado(caminho)
+  },
+
   /**
    * Busca UM registro por id, sem paginar (usado por /pedidos, que aceita busca direta por
    * id mas cuja listagem completa tem milhares de registros e e fortemente limitada por
@@ -439,7 +457,16 @@ export const nomus = {
     const criado = await requisitar('POST', '/apontamentos', { body: payload })
     // Sem isto o kanban continuaria mostrando a etapa como pendente ate o cache vencer, e
     // o card so andaria de coluna so depois do TTL longo do cache paginado.
-    cache.delete('apontamentos')
+    // Em vez de apagar (o proximo leitor esperaria uma varredura completa de /apontamentos),
+    // acrescenta o registro na lista em cache e marca como vencida: o card anda na hora e a
+    // lista de verdade chega por stale-while-revalidate.
+    const atual = cache.get('apontamentos')
+    if (atual && Array.isArray(atual.valor)) {
+      const registro = { ...payload, ...(criado && typeof criado === 'object' ? criado : {}) }
+      cache.set('apontamentos', { ...atual, valor: [...atual.valor, registro], expiraEm: 0, proximaTentativaEm: 0 })
+    } else {
+      cache.delete('apontamentos')
+    }
     return criado
   },
 }

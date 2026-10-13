@@ -13,6 +13,25 @@ export class ApiError extends Error {
   }
 }
 
+// Ultima resposta de cada GET, guardada no navegador: a tela abre na hora com o que viu da
+// ultima vez e so troca quando a resposta nova chegar (o servidor tambem responde do cache).
+const PREFIXO_CACHE = 'gfero:cache:'
+function lerCacheLocal(caminho) {
+  try {
+    const bruto = localStorage.getItem(PREFIXO_CACHE + caminho)
+    return bruto ? JSON.parse(bruto) : null
+  } catch {
+    return null
+  }
+}
+function gravarCacheLocal(caminho, corpo) {
+  try {
+    localStorage.setItem(PREFIXO_CACHE + caminho, JSON.stringify(corpo))
+  } catch {
+    // cota cheia ou navegador sem storage: so perde a abertura instantanea
+  }
+}
+
 async function chamar(caminho, opcoes = {}) {
   let resposta
   try {
@@ -40,10 +59,12 @@ async function chamar(caminho, opcoes = {}) {
       idRecurso: corpo?.idRecurso,
     })
   }
+  if (!opcoes.method || opcoes.method === 'GET') gravarCacheLocal(caminho, corpo)
   return corpo
 }
 
 export const api = {
+  cacheLocal: lerCacheLocal,
   terminal: () => chamar('/api/terminal'),
   atividades: (idRecurso) => chamar(`/api/atividades?idRecurso=${encodeURIComponent(idRecurso)}`),
   kanban: () => chamar('/api/kanban'),

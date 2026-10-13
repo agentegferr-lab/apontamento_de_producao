@@ -232,6 +232,11 @@ export default function TelaRelatorioProducao() {
 
   async function carregarTudo() {
     setCarregando(true)
+    // Mostra na hora o que ja foi visto deste periodo; a resposta nova troca em seguida.
+    const antigo = api.cacheLocal(
+      `/api/relatorio-producao?inicio=${encodeURIComponent(periodo.inicio)}&fim=${encodeURIComponent(periodo.fim)}`,
+    )
+    if (antigo) setDados((atual) => atual ?? antigo)
     try {
       const periodoAnterior = intervaloDoPeriodo(modo, navegarPeriodo(modo, referencia, -1))
       const diasSpark = ultimosDias(periodo.fim, DIAS_SPARKLINE)
