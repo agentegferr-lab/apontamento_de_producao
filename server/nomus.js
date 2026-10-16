@@ -408,6 +408,11 @@ export const nomus = {
     return cache.get(chave)?.valor
   },
 
+  /** Todos os valores em cache cuja chave comeca com o prefixo (mesmo vencidos), sem rede. */
+  espiarCachePorPrefixo(prefixo) {
+    return [...cache.entries()].filter(([chave, e]) => chave.startsWith(prefixo) && e.valor !== undefined).map(([, e]) => e.valor)
+  },
+
   /**
    * Busca UM registro por id, sem paginar (usado por /pedidos, que aceita busca direta por
    * id mas cuja listagem completa tem milhares de registros e e fortemente limitada por

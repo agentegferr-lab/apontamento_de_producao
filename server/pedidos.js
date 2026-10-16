@@ -160,10 +160,10 @@ export function forcarOrdensRecentes() {
 
 let atualizandoEmFundo = null
 
-export async function mapaPedidosPorOrdem() {
+export async function mapaPedidosPorOrdem(idsEmDestaque) {
   // Na hora, com o que ja se conhece; a varredura de ordens roda em segundo plano
   // (server/ordens.js) — nunca espera o Nomus aqui.
-  const ordens = ordensConhecidas()
+  const ordens = ordensConhecidas(idsEmDestaque)
 
   const campoPedido = CAMPO_PEDIDO()
   const mapa = new Map()

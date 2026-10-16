@@ -29,8 +29,8 @@ const REVISAO_RETROATIVA_IDS = 100
 const TTL_MS = () => Number(process.env.ORDENS_TTL_MS) || 60_000
 const COOLDOWN_FALHA_MS = 60_000
 const REVERIFICAR_RUIM_MS = 24 * 60 * 60 * 1000
-const PAUSA_ENTRE_JANELAS_MS = 300
-const RUINS_RESOLVIDOS_POR_CICLO = 3
+const PAUSA_ENTRE_JANELAS_MS = 150
+const RUINS_RESOLVIDOS_POR_CICLO = 6
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms))
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -66,6 +66,7 @@ const estado = {
   atualizadoEm: 0,
   proximaTentativaEm: 0,
   emVoo: null,
+  prioridade: new Set(), // ids de ordens que o kanban mostra agora (ver ordensConhecidas)
 }
 
 function carregar() {
@@ -84,12 +85,16 @@ function carregar() {
   // Primeira subida depois desta mudanca: aproveita a lista antiga de /ordens (cache do
   // nomus.js) pra nao comecar do zero. Ela e contigua do id mais baixo ate onde a paginacao
   // por posicao aguentou.
-  const antiga = nomus.espiarCache(`lista:${ENDPOINT()}`)
-  if (Array.isArray(antiga) && antiga.length) {
+  // Inclui as listas "id>N" que o codigo antigo cacheava (ordens recentes): sem elas, as OS
+  // ativas (ids altos) ficariam sem pedido ate a varredura nova alcanca-las.
+  for (const antiga of nomus.espiarCachePorPrefixo(`lista:${ENDPOINT()}`)) {
+    if (!Array.isArray(antiga)) continue
     for (const o of antiga) {
       const id = Number(o?.id ?? o?.idOrdem)
       if (Number.isFinite(id)) estado.ordens.set(id, compactarOrdem({ ...o, id }))
     }
+  }
+  if (estado.ordens.size) {
     estado.varridoAte = Math.max(0, ...estado.ordens.keys())
     console.log(`[ordens] ${estado.ordens.size} ordem(ns) aproveitada(s) do cache antigo (ate o id ${estado.varridoAte})`)
   }
@@ -196,7 +201,10 @@ async function resolverPedidosDosRuins() {
     ...[...estado.ordens.values()].flatMap((o) => o.itensPedido.map((i) => Number(i.idPedido) || 0)),
   )
   let feitos = 0
-  for (const id of estado.ruins.keys()) {
+  const ordemDeTrabalho = [...estado.ruins.keys()].sort(
+    (x, y) => Number(estado.prioridade.has(y)) - Number(estado.prioridade.has(x)) || y - x,
+  )
+  for (const id of ordemDeTrabalho) {
     if (feitos >= RUINS_RESOLVIDOS_POR_CICLO) break
     const antes = estado.pedidosDosRuins.get(id)
     if (antes && (antes.idPedido != null || Date.now() - antes.quando < REVERIFICAR_RUIM_MS)) continue
@@ -211,12 +219,39 @@ async function resolverPedidosDosRuins() {
 const buscarNoNomus = (de, ate) =>
   nomus.consultaSemCache(ENDPOINT(), { query: `id>=${de};id<${ate}`, pagina: 1 })
 
+/**
+ * Ordens que o kanban mostra agora e que ainda nao se conhece: busca primeiro so as janelas
+ * delas (mais novas antes), em vez de esperar a varredura continua chegar la. Nao mexe em
+ * `varridoAte` — a varredura continua cobre tudo em ordem, sem buracos.
+ */
+async function buscarPrioritarias() {
+  const faltam = [...estado.prioridade].filter(
+    (id) => !estado.ordens.has(id) && estado.pedidosDosRuins.get(id)?.idPedido == null,
+  )
+  const janelas = [...new Set(faltam.map((id) => Math.floor(id / TAMANHO_JANELA) * TAMANHO_JANELA))].sort((x, y) => y - x)
+  for (const inicio of janelas) {
+    const lista = await buscarJanela(inicio, inicio + TAMANHO_JANELA, buscarNoNomus, estado.ruins)
+    for (const o of lista) {
+      const id = Number(o?.id ?? o?.idOrdem)
+      if (Number.isFinite(id)) estado.ordens.set(id, compactarOrdem({ ...o, id }))
+    }
+    await dormir(PAUSA_ENTRE_JANELAS_MS)
+  }
+  if (janelas.length) {
+    await resolverPedidosDosRuins()
+    persistir()
+    console.log(`[ordens] ${faltam.length} ordem(ns) do quadro buscada(s) com prioridade (${janelas.length} janela(s))`)
+  }
+}
+
 async function varrer() {
+  await buscarPrioritarias()
   let a = Math.max(1, estado.varridoAte - REVISAO_RETROATIVA_IDS + 1)
   const maxAntes = estado.varridoAte
   let vazias = 0
   let novas = 0
   let desdeUltimaGravacao = 0
+  let janelasFeitas = 0
 
   while (vazias < JANELAS_VAZIAS_PARA_PARAR || a <= maxAntes) {
     const ruinsAntes = estado.ruins.size
@@ -238,6 +273,8 @@ async function varrer() {
     }
     vazias = lista.length || achouRuim ? 0 : vazias + 1
     a += TAMANHO_JANELA
+    // O quadro pode ter pedido ordens novas enquanto esta varredura longa roda.
+    if (++janelasFeitas % 5 === 0) await buscarPrioritarias()
 
     // Progresso fica em disco de tempos em tempos: uma falha (429, rede) no meio da
     // primeira varredura nao joga fora o que ja foi buscado.
@@ -275,7 +312,8 @@ function atualizarEmFundo() {
 }
 
 /** Ordens que ja se conhece, na hora; dispara a atualizacao em segundo plano se vencida. */
-export function ordensConhecidas() {
+export function ordensConhecidas(idsEmDestaque) {
+  if (idsEmDestaque) estado.prioridade = new Set([...idsEmDestaque].map(Number).filter(Number.isFinite))
   atualizarEmFundo()
   const lista = [...estado.ordens.values()]
   // Ordens que o Nomus nao devolve (400) entram so com o vinculo de pedido descoberto por

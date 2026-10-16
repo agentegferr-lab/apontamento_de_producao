@@ -449,7 +449,8 @@ app.delete(
 async function calcularQuadro() {
   const operacoes = await nomus.todasOperacoes()
   const apontamentos = await nomus.apontamentos()
-  const pedidosPorOrdem = await mapaPedidosPorOrdem()
+  // As ordens que o quadro mostra entram na frente da fila de busca de ordens (server/ordens.js).
+  const pedidosPorOrdem = await mapaPedidosPorOrdem(operacoes.map((o) => o.idOrdem))
   return montarKanban({
     operacoes,
     apontamentos,
@@ -868,9 +869,9 @@ app.listen(config.porta, () => {
  */
 function iniciarAtualizacaoDeFundo() {
   const id = setInterval(async () => {
-    await nomus.todasOperacoes().catch(() => {})
+    const operacoes = await nomus.todasOperacoes().catch(() => [])
     await nomus.apontamentos().catch(() => {})
-    await mapaPedidosPorOrdem().catch(() => {})
+    await mapaPedidosPorOrdem(operacoes.map((o) => o.idOrdem)).catch(() => {})
   }, config.refreshFundoIntervaloMs)
   id.unref?.()
   return id
