@@ -517,8 +517,6 @@ app.get(
   }),
 )
 
-// Mesma chave que server/pedidos.js usa pra cachear a lista de /ordens (nomus.listaGenerica).
-const CHAVE_CACHE_ORDENS = `lista:${process.env.NOMUS_ENDPOINT_ORDENS?.trim() || '/ordens'}`
 
 /**
  * Forca uma atualizacao nova no Nomus AGORA em vez de esperar o proximo ciclo de fundo
@@ -532,7 +530,7 @@ const CHAVE_CACHE_ORDENS = `lista:${process.env.NOMUS_ENDPOINT_ORDENS?.trim() ||
 app.post(
   '/api/kanban/atualizar',
   asyncRoute(async (_req, res) => {
-    forcarAtualizacao(['operacoes:todas', 'apontamentos', CHAVE_CACHE_ORDENS])
+    forcarAtualizacao(['operacoes:todas', 'apontamentos'])
     forcarOrdensRecentes()
     invalidarQuadro()
     const quadro = await montarQuadroAtual()

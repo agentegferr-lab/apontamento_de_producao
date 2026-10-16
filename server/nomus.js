@@ -398,9 +398,14 @@ export const nomus = {
     return comCache(`lista:${caminho}`, () => requisitarPaginado(caminho))
   },
 
-  /** Paginado SEM cache — pra quem mantem o proprio cache (ver pedidos.js, ordens recentes). */
-  async listaSemCache(caminho) {
-    return requisitarPaginado(caminho)
+  /** UMA pagina, SEM cache — pra quem mantem o proprio cache (ver server/ordens.js). */
+  async consultaSemCache(caminho, query) {
+    return comoLista(await requisitar('GET', caminho, { query, maxTentativas: 6, maxEsperaMs: 120_000 }))
+  },
+
+  /** Valor que ja esta em cache (mesmo vencido), sem nenhuma chamada de rede. */
+  espiarCache(chave) {
+    return cache.get(chave)?.valor
   },
 
   /**

@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { nomus, NomusError, ultimaAtualizacao } from './nomus.js'
+import { nomus } from './nomus.js'
+import { ordensConhecidas, forcarOrdens, ultimaAtualizacaoDasOrdens } from './ordens.js'
 import { normalizarPedido } from './pedidosOcultos.js'
 import { parseDataNomus } from './kanban.js'
 
@@ -31,7 +32,6 @@ import { parseDataNomus } from './kanban.js'
  * aparece nos cards depois, conforme o cache vai esquentando ao longo de varios ciclos.
  */
 
-const ENDPOINT_ORDENS = () => process.env.NOMUS_ENDPOINT_ORDENS?.trim() || '/ordens'
 const ENDPOINT_PEDIDOS = () => process.env.NOMUS_ENDPOINT_PEDIDOS?.trim() || '/pedidos'
 const CAMPO_PEDIDO = () => process.env.NOMUS_CAMPO_PEDIDO?.trim() || 'codigoPedido'
 const TTL_CACHE_MS = () => Number(process.env.PEDIDO_CACHE_TTL_MS) || 24 * 60 * 60 * 1000 // 24h
@@ -62,13 +62,6 @@ function persistirCache() {
   } catch (erro) {
     console.warn('[pedidos] falha ao gravar cache de pedidos em disco:', erro.message)
   }
-}
-
-let avisouIndisponivel = false
-function avisarUmaVez(mensagem) {
-  if (avisouIndisponivel) return
-  avisouIndisponivel = true
-  console.warn(`[pedidos] ${mensagem}`)
 }
 
 /** Busca um pedido, usando o cache em disco antes de bater na Nomus. Sem retry (ver topo). */
@@ -155,101 +148,22 @@ export function entradaPedido(idOrdem, item, pedido, campoPedido = 'codigoPedido
   ]
 }
 
-/**
- * Quando a lista de `/ordens` foi buscada de verdade no Nomus pela ULTIMA vez com sucesso —
- * mesma ideia de nomus.js/ultimaAtualizacao, so que pra ESTA chave especifica. Sem isto,
- * "Ultima atualizacao" no Acompanhamento/Planejamento (ver server/index.js,
- * dataDeAtualizacaoDoQuadro) so refletia operacoes/apontamentos: a varredura de `/ordens`
- * podia ficar dias travada num valor velho (mesmo padrao do incidente com operacoes:todas,
- * ver server/nomus.js) sem NENHUM sinal pra quem olha a tela — o pedido simplesmente sumia
- * de ordens novas (idOrdem alto) que ainda nao tinham entrado na varredura, com todo o
- * resto do quadro parecendo "atualizado agora".
- */
+/** Quando a lista de ordens foi varrida de verdade no Nomus pela ultima vez (ver server/ordens.js). */
 export function ultimaAtualizacaoOrdens() {
-  return ultimaAtualizacao(`lista:${ENDPOINT_ORDENS()}`)
+  return ultimaAtualizacaoDasOrdens()
 }
 
-/**
- * INCIDENTE (2026-08-10): confirmado contra o Nomus real que `GET /ordens?pagina=10` devolve
- * 400 (corpo so `{"status":400}`, sem mensagem) — SEMPRE, nao e rate limit (429 se resolve
- * sozinho recuando; 400 nao). E um bug do lado do Nomus (provavelmente um registro especifico
- * entre as posicoes ~451-500 que a serializacao deles nao aguenta), nao nosso — mas trava a
- * paginacao PRA SEMPRE a partir dali: nenhuma ordem criada depois da pagina 9 (idOrdem crescente)
- * jamais entra na lista via `?pagina=N`, e o pedido/produto/valor somem dos cards mesmo com o
- * cache saudavel e sem nenhum 429 rolando.
- *
- * Contorno confirmado: `?query=id>N` (RSQL, mesma sintaxe ja usada em componentesDeProduto)
- * devolve as ordens SEM passar pela paginacao por posicao que esta quebrada — testado direto
- * contra o Nomus real. So busca o que tem id MAIOR que o maior id ja presente na lista
- * principal (que fica presa no valor da ultima varredura completa bem-sucedida, mesmo que essa
- * varredura nunca mais volte a fechar por causa do bug acima) e MESCLA — nao substitui a
- * varredura normal, so tapa o buraco que ela deixa. Se um dia o Nomus corrigir o registro
- * quebrado, a varredura normal volta a incluir tudo e isto vira um no-op (nenhuma ordem nova
- * pra complementar).
- */
-// Cache proprio das ordens recentes. NUNCA bloqueia quem pediu o kanban: devolve o que ja
-// tem e atualiza em segundo plano (antes, cada maiorId novo era uma chave nova sem cache, e
-// o kanban inteiro esperava essa busca — sob 429, ate o teto de espera inteiro).
-const TTL_RECENTES_MS = () => Number(process.env.ORDENS_RECENTES_TTL_MS) || 60_000
-const COOLDOWN_RECENTES_MS = 60_000
-const recentes = { lista: [], atualizadoEm: 0, proximaTentativaEm: 0, emVoo: null }
-
-function atualizarRecentesEmFundo(maiorId) {
-  const agora = Date.now()
-  const fresco = agora - recentes.atualizadoEm < TTL_RECENTES_MS()
-  if (recentes.emVoo || fresco || agora < recentes.proximaTentativaEm) return
-  const separador = ENDPOINT_ORDENS().includes('?') ? '&' : '?'
-  recentes.emVoo = nomus
-    .listaSemCache(`${ENDPOINT_ORDENS()}${separador}query=id>${maiorId}`)
-    .then((lista) => {
-      recentes.lista = lista
-      recentes.atualizadoEm = Date.now()
-    })
-    .catch((erro) => {
-      recentes.proximaTentativaEm = Date.now() + COOLDOWN_RECENTES_MS
-      console.warn(`[pedidos] falha ao complementar ordens recentes (id>${maiorId}): ${erro.message}`)
-    })
-    .finally(() => {
-      recentes.emVoo = null
-    })
-}
-
-/** Pro botao "Atualizar": a proxima leitura volta a buscar as ordens recentes em fundo. */
+/** Pro botao "Atualizar": a proxima leitura volta a varrer as ordens em segundo plano. */
 export function forcarOrdensRecentes() {
-  recentes.atualizadoEm = 0
-  recentes.proximaTentativaEm = 0
-}
-
-async function complementarComOrdensRecentes(ordens) {
-  if (!ordens.length) return ordens
-  const maiorId = Math.max(...ordens.map((o) => Number(o?.id ?? o?.idOrdem)).filter(Number.isFinite))
-  if (!Number.isFinite(maiorId)) return ordens
-
-  atualizarRecentesEmFundo(maiorId)
-  if (!recentes.lista.length) return ordens
-  const vistos = new Set(ordens.map((o) => Number(o?.id ?? o?.idOrdem)))
-  const novas = recentes.lista.filter((o) => !vistos.has(Number(o?.id ?? o?.idOrdem)))
-  return novas.length ? [...ordens, ...novas] : ordens
+  forcarOrdens()
 }
 
 let atualizandoEmFundo = null
 
 export async function mapaPedidosPorOrdem() {
-  let ordens
-  try {
-    ordens = await nomus.listaGenerica(ENDPOINT_ORDENS())
-  } catch (erro) {
-    const naoExiste = erro instanceof NomusError && erro.status === 404
-    avisarUmaVez(
-      naoExiste
-        ? `${ENDPOINT_ORDENS()} nao existe nesta API. Os cards ficam sem o pedido. ` +
-            `Rode "node ferramentas/diagnostico.js" e ajuste NOMUS_ENDPOINT_ORDENS no .env.`
-        : `falha ao ler ${ENDPOINT_ORDENS()}: ${erro.message}. Cards seguem sem o pedido.`,
-    )
-    return new Map()
-  }
-
-  ordens = await complementarComOrdensRecentes(ordens)
+  // Na hora, com o que ja se conhece; a varredura de ordens roda em segundo plano
+  // (server/ordens.js) — nunca espera o Nomus aqui.
+  const ordens = ordensConhecidas()
 
   const campoPedido = CAMPO_PEDIDO()
   const mapa = new Map()
@@ -263,10 +177,13 @@ export async function mapaPedidosPorOrdem() {
     if (!item?.idPedido || idOrdem == null) continue
 
     const chave = String(item.idPedido)
+    // Mesmo vencido (TTL de 24h), o pedido em cache continua valendo na tela: o codigo e o
+    // cliente do pedido nao mudam, e esconde-lo ate o lote de fundo rebuscar (20 por ciclo)
+    // deixava centenas de ordens sem pedido por horas a cada 24h. O lote de fundo so
+    // atualiza o que mudou (status/valor).
     const emCache = cache.get(chave)
-    const valido = emCache && Date.now() - emCache.buscadoEm < TTL_CACHE_MS()
 
-    const entrada = entradaPedido(idOrdem, item, valido ? emCache.pedido : null, campoPedido, {
+    const entrada = entradaPedido(idOrdem, item, emCache?.pedido ?? null, campoPedido, {
       idProduto: ordem?.idProduto ?? null,
       produto: ordem?.descricaoProduto ?? null,
       codigoProduto: ordem?.codigoProduto ?? null,
@@ -292,34 +209,53 @@ export async function mapaPedidosPorOrdem() {
  * seguintes. So um lote de fundo por vez (chamadas concorrentes ao kanban nao empilham
  * lotes); o proximo lote so comeca quando o anterior termina.
  */
+// Pedido que falhou (404, 429, timeout) espera um pouco antes de ser tentado de novo. Sem
+// isso, os primeiros pedidos da lista que falham SEMPRE gastavam o teto de buscas de cada
+// ciclo (MAX_NOVOS_POR_CHAMADA) e os pedidos das ordens mais novas nunca eram buscados.
+const COOLDOWN_FALHA_PEDIDO_MS = 5 * 60 * 1000
+const COOLDOWN_NAO_ENCONTRADO_MS = 60 * 60 * 1000
+const falhas = new Map() // idPedido -> quando pode tentar de novo
+
 function agendarAtualizacaoEmFundo(ordens) {
   if (atualizandoEmFundo) return
 
   const maxNovos = MAX_NOVOS_POR_CHAMADA()
   const pausaMs = PAUSA_ENTRE_CHAMADAS_MS()
 
+  // Ordens mais novas primeiro: sao as que o operador esta olhando agora.
+  const maisNovasPrimeiro = [...ordens].sort((a, b) => Number(b?.id ?? b?.idOrdem) - Number(a?.id ?? a?.idOrdem))
+
   atualizandoEmFundo = (async () => {
     let mudou = false
     let novosBuscados = 0
+    const jaNaFila = new Set()
 
-    for (const ordem of ordens) {
+    for (const ordem of maisNovasPrimeiro) {
       if (novosBuscados >= maxNovos) break
 
       const item = ordem?.itensPedido?.[0]
       if (!item?.idPedido) continue
 
       const chave = String(item.idPedido)
+      if (jaNaFila.has(chave)) continue
+      jaNaFila.add(chave)
+
+      // Ja resolvido: so rebusca depois que o TTL vencer, e a tela continua mostrando o
+      // valor antigo enquanto isso (ver mapaPedidosPorOrdem).
       const emCache = cache.get(chave)
-      const valido = emCache && Date.now() - emCache.buscadoEm < TTL_CACHE_MS()
-      if (valido) continue
+      if (emCache && Date.now() - emCache.buscadoEm < TTL_CACHE_MS()) continue
+      if ((falhas.get(chave) ?? 0) > Date.now()) continue
 
       if (novosBuscados > 0) await dormir(pausaMs)
       novosBuscados++
 
       try {
         await buscarPedido(item.idPedido)
+        falhas.delete(chave)
         mudou = true
       } catch (erro) {
+        const naoEncontrado = erro?.status === 404
+        falhas.set(chave, Date.now() + (naoEncontrado ? COOLDOWN_NAO_ENCONTRADO_MS : COOLDOWN_FALHA_PEDIDO_MS))
         console.warn(`[pedidos] falha ao buscar pedido ${item.idPedido}: ${erro.message}`)
       }
     }
