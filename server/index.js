@@ -10,6 +10,7 @@ import { montarKanban } from './kanban.js'
 import { montarRelatorioProducao } from './relatorioProducao.js'
 import { gerarPdfRelatorioProducao } from './relatorioProducaoPdf.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
+import { situacaoDaOrdem, idsRecusadosPeloNomus } from './ordens.js'
 import { mapaPedidosPorOrdem, buscarPedidoPorCodigo, ultimaAtualizacaoOrdens, forcarOrdensRecentes } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
 import { pedidosOcultos } from './pedidosOcultos.js'
@@ -820,6 +821,28 @@ app.post(
 )
 
 app.get('/api/saude', (_req, res) => res.json({ ok: true }))
+
+// Por que cada OS do quadro esta sem pedido (ver situacaoDaOrdem em server/ordens.js).
+app.get(
+  '/api/diagnostico/vinculos',
+  asyncRoute(async (_req, res) => {
+    const quadro = await montarQuadroAtual()
+    const cards = [...quadro.colunas.flatMap((c) => c.cards), ...(quadro.filaAguardando ?? []), ...(quadro.concluidos ?? [])]
+    const semPedido = cards.filter((c) => !c.pedido)
+    const porMotivo = {}
+    for (const c of semPedido) {
+      const motivo = c.idPedido != null ? 'pedido-nao-resolvido' : situacaoDaOrdem(Number(c.idOrdem))
+      ;(porMotivo[motivo] ??= []).push(c.nomeOrdem)
+    }
+    res.json({
+      cardsNoQuadro: cards.length,
+      semPedido: semPedido.length,
+      resumo: Object.fromEntries(Object.entries(porMotivo).map(([m, l]) => [m, l.length])),
+      porMotivo,
+      idsRecusadosPeloNomus: idsRecusadosPeloNomus(),
+    })
+  }),
+)
 
 // --- Front-end buildado ---------------------------------------------------------------
 const dist = path.join(__dirname, '..', 'dist')

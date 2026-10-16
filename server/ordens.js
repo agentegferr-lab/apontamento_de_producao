@@ -345,6 +345,23 @@ export function ultimaAtualizacaoDasOrdens() {
   return estado.atualizadoEm ? new Date(estado.atualizadoEm) : null
 }
 
+/**
+ * Por que uma ordem esta (ou nao) com pedido — pro diagnostico (GET /api/diagnostico/vinculos).
+ *  desconhecida          a varredura ainda nao chegou nela (vai entrar sozinha)
+ *  recusada-pedido-pendente  o Nomus nao devolve o registro e o pedido ainda nao foi descoberto
+ *  recusada-sem-pedido   idem, mas a busca concluiu: a ordem nao tem pedido no Nomus
+ *  sem-itens-de-pedido   o Nomus devolveu a ordem e ela realmente nao tem item de pedido
+ *  conhecida             tem idPedido (o codigo do pedido pode estar so pendente de busca)
+ */
+export function situacaoDaOrdem(id) {
+  const ordem = estado.ordens.get(id)
+  if (ordem) return ordem.itensPedido?.[0]?.idPedido ? 'conhecida' : 'sem-itens-de-pedido'
+  const r = estado.pedidosDosRuins.get(id)
+  if (r) return r.idPedido != null ? 'conhecida' : 'recusada-sem-pedido'
+  if (estado.ruins.has(id)) return 'recusada-pedido-pendente'
+  return 'desconhecida'
+}
+
 export function idsRecusadosPeloNomus() {
   return [...estado.ruins.keys()].sort((x, y) => x - y)
 }
