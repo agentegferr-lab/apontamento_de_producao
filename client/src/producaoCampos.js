@@ -148,7 +148,7 @@ export function somarValorProduzido(porCentro) {
 }
 
 /**
- * Metas mensais de producao, combinadas com o usuario em 2026-08-13 — nao vem do Nomus (o
+ * Metas mensais de producao, combinadas com o usuario em 2026-08-13 (atualizadas em 2026-10-19: Corte 45 mil, Colagem 20 mil, faturamento/Logistica R$ 2,4 mi) — nao vem do Nomus (o
  * ERP nao tem conceito de meta, so o que foi de fato apontado). Corte/Pintura/Colagem em m²
  * (mesma unidade do numero principal do card, ver quantidadePrincipal); Logística em R$
  * (mesma unidade da caixa "estimado" que ela substitui, ja que logística nao tem uma
@@ -156,10 +156,10 @@ export function somarValorProduzido(porCentro) {
  * estimado" de sempre — ver TelaRelatorioProducao.jsx.
  */
 const METAS_MENSAIS = {
-  CORTE: { valor: 36_000, tipo: 'quantidade' },
+  CORTE: { valor: 45_000, tipo: 'quantidade' },
   PINTURA: { valor: 22_000, tipo: 'quantidade' },
-  COLAGEM: { valor: 13_000, tipo: 'quantidade' },
-  'LOGÍSTICA': { valor: 1_500_000, tipo: 'moeda' },
+  COLAGEM: { valor: 20_000, tipo: 'quantidade' },
+  'LOGÍSTICA': { valor: 2_400_000, tipo: 'moeda' }, // faturamento
 }
 const DIAS_UTEIS_MES = 22
 
