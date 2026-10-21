@@ -15,6 +15,7 @@ import {
   somarValorProduzido,
   diasDoPeriodo,
   serieAcumuladaPorPeriodo,
+  serieMensalDoAno,
   maximoRedondo,
   abreviarNumero,
 } from './producaoCampos.js'
@@ -228,4 +229,32 @@ test('maximoRedondo e abreviarNumero', () => {
   assert.equal(abreviarNumero(45_000), '45 mil')
   assert.equal(abreviarNumero(2_400_000), '2,4 mi')
   assert.equal(abreviarNumero(750), '750')
+})
+
+test('serieMensalDoAno: soma por mes, ignora outro ano e outra unidade, e para no mes atual', () => {
+  const detalhado = [
+    apt('CORTE', '10/01/2026 10:00:00', 100),
+    apt('CORTE', '25/01/2026 10:00:00', 50),
+    apt('CORTE', '03/03/2026 10:00:00', 70),
+    apt('CORTE', '03/03/2025 10:00:00', 999),
+    apt('CORTE', '04/03/2026 10:00:00', 5, { unidadeMedida: 'UNIDADE' }),
+    apt('PINTURA', '05/02/2026 10:00:00', 40),
+  ]
+  const r = serieMensalDoAno(detalhado, { centro: 'CORTE', ano: 2026, unidade: 'METRO QUADRADO', agora: new Date(2026, 3, 15) })
+  assert.equal(r.rotulos.length, 12)
+  assert.deepEqual(r.pontos.slice(0, 5), [150, 0, 70, 0, null])
+  assert.equal(r.pontos[11], null)
+})
+
+test('serieMensalDoAno: ano passado inteiro e todos os centros; moeda soma valorProduzido', () => {
+  const detalhado = [
+    apt('CORTE', '10/12/2025 10:00:00', 10),
+    apt('PINTURA', '11/12/2025 10:00:00', 20),
+    { centro: 'LOGÍSTICA', dataHoraFinal: '12/12/2025 10:00:00', quantidade: 3, unidadeMedida: 'M2', valorProduzido: 500 },
+  ]
+  const todos = serieMensalDoAno(detalhado, { ano: 2025, unidade: 'METRO QUADRADO', agora: new Date(2026, 3, 15) })
+  assert.equal(todos.pontos[11], 30)
+  assert.ok(todos.pontos.every((p) => p != null))
+  const moeda = serieMensalDoAno(detalhado, { centro: 'LOGÍSTICA', ano: 2025, tipo: 'moeda', agora: new Date(2026, 3, 15) })
+  assert.equal(moeda.pontos[11], 500)
 })

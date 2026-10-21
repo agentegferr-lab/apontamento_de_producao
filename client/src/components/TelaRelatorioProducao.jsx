@@ -16,6 +16,7 @@ import {
   metaDoPeriodo,
   progressoMeta,
   serieAcumuladaPorPeriodo,
+  serieMensalDoAno,
   maximoRedondo,
   abreviarNumero,
 } from '../producaoCampos.js'
@@ -270,6 +271,8 @@ export default function TelaRelatorioProducao() {
   const [dados, setDados] = useState(null)
   const [dadosAnterior, setDadosAnterior] = useState(null)
   const [dadosSpark, setDadosSpark] = useState(null)
+  const [visaoGrafico, setVisaoGrafico] = useState('mes') // 'mes' = acumulado do mes | 'ano' = mes a mes
+  const [dadosAno, setDadosAno] = useState(null) // ano inteiro, so carregado quando a visao 'ano' e aberta
   const [dadosMesGrafico, setDadosMesGrafico] = useState(null) // mes inteiro do grafico (so carregado quando o periodo nao e o mes)
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState(null)
@@ -324,6 +327,25 @@ export default function TelaRelatorioProducao() {
       setCarregando(false)
     }
   }
+
+  const anoDoGrafico = referencia.getFullYear()
+  useEffect(() => {
+    if (visaoGrafico !== 'ano') return undefined
+    let cancelado = false
+    const inicio = `${anoDoGrafico}-01-01`
+    const fim = `${anoDoGrafico}-12-31`
+    // Abre na hora com o que ja foi visto deste ano; a resposta nova troca em seguida.
+    setDadosAno(api.cacheLocal(`/api/relatorio-producao?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`))
+    api
+      .relatorioProducao(inicio, fim)
+      .then((d) => {
+        if (!cancelado) setDadosAno(d)
+      })
+      .catch(() => {})
+    return () => {
+      cancelado = true
+    }
+  }, [visaoGrafico, anoDoGrafico])
 
   useEffect(() => {
     carregarTudo()
@@ -428,29 +450,30 @@ export default function TelaRelatorioProducao() {
   // periodo (quando o setor tem meta — Logistica e em R$, os demais em m²). Com "todos":
   // uma linha por setor na unidade dominante, sem meta (escalas diferentes).
   const dadosDoMes = modo === 'mes' ? dados : dadosMesGrafico
+  const dadosFonteGrafico = visaoGrafico === 'ano' ? dadosAno : dadosDoMes
 
-  // Setores do mes inteiro (no modo Dia, o dia pode nao ter todos), com a mesma cor dos cards.
-  const setoresDoMes = useMemo(() => {
-    if (!dadosDoMes) return []
-    return dadosDoMes.porCentro.map((c, i) => ({
+  // Setores do periodo do grafico (no modo Dia, o dia pode nao ter todos), com a mesma cor dos cards.
+  const setoresDoGrafico = useMemo(() => {
+    if (!dadosFonteGrafico) return []
+    return dadosFonteGrafico.porCentro.map((c, i) => ({
       ...c,
       cor: cartoes.find((x) => x.centro === c.centro)?.cor ?? corDoCentro(i),
       principal: quantidadePrincipal(c.quantidades),
       meta: metaDoPeriodo(c.centro, 'mes'),
     }))
-  }, [dadosDoMes, cartoes])
+  }, [dadosFonteGrafico, cartoes])
 
   const graficoLinhas = useMemo(() => {
-    if (!dadosDoMes || setoresDoMes.length === 0) return null
-    const escolhido = setoresDoMes.find((c) => c.centro === setorGrafico) ?? null
+    if (!dadosFonteGrafico || setoresDoGrafico.length === 0) return null
+    const escolhido = setoresDoGrafico.find((c) => c.centro === setorGrafico) ?? null
     let unidade
     let alvos
     if (escolhido) {
       alvos = [escolhido]
       unidade = escolhido.principal?.unidade
     } else {
-      // "Todos": so soma/compara a MESMA unidade — a mais comum entre os setores do mes.
-      const comPrincipal = setoresDoMes.filter((c) => c.principal)
+      // "Todos": so soma/compara a MESMA unidade — a mais comum entre os setores.
+      const comPrincipal = setoresDoGrafico.filter((c) => c.principal)
       if (comPrincipal.length === 0) return null
       const contagem = new Map()
       for (const c of comPrincipal) contagem.set(c.principal.unidade, (contagem.get(c.principal.unidade) ?? 0) + 1)
@@ -459,20 +482,29 @@ export default function TelaRelatorioProducao() {
     }
     const moeda = escolhido?.meta?.tipo === 'moeda'
     const series = alvos.map((c) => {
-      const { rotulos, pontos } = serieAcumuladaPorPeriodo(dadosDoMes.detalhado, {
-        centro: c.centro,
-        inicio: periodoMes.inicio,
-        fim: periodoMes.fim,
-        modo: 'mes',
-        tipo: moeda ? 'moeda' : 'quantidade',
-        unidade: moeda ? undefined : unidade,
-      })
+      const opcoes = { centro: c.centro, tipo: moeda ? 'moeda' : 'quantidade', unidade: moeda ? undefined : unidade }
+      const { rotulos, pontos } =
+        visaoGrafico === 'ano'
+          ? serieMensalDoAno(dadosFonteGrafico.detalhado, { ...opcoes, ano: anoDoGrafico })
+          : serieAcumuladaPorPeriodo(dadosFonteGrafico.detalhado, {
+              ...opcoes,
+              inicio: periodoMes.inicio,
+              fim: periodoMes.fim,
+              modo: 'mes',
+            })
       return { chave: c.centro, nome: c.centro, cor: c.cor, rotulos, pontos }
     })
     const metaCentro = escolhido?.meta ?? null
     const formatarY = moeda ? (v) => `R$ ${abreviarNumero(v)}` : (v) => abreviarNumero(v)
-    const atingido = series[0]?.pontos.filter((p) => p != null).at(-1) ?? 0
+    const valoresDoSetor = series[0]?.pontos.filter((pt) => pt != null) ?? []
+    const atingido = valoresDoSetor.at(-1) ?? 0
+    // No ano corrente o ultimo ponto e o mes em andamento (parcial): fica fora da contagem de
+    // "meses atingidos" e aparece a parte.
+    const mesEmAndamento = visaoGrafico === 'ano' && anoDoGrafico === new Date().getFullYear() && valoresDoSetor.length > 0
+    const mesesFechados = mesEmAndamento ? valoresDoSetor.slice(0, -1) : valoresDoSetor
+    const rotuloMeta = `Meta ${moeda ? formatarMoedaNumero(metaCentro?.valor ?? 0) : `${formatarNumeroBr(metaCentro?.valor ?? 0)} ${formatarUnidade(unidade)}`}`
     return {
+      visao: visaoGrafico,
       rotulos: series[0].rotulos,
       series,
       moeda,
@@ -480,13 +512,16 @@ export default function TelaRelatorioProducao() {
       formatarY,
       meta: metaCentro && {
         valor: metaCentro.valor,
-        rotulo: `Meta ${moeda ? formatarMoedaNumero(metaCentro.valor) : `${formatarNumeroBr(metaCentro.valor)} ${formatarUnidade(unidade)}`}`,
+        rotulo: visaoGrafico === 'ano' ? `${rotuloMeta} por mês` : rotuloMeta,
         atingido,
         percentual: progressoMeta(atingido, metaCentro.valor),
         falta: Math.max(0, metaCentro.valor - atingido),
+        mesesAtingidos: mesesFechados.filter((v) => v >= metaCentro.valor).length,
+        mesesNoAno: mesesFechados.length,
+        mesAtualPercentual: mesEmAndamento ? progressoMeta(atingido, metaCentro.valor) : null,
       },
     }
-  }, [dadosDoMes, setoresDoMes, setorGrafico, periodoMes.inicio, periodoMes.fim])
+  }, [dadosFonteGrafico, setoresDoGrafico, setorGrafico, visaoGrafico, anoDoGrafico, periodoMes.inicio, periodoMes.fim])
 
   const etapasDisponiveis = useMemo(
     () => [...new Set((dados?.detalhado ?? []).map((d) => d.descricaoEtapa).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
@@ -760,12 +795,31 @@ export default function TelaRelatorioProducao() {
                   <div className="painel-grafico">
                     <div className="painel-grafico__cabecalho">
                       <div>
-                        <h2 className="painel-grafico__titulo">Produção por centro — mês</h2>
+                        <h2 className="painel-grafico__titulo">
+                          Produção por centro — {visaoGrafico === 'ano' ? anoDoGrafico : 'mês'}
+                        </h2>
                         <p className="painel-grafico__subtitulo">
-                          {setorGrafico ? 'Acumulado de' : 'Produção acumulada, por setor, em'} {periodoMes.rotulo}
-                          {setorGrafico ? ' contra a meta mensal' : ''}
+                          {visaoGrafico === 'ano'
+                            ? `Total produzido mês a mês em ${anoDoGrafico}${setorGrafico ? ', contra a meta mensal' : ''}`
+                            : `${setorGrafico ? 'Acumulado de' : 'Produção acumulada, por setor, em'} ${periodoMes.rotulo}${setorGrafico ? ' contra a meta mensal' : ''}`}
                         </p>
                       </div>
+                      <div className="painel-grafico__controles">
+                        <div className="segmentado" role="group" aria-label="Visão do gráfico">
+                          {[
+                            { valor: 'mes', texto: 'Mês' },
+                            { valor: 'ano', texto: 'Ano' },
+                          ].map((v) => (
+                            <button
+                              key={v.valor}
+                              type="button"
+                              className={`segmentado__item ${visaoGrafico === v.valor ? 'segmentado__item--ativo' : ''}`}
+                              onClick={() => setVisaoGrafico(v.valor)}
+                            >
+                              {v.texto}
+                            </button>
+                          ))}
+                        </div>
                       <select
                         className="seletor"
                         aria-label="Filtrar o gráfico por setor"
@@ -773,13 +827,15 @@ export default function TelaRelatorioProducao() {
                         onChange={(e) => setSetorGrafico(e.target.value)}
                       >
                         <option value="">Todos os setores</option>
-                        {setoresDoMes.map((c) => (
+                        {setoresDoGrafico.map((c) => (
                           <option key={c.centro} value={c.centro}>
                             {c.centro}
                           </option>
                         ))}
                       </select>
+                      </div>
                     </div>
+                    {visaoGrafico === 'ano' && !dadosAno && <p className="grafico-dica">Carregando o ano...</p>}
                     {graficoLinhas && (
                       <>
                         <div className="painel-grafico__legenda">
@@ -798,10 +854,24 @@ export default function TelaRelatorioProducao() {
                         </div>
                         {graficoLinhas.meta && (
                           <p
-                            className={`grafico-meta-status ${graficoLinhas.meta.percentual >= 100 ? 'grafico-meta-status--ok' : ''}`}
+                            className={`grafico-meta-status ${
+                              (graficoLinhas.visao === 'ano' ? graficoLinhas.meta.mesesAtingidos === graficoLinhas.meta.mesesNoAno && graficoLinhas.meta.mesesNoAno > 0 : graficoLinhas.meta.percentual >= 100)
+                                ? 'grafico-meta-status--ok'
+                                : ''
+                            }`}
                             role="status"
                           >
-                            {graficoLinhas.meta.percentual >= 100
+                            {graficoLinhas.visao === 'ano'
+                              ? `${
+                                  graficoLinhas.meta.mesesNoAno === 0
+                                    ? 'Nenhum mês fechado ainda'
+                                    : `Meta mensal atingida em ${graficoLinhas.meta.mesesAtingidos} de ${graficoLinhas.meta.mesesNoAno} ${graficoLinhas.meta.mesesNoAno === 1 ? 'mês fechado' : 'meses fechados'}`
+                                }${
+                                  graficoLinhas.meta.mesAtualPercentual != null
+                                    ? ` · mês atual: ${formatarNumeroBr(graficoLinhas.meta.mesAtualPercentual)}% da meta`
+                                    : ''
+                                }`
+                              : graficoLinhas.meta.percentual >= 100
                               ? `Meta atingida — ${formatarNumeroBr(graficoLinhas.meta.percentual)}% da meta`
                               : `Meta ainda não atingida — ${formatarNumeroBr(graficoLinhas.meta.percentual)}% (faltam ${
                                   graficoLinhas.moeda

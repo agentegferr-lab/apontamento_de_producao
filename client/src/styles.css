@@ -2688,7 +2688,19 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
+}
+.painel-grafico__controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.painel-grafico__controles .segmentado__item {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
 }
 .painel-grafico__marcador--meta {
   width: 16px;

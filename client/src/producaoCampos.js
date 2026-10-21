@@ -195,6 +195,34 @@ export function serieAcumuladaPorPeriodo(detalhado, { centro, inicio, fim, modo,
   return { rotulos, pontos }
 }
 
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+/**
+ * Total produzido em CADA mes de `ano` (nao acumulado — um ponto por mes, pra comparar um mes
+ * com o outro e com a meta mensal). Meses ainda no futuro saem `null` (a linha para no mes
+ * atual, que aparece parcial). Mesmas regras de `tipo`/`unidade`/`centro` de
+ * serieAcumuladaPorPeriodo: nunca mistura unidades; "moeda" soma valorProduzido (estimado).
+ */
+export function serieMensalDoAno(detalhado, { centro, ano, tipo = 'quantidade', unidade, agora = new Date() }) {
+  const totais = Array.from({ length: 12 }, () => 0)
+  for (const d of detalhado ?? []) {
+    if (centro && d.centro !== centro) continue
+    const chave = chaveDoDiaNomus(d.dataHoraFinal)
+    if (!chave || Number(chave.slice(0, 4)) !== ano) continue
+    let valor
+    if (tipo === 'moeda') valor = d.valorProduzido
+    else if (unidade && d.unidadeMedida !== unidade) valor = null
+    else valor = d.quantidade
+    if (valor == null || !(valor > 0)) continue
+    totais[Number(chave.slice(5, 7)) - 1] += valor
+  }
+  const mesAtual = agora.getFullYear() === ano ? agora.getMonth() : agora.getFullYear() > ano ? 11 : -1
+  return {
+    rotulos: MESES_CURTOS,
+    pontos: totais.map((t, i) => (i > mesAtual ? null : t)),
+  }
+}
+
 /** Valor de eixo "redondo" (1, 2, 2,5, 5 x 10^k) >= `max`, pra os rotulos do eixo Y nao ficarem quebrados. */
 export function maximoRedondo(max) {
   if (!(max > 0)) return 1
