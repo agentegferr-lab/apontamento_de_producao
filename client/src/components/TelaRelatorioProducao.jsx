@@ -15,6 +15,9 @@ import {
   somarValorProduzido,
   metaDoPeriodo,
   progressoMeta,
+  serieAcumuladaPorPeriodo,
+  maximoRedondo,
+  abreviarNumero,
 } from '../producaoCampos.js'
 
 const MODOS_PERIODO = [
@@ -121,26 +124,85 @@ function BadgeTendencia({ tendencia }) {
   )
 }
 
-/** Barras simples em CSS/flex (sem lib de grafico) — poucos centros, poucos pontos, nao vale
- * puxar uma dependencia nova so pra isso. */
-function GraficoBarras({ itens, unidade }) {
-  const max = Math.max(...itens.map((i) => i.principal.total), 1)
+/**
+ * Linhas ACUMULADAS no periodo (SVG puro, sem lib de grafico): a linha sobe conforme o setor
+ * produz e a meta e uma reta tracejada — passou da reta, a meta foi atingida. `series` e
+ * [{ chave, nome, cor, pontos }] (pontos `null` = ainda no futuro, a linha para ali) e
+ * `meta` e { valor, rotulo } ou null (so quando UM setor esta filtrado: com varios, as
+ * unidades e metas nao sao comparaveis na mesma escala).
+ */
+function GraficoLinhas({ rotulos, series, meta, formatarY }) {
+  const L = 640
+  const A = 260
+  const margem = { esq: 56, dir: 18, topo: 16, base: 28 }
+  const maxDados = Math.max(0, ...series.flatMap((s) => s.pontos.filter((p) => p != null)))
+  const topo = maximoRedondo(Math.max(maxDados, meta?.valor ?? 0))
+  const n = rotulos.length
+  const x = (i) => margem.esq + (n > 1 ? (i / (n - 1)) * (L - margem.esq - margem.dir) : (L - margem.esq - margem.dir) / 2)
+  const y = (v) => margem.topo + (1 - v / topo) * (A - margem.topo - margem.base)
+  const grade = [0, 0.25, 0.5, 0.75, 1].map((f) => f * topo)
+  const passoRotulo = Math.max(1, Math.ceil(n / 12))
+
   return (
-    <div className="grafico-barras">
-      {itens.map((item) => (
-        <div className="grafico-barras__coluna" key={item.centro}>
-          <span className="grafico-barras__valor">
-            {formatarNumeroBr(item.principal.total)} {formatarUnidade(unidade)}
-          </span>
-          <div className="grafico-barras__trilho">
-            <div
-              className="grafico-barras__barra"
-              style={{ height: `${Math.max(4, (item.principal.total / max) * 100)}%`, background: item.cor }}
-            />
-          </div>
-          <span className="grafico-barras__rotulo">{item.centro}</span>
-        </div>
+    <div className="grafico-linhas-wrap">
+    <svg viewBox={`0 0 ${L} ${A}`} className="grafico-linhas" role="img" aria-label="Produção acumulada no período">
+      {grade.map((v) => (
+        <g key={v}>
+          <line x1={margem.esq} x2={L - margem.dir} y1={y(v)} y2={y(v)} className="grafico-linhas__grade" />
+          <text x={margem.esq - 8} y={y(v) + 4} textAnchor="end" className="grafico-linhas__eixo">
+            {formatarY(v)}
+          </text>
+        </g>
       ))}
+      {rotulos.map((r, i) =>
+        i % passoRotulo === 0 ? (
+          <text key={`${r}-${i}`} x={x(i)} y={A - 8} textAnchor="middle" className="grafico-linhas__eixo">
+            {r}
+          </text>
+        ) : null,
+      )}
+      {meta && (
+        <g>
+          <line x1={margem.esq} x2={L - margem.dir} y1={y(meta.valor)} y2={y(meta.valor)} className="grafico-linhas__meta" />
+          <text x={L - margem.dir} y={y(meta.valor) - 6} textAnchor="end" className="grafico-linhas__meta-rotulo">
+            {meta.rotulo}
+          </text>
+        </g>
+      )}
+      {series.map((s) => {
+        const trechos = []
+        let atual = []
+        s.pontos.forEach((p, i) => {
+          if (p == null) {
+            if (atual.length) trechos.push(atual)
+            atual = []
+          } else atual.push([x(i), y(p), p, rotulos[i]])
+        })
+        if (atual.length) trechos.push(atual)
+        const ultimo = trechos.at(-1)?.at(-1)
+        return (
+          <g key={s.chave}>
+            {trechos.map((t, k) => (
+              <polyline
+                key={k}
+                points={t.map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join(' ')}
+                fill="none"
+                stroke={s.cor}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ))}
+            {trechos.flat().map(([px, py, valor, rotulo]) => (
+              <circle key={`${px}`} cx={px} cy={py} r="7" fill="transparent">
+                <title>{`${s.nome} · ${rotulo}: ${formatarY(valor)}`}</title>
+              </circle>
+            ))}
+            {ultimo && <circle cx={ultimo[0]} cy={ultimo[1]} r="4" fill={s.cor} />}
+          </g>
+        )
+      })}
+    </svg>
     </div>
   )
 }
@@ -210,6 +272,7 @@ export default function TelaRelatorioProducao() {
   const [dadosSpark, setDadosSpark] = useState(null)
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState(null)
+  const [setorGrafico, setSetorGrafico] = useState('') // '' = todos os setores
 
   const [busca, setBusca] = useState('')
   const [filtroCentro, setFiltroCentro] = useState('')
@@ -354,6 +417,46 @@ export default function TelaRelatorioProducao() {
     const itens = comPrincipal.filter((c) => c.principal.unidade === unidadeDominante)
     return { itens, unidade: unidadeDominante, excluidos: comPrincipal.length - itens.length }
   }, [cartoes])
+
+  // Grafico de linhas acumuladas. Com um setor filtrado: a linha dele + a reta da meta do
+  // periodo (quando o setor tem meta — Logistica e em R$, os demais em m²). Com "todos":
+  // uma linha por setor na unidade dominante, sem meta (escalas diferentes).
+  const graficoLinhas = useMemo(() => {
+    if (!dados) return null
+    const escolhido = cartoes.find((c) => c.centro === setorGrafico) ?? null
+    const alvos = escolhido ? [escolhido] : dadosGrafico.itens
+    if (alvos.length === 0) return null
+    const moeda = escolhido?.meta?.tipo === 'moeda'
+    const unidade = escolhido ? escolhido.principal?.unidade : dadosGrafico.unidade
+    const series = alvos.map((c) => {
+      const { rotulos, pontos } = serieAcumuladaPorPeriodo(dados.detalhado, {
+        centro: c.centro,
+        inicio: periodo.inicio,
+        fim: periodo.fim,
+        modo,
+        tipo: moeda ? 'moeda' : 'quantidade',
+        unidade: moeda ? undefined : unidade,
+      })
+      return { chave: c.centro, nome: c.centro, cor: c.cor, rotulos, pontos }
+    })
+    const metaCentro = escolhido?.meta ?? null
+    const formatarY = moeda ? (v) => `R$ ${abreviarNumero(v)}` : (v) => abreviarNumero(v)
+    const atingido = series[0]?.pontos.filter((p) => p != null).at(-1) ?? 0
+    return {
+      rotulos: series[0].rotulos,
+      series,
+      moeda,
+      unidade,
+      formatarY,
+      meta: metaCentro && {
+        valor: metaCentro.valor,
+        rotulo: `Meta ${moeda ? formatarMoedaNumero(metaCentro.valor) : `${formatarNumeroBr(metaCentro.valor)} ${formatarUnidade(unidade)}`}`,
+        atingido,
+        percentual: progressoMeta(atingido, metaCentro.valor),
+        falta: Math.max(0, metaCentro.valor - atingido),
+      },
+    }
+  }, [dados, cartoes, setorGrafico, dadosGrafico, periodo.inicio, periodo.fim, modo])
 
   const etapasDisponiveis = useMemo(
     () => [...new Set((dados?.detalhado ?? []).map((d) => d.descricaoEtapa).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
@@ -625,17 +728,68 @@ export default function TelaRelatorioProducao() {
               {dadosGrafico.itens.length > 0 && (
                 <div className="relatorio-producao__graficos">
                   <div className="painel-grafico">
-                    <h2 className="painel-grafico__titulo">Produção por centro</h2>
-                    <p className="painel-grafico__subtitulo">Comparativo do volume produzido no período</p>
-                    <div className="painel-grafico__legenda">
-                      {dadosGrafico.itens.map((item) => (
-                        <span className="painel-grafico__legenda-item" key={item.centro}>
-                          <span className="painel-grafico__marcador" style={{ background: item.cor }} />
-                          {item.centro}
-                        </span>
-                      ))}
+                    <div className="painel-grafico__cabecalho">
+                      <div>
+                        <h2 className="painel-grafico__titulo">Produção por centro</h2>
+                        <p className="painel-grafico__subtitulo">
+                          {setorGrafico ? 'Produção acumulada no período contra a meta' : 'Produção acumulada no período, por setor'}
+                        </p>
+                      </div>
+                      <select
+                        className="seletor"
+                        aria-label="Filtrar o gráfico por setor"
+                        value={setorGrafico}
+                        onChange={(e) => setSetorGrafico(e.target.value)}
+                      >
+                        <option value="">Todos os setores</option>
+                        {cartoes.map((c) => (
+                          <option key={c.centro} value={c.centro}>
+                            {c.centro}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <GraficoBarras itens={dadosGrafico.itens} unidade={dadosGrafico.unidade} />
+                    {graficoLinhas && (
+                      <>
+                        <div className="painel-grafico__legenda">
+                          {graficoLinhas.series.map((item) => (
+                            <span className="painel-grafico__legenda-item" key={item.chave}>
+                              <span className="painel-grafico__marcador" style={{ background: item.cor }} />
+                              {item.nome}
+                            </span>
+                          ))}
+                          {graficoLinhas.meta && (
+                            <span className="painel-grafico__legenda-item">
+                              <span className="painel-grafico__marcador painel-grafico__marcador--meta" />
+                              Meta
+                            </span>
+                          )}
+                        </div>
+                        {graficoLinhas.meta && (
+                          <p
+                            className={`grafico-meta-status ${graficoLinhas.meta.percentual >= 100 ? 'grafico-meta-status--ok' : ''}`}
+                            role="status"
+                          >
+                            {graficoLinhas.meta.percentual >= 100
+                              ? `Meta atingida — ${formatarNumeroBr(graficoLinhas.meta.percentual)}% da meta`
+                              : `Meta ainda não atingida — ${formatarNumeroBr(graficoLinhas.meta.percentual)}% (faltam ${
+                                  graficoLinhas.moeda
+                                    ? formatarMoedaNumero(graficoLinhas.meta.falta)
+                                    : `${formatarNumeroBr(graficoLinhas.meta.falta)} ${formatarUnidade(graficoLinhas.unidade)}`
+                                })`}
+                          </p>
+                        )}
+                        {!setorGrafico && (
+                          <p className="grafico-dica">Escolha um setor para ver a linha da meta.</p>
+                        )}
+                        <GraficoLinhas
+                          rotulos={graficoLinhas.rotulos}
+                          series={graficoLinhas.series}
+                          meta={graficoLinhas.meta}
+                          formatarY={graficoLinhas.formatarY}
+                        />
+                      </>
+                    )}
                   </div>
                   <div className="painel-grafico">
                     <h2 className="painel-grafico__titulo">Distribuição do período</h2>

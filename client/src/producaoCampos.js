@@ -126,6 +126,92 @@ export function serieDiariaPorCentro(detalhado, centro, diasChaves) {
   return diasChaves.map((d) => porDia.get(d))
 }
 
+/** Dias "AAAA-MM-DD" de `inicio` a `fim`, inclusive. */
+export function diasDoPeriodo(inicio, fim) {
+  const [ai, mi, di] = inicio.split('-').map(Number)
+  const [af, mf, df] = fim.split('-').map(Number)
+  const dias = []
+  for (let d = new Date(ai, mi - 1, di); d <= new Date(af, mf - 1, df); d.setDate(d.getDate() + 1)) dias.push(chaveData(d))
+  return dias
+}
+
+/** "27/07/2026 17:53:07" -> 17. null se nao der pra ler. */
+function horaDoNomus(dataHoraNomus) {
+  const m = /\s(\d{2}):\d{2}/.exec(String(dataHoraNomus ?? ''))
+  return m ? Number(m[1]) : null
+}
+
+/**
+ * Serie ACUMULADA pro grafico de linhas do relatorio: quanto ja foi produzido ate cada ponto
+ * do periodo, pra comparar com a meta (a linha so sobe; cruzou a meta = atingida).
+ *
+ * `modo` define o eixo X: "dia" -> uma coluna por hora; "semana"/"mes" -> uma por dia. Pontos
+ * ainda no futuro (depois de `agora`) saem `null`, pra a linha parar no presente em vez de
+ * seguir reta ate o fim do periodo.
+ *
+ * `tipo` "quantidade" soma `quantidade` (so da `unidade` pedida, quando informada — nunca
+ * mistura m² com unidade); "moeda" soma `valorProduzido` (estimado, ver server/relatorioProducao.js).
+ * `centro` vazio/null = todos os centros.
+ */
+export function serieAcumuladaPorPeriodo(detalhado, { centro, inicio, fim, modo, tipo = 'quantidade', unidade, agora = new Date() }) {
+  const valorDe = (d) => {
+    if (tipo === 'moeda') return d.valorProduzido ?? null
+    if (d.quantidade == null) return null
+    if (unidade && d.unidadeMedida !== unidade) return null
+    return d.quantidade
+  }
+  const itens = (detalhado ?? [])
+    .filter((d) => !centro || d.centro === centro)
+    .map((d) => ({ chave: chaveDoDiaNomus(d.dataHoraFinal), hora: horaDoNomus(d.dataHoraFinal), valor: valorDe(d) }))
+    .filter((d) => d.valor != null && d.valor > 0 && d.chave)
+  const hojeChave = chaveData(agora)
+
+  if (modo === 'dia') {
+    const doDia = itens.filter((d) => d.chave === inicio && d.hora != null)
+    const horas = doDia.map((d) => d.hora)
+    const de = Math.min(6, ...horas)
+    const ate = Math.max(18, ...horas)
+    const rotulos = []
+    const pontos = []
+    let acumulado = 0
+    for (let h = de; h <= ate; h++) {
+      acumulado += doDia.filter((d) => d.hora === h).reduce((soma, d) => soma + d.valor, 0)
+      const futuro = inicio > hojeChave || (inicio === hojeChave && h > agora.getHours())
+      rotulos.push(`${h}h`)
+      pontos.push(futuro ? null : acumulado)
+    }
+    return { rotulos, pontos }
+  }
+
+  const dias = diasDoPeriodo(inicio, fim)
+  const porDia = new Map(dias.map((d) => [d, 0]))
+  for (const d of itens) if (porDia.has(d.chave)) porDia.set(d.chave, porDia.get(d.chave) + d.valor)
+  let acumulado = 0
+  const rotulos = dias.map((d) => (modo === 'mes' ? String(Number(d.slice(8))) : `${d.slice(8)}/${d.slice(5, 7)}`))
+  const pontos = dias.map((d) => {
+    acumulado += porDia.get(d)
+    return d > hojeChave ? null : acumulado
+  })
+  return { rotulos, pontos }
+}
+
+/** Valor de eixo "redondo" (1, 2, 2,5, 5 x 10^k) >= `max`, pra os rotulos do eixo Y nao ficarem quebrados. */
+export function maximoRedondo(max) {
+  if (!(max > 0)) return 1
+  const potencia = 10 ** Math.floor(Math.log10(max))
+  for (const passo of [1, 2, 2.5, 5, 10]) if (passo * potencia >= max) return passo * potencia
+  return 10 * potencia
+}
+
+/** Rotulo curto de eixo: 45000 -> "45 mil", 2400000 -> "2,4 mi". */
+export function abreviarNumero(n) {
+  const abs = Math.abs(n)
+  const fmt = (v) => v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+  if (abs >= 1_000_000) return `${fmt(n / 1_000_000)} mi`
+  if (abs >= 1_000) return `${fmt(n / 1_000)} mil`
+  return fmt(n)
+}
+
 /** Paginacao local — mesmo padrao de entregasCampos.js (o /api/relatorio-producao tambem
  * devolve tudo de uma vez, sem parametro de pagina). */
 export function paginar(itens, pagina, tamanhoPagina) {

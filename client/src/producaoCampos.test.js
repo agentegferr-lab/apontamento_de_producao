@@ -13,6 +13,10 @@ import {
   paginar,
   corDoCentro,
   somarValorProduzido,
+  diasDoPeriodo,
+  serieAcumuladaPorPeriodo,
+  maximoRedondo,
+  abreviarNumero,
 } from './producaoCampos.js'
 
 // 2026-07-25 e sabado.
@@ -148,4 +152,80 @@ test('somarValorProduzido: soma so os centros com valor resolvido; null quando n
 test('corDoCentro e deterministico e ciclico', () => {
   assert.equal(corDoCentro(0), corDoCentro(8)) // ciclo de 8 cores
   assert.equal(typeof corDoCentro(2), 'string')
+})
+
+const apt = (centro, dataHora, quantidade, extra = {}) => ({ centro, dataHoraFinal: dataHora, quantidade, unidadeMedida: 'METRO QUADRADO', valorProduzido: null, ...extra })
+
+test('diasDoPeriodo: inclusivo nas duas pontas', () => {
+  assert.deepEqual(diasDoPeriodo('2026-10-30', '2026-11-02'), ['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02'])
+})
+
+test('serieAcumuladaPorPeriodo (mes): acumula por dia e corta no futuro', () => {
+  const detalhado = [
+    apt('CORTE', '01/10/2026 10:00:00', 100),
+    apt('CORTE', '01/10/2026 15:00:00', 50),
+    apt('CORTE', '03/10/2026 09:00:00', 200),
+    apt('PINTURA', '02/10/2026 09:00:00', 999),
+  ]
+  const r = serieAcumuladaPorPeriodo(detalhado, {
+    centro: 'CORTE',
+    inicio: '2026-10-01',
+    fim: '2026-10-05',
+    modo: 'mes',
+    agora: new Date(2026, 9, 4, 12),
+  })
+  assert.deepEqual(r.rotulos, ['1', '2', '3', '4', '5'])
+  assert.deepEqual(r.pontos, [150, 150, 350, 350, null])
+})
+
+test('serieAcumuladaPorPeriodo: centro vazio soma todos; unidade diferente fica de fora', () => {
+  const detalhado = [
+    apt('CORTE', '01/10/2026 10:00:00', 100),
+    apt('PINTURA', '01/10/2026 11:00:00', 40),
+    apt('CORTE', '01/10/2026 12:00:00', 7, { unidadeMedida: 'UNIDADE' }),
+  ]
+  const r = serieAcumuladaPorPeriodo(detalhado, {
+    inicio: '2026-10-01',
+    fim: '2026-10-01',
+    modo: 'semana',
+    unidade: 'METRO QUADRADO',
+    agora: new Date(2026, 9, 9),
+  })
+  assert.deepEqual(r.pontos, [140])
+})
+
+test('serieAcumuladaPorPeriodo (dia): uma coluna por hora, parando na hora atual', () => {
+  const detalhado = [apt('CORTE', '09/10/2026 08:10:00', 30), apt('CORTE', '09/10/2026 10:50:00', 20)]
+  const r = serieAcumuladaPorPeriodo(detalhado, {
+    centro: 'CORTE',
+    inicio: '2026-10-09',
+    fim: '2026-10-09',
+    modo: 'dia',
+    agora: new Date(2026, 9, 9, 11, 30),
+  })
+  assert.equal(r.rotulos[0], '6h')
+  assert.equal(r.rotulos.at(-1), '18h')
+  assert.equal(r.pontos[r.rotulos.indexOf('7h')], 0)
+  assert.equal(r.pontos[r.rotulos.indexOf('8h')], 30)
+  assert.equal(r.pontos[r.rotulos.indexOf('11h')], 50)
+  assert.equal(r.pontos[r.rotulos.indexOf('12h')], null)
+})
+
+test('serieAcumuladaPorPeriodo (moeda): soma valorProduzido e ignora o que nao tem valor', () => {
+  const detalhado = [
+    { centro: 'LOGÍSTICA', dataHoraFinal: '01/10/2026 10:00:00', quantidade: 5, unidadeMedida: 'M2', valorProduzido: 1000 },
+    { centro: 'LOGÍSTICA', dataHoraFinal: '01/10/2026 11:00:00', quantidade: 5, unidadeMedida: 'M2', valorProduzido: null },
+  ]
+  const r = serieAcumuladaPorPeriodo(detalhado, { centro: 'LOGÍSTICA', inicio: '2026-10-01', fim: '2026-10-02', modo: 'semana', tipo: 'moeda', agora: new Date(2026, 9, 9) })
+  assert.deepEqual(r.pontos, [1000, 1000])
+})
+
+test('maximoRedondo e abreviarNumero', () => {
+  assert.equal(maximoRedondo(0), 1)
+  assert.equal(maximoRedondo(37), 50)
+  assert.equal(maximoRedondo(45_000), 50_000)
+  assert.equal(maximoRedondo(2_400_000), 2_500_000)
+  assert.equal(abreviarNumero(45_000), '45 mil')
+  assert.equal(abreviarNumero(2_400_000), '2,4 mi')
+  assert.equal(abreviarNumero(750), '750')
 })
