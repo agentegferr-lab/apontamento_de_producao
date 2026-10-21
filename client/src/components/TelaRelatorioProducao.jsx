@@ -270,6 +270,7 @@ export default function TelaRelatorioProducao() {
   const [dados, setDados] = useState(null)
   const [dadosAnterior, setDadosAnterior] = useState(null)
   const [dadosSpark, setDadosSpark] = useState(null)
+  const [dadosMesGrafico, setDadosMesGrafico] = useState(null) // mes inteiro do grafico (so carregado quando o periodo nao e o mes)
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState(null)
   const [setorGrafico, setSetorGrafico] = useState('') // '' = todos os setores
@@ -291,6 +292,9 @@ export default function TelaRelatorioProducao() {
   const exportPainelRef = useRef(null)
 
   const periodo = useMemo(() => intervaloDoPeriodo(modo, referencia), [modo, referencia])
+  // O grafico de linhas e SEMPRE do mes (da data de referencia), qualquer que seja o Dia/Semana/Mes
+  // escolhido nos cards e na tabela — a meta e mensal.
+  const periodoMes = useMemo(() => intervaloDoPeriodo('mes', referencia), [referencia])
   const diasSparkChaves = useMemo(() => ultimosDias(periodo.fim, DIAS_SPARKLINE), [periodo.fim])
 
   async function carregarTudo() {
@@ -303,14 +307,16 @@ export default function TelaRelatorioProducao() {
     try {
       const periodoAnterior = intervaloDoPeriodo(modo, navegarPeriodo(modo, referencia, -1))
       const diasSpark = ultimosDias(periodo.fim, DIAS_SPARKLINE)
-      const [atual, anterior, spark] = await Promise.all([
+      const [atual, anterior, spark, mes] = await Promise.all([
         api.relatorioProducao(periodo.inicio, periodo.fim),
         api.relatorioProducao(periodoAnterior.inicio, periodoAnterior.fim),
         api.relatorioProducao(diasSpark[0], periodo.fim),
+        modo === 'mes' ? null : api.relatorioProducao(periodoMes.inicio, periodoMes.fim),
       ])
       setDados(atual)
       setDadosAnterior(anterior)
       setDadosSpark(spark)
+      setDadosMesGrafico(modo === 'mes' ? null : mes)
       setErro(null)
     } catch (e) {
       setErro(e.message)
@@ -421,19 +427,43 @@ export default function TelaRelatorioProducao() {
   // Grafico de linhas acumuladas. Com um setor filtrado: a linha dele + a reta da meta do
   // periodo (quando o setor tem meta — Logistica e em R$, os demais em m²). Com "todos":
   // uma linha por setor na unidade dominante, sem meta (escalas diferentes).
+  const dadosDoMes = modo === 'mes' ? dados : dadosMesGrafico
+
+  // Setores do mes inteiro (no modo Dia, o dia pode nao ter todos), com a mesma cor dos cards.
+  const setoresDoMes = useMemo(() => {
+    if (!dadosDoMes) return []
+    return dadosDoMes.porCentro.map((c, i) => ({
+      ...c,
+      cor: cartoes.find((x) => x.centro === c.centro)?.cor ?? corDoCentro(i),
+      principal: quantidadePrincipal(c.quantidades),
+      meta: metaDoPeriodo(c.centro, 'mes'),
+    }))
+  }, [dadosDoMes, cartoes])
+
   const graficoLinhas = useMemo(() => {
-    if (!dados) return null
-    const escolhido = cartoes.find((c) => c.centro === setorGrafico) ?? null
-    const alvos = escolhido ? [escolhido] : dadosGrafico.itens
-    if (alvos.length === 0) return null
+    if (!dadosDoMes || setoresDoMes.length === 0) return null
+    const escolhido = setoresDoMes.find((c) => c.centro === setorGrafico) ?? null
+    let unidade
+    let alvos
+    if (escolhido) {
+      alvos = [escolhido]
+      unidade = escolhido.principal?.unidade
+    } else {
+      // "Todos": so soma/compara a MESMA unidade — a mais comum entre os setores do mes.
+      const comPrincipal = setoresDoMes.filter((c) => c.principal)
+      if (comPrincipal.length === 0) return null
+      const contagem = new Map()
+      for (const c of comPrincipal) contagem.set(c.principal.unidade, (contagem.get(c.principal.unidade) ?? 0) + 1)
+      unidade = [...contagem.entries()].sort((a, b) => b[1] - a[1])[0][0]
+      alvos = comPrincipal.filter((c) => c.principal.unidade === unidade)
+    }
     const moeda = escolhido?.meta?.tipo === 'moeda'
-    const unidade = escolhido ? escolhido.principal?.unidade : dadosGrafico.unidade
     const series = alvos.map((c) => {
-      const { rotulos, pontos } = serieAcumuladaPorPeriodo(dados.detalhado, {
+      const { rotulos, pontos } = serieAcumuladaPorPeriodo(dadosDoMes.detalhado, {
         centro: c.centro,
-        inicio: periodo.inicio,
-        fim: periodo.fim,
-        modo,
+        inicio: periodoMes.inicio,
+        fim: periodoMes.fim,
+        modo: 'mes',
         tipo: moeda ? 'moeda' : 'quantidade',
         unidade: moeda ? undefined : unidade,
       })
@@ -456,7 +486,7 @@ export default function TelaRelatorioProducao() {
         falta: Math.max(0, metaCentro.valor - atingido),
       },
     }
-  }, [dados, cartoes, setorGrafico, dadosGrafico, periodo.inicio, periodo.fim, modo])
+  }, [dadosDoMes, setoresDoMes, setorGrafico, periodoMes.inicio, periodoMes.fim])
 
   const etapasDisponiveis = useMemo(
     () => [...new Set((dados?.detalhado ?? []).map((d) => d.descricaoEtapa).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
@@ -725,14 +755,15 @@ export default function TelaRelatorioProducao() {
                 ))}
               </div>
 
-              {dadosGrafico.itens.length > 0 && (
+              {(dadosGrafico.itens.length > 0 || graficoLinhas) && (
                 <div className="relatorio-producao__graficos">
                   <div className="painel-grafico">
                     <div className="painel-grafico__cabecalho">
                       <div>
-                        <h2 className="painel-grafico__titulo">Produção por centro</h2>
+                        <h2 className="painel-grafico__titulo">Produção por centro — mês</h2>
                         <p className="painel-grafico__subtitulo">
-                          {setorGrafico ? 'Produção acumulada no período contra a meta' : 'Produção acumulada no período, por setor'}
+                          {setorGrafico ? 'Acumulado de' : 'Produção acumulada, por setor, em'} {periodoMes.rotulo}
+                          {setorGrafico ? ' contra a meta mensal' : ''}
                         </p>
                       </div>
                       <select
@@ -742,7 +773,7 @@ export default function TelaRelatorioProducao() {
                         onChange={(e) => setSetorGrafico(e.target.value)}
                       >
                         <option value="">Todos os setores</option>
-                        {cartoes.map((c) => (
+                        {setoresDoMes.map((c) => (
                           <option key={c.centro} value={c.centro}>
                             {c.centro}
                           </option>
@@ -791,11 +822,13 @@ export default function TelaRelatorioProducao() {
                       </>
                     )}
                   </div>
+                  {dadosGrafico.itens.length > 0 && (
                   <div className="painel-grafico">
                     <h2 className="painel-grafico__titulo">Distribuição do período</h2>
                     <p className="painel-grafico__subtitulo">Participação por centro de trabalho</p>
                     <GraficoDonut itens={dadosGrafico.itens} unidade={dadosGrafico.unidade} />
                   </div>
+                  )}
                 </div>
               )}
             </>
