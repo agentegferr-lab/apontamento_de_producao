@@ -27,6 +27,19 @@ export function nomeCentro(centro) {
 
 const SEM_CENTRO = 'Sem centro de trabalho'
 
+// Corte de chapa de forro e a operacao 15 do roteiro e, no Nomus, usa o centro de trabalho
+// CORTE (recurso Corte_Chapa) — nao existe um centro "CORTE/FORRO" cadastrado. O quadro, porem,
+// tem coluna propria pra ele (combinado com o usuario em 2026-10-22).
+const OPERACAO_CORTE_FORRO = 15
+export const COLUNA_CORTE_FORRO = 'CORTE/FORRO'
+
+/** Coluna do kanban de uma operacao: o centro de trabalho, salvo o corte de forro (acima). */
+export function colunaDaOperacao(op) {
+  const centro = nomeCentro(op?.centroTrabalhoPlanejado) ?? SEM_CENTRO
+  if (centro.toUpperCase() === 'CORTE' && Number(op?.operacao) === OPERACAO_CORTE_FORRO) return COLUNA_CORTE_FORRO
+  return centro
+}
+
 /** Operacoes sao ordenadas por numero ("10" antes de "20"); texto vai pro fim, em ordem alfabetica. */
 function ordenarOperacoes(ops) {
   return [...ops].sort((a, b) => {
@@ -77,7 +90,7 @@ const SEMPRE_POR_ULTIMO = ['EXPEDIÇÃO', 'LOGÍSTICA']
 export function ordenarColunas(operacoes) {
   const posicao = new Map()
   for (const op of operacoes) {
-    const centro = nomeCentro(op.centroTrabalhoPlanejado) ?? SEM_CENTRO
+    const centro = colunaDaOperacao(op)
     const n = Number(op.operacao)
     const atual = posicao.get(centro)
     const valor = Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER
@@ -198,7 +211,7 @@ export function montarKanban({
       descricao: referencia.descricao,
       operacao: referencia.operacao,
       idOperacaoOrdem: referencia.id,
-      coluna: nomeCentro(referencia.centroTrabalhoPlanejado) ?? SEM_CENTRO,
+      coluna: colunaDaOperacao(referencia),
       status,
       // Cronometro vivo: o cliente conta a partir daqui. Ausente quando nao ha nada aberto.
       // Parado, ele conta ha quanto tempo a producao esta parada — que e o que interessa ver.

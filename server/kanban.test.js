@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { montarKanban, ordenarColunas, nomeCentro, STATUS, parseDataNomus } from './kanban.js'
+import { montarKanban, ordenarColunas, nomeCentro, STATUS, parseDataNomus, colunaDaOperacao, COLUNA_CORTE_FORRO } from './kanban.js'
 
 test('parseDataNomus le DD/MM/YYYY sem inverter dia e mes (Date.parse faria isso errado)', () => {
   // 03/07/2026 e 3 de julho. Date.parse, dependendo do motor, poderia ler como 7 de marco
@@ -251,4 +251,39 @@ test('filaAguardando vem ordenada da mais antiga pra mais nova (por idOrdem, nao
     k.filaAguardando.map((c) => c.nomeOrdem),
     ['OS-ANTIGA', 'OS-MEIO', 'OS-NOVA'],
   )
+})
+
+test('colunaDaOperacao: operacao 15 do CORTE vai pra coluna CORTE/FORRO; o resto fica no centro', () => {
+  assert.equal(colunaDaOperacao({ operacao: '15', centroTrabalhoPlanejado: 'CORTE' }), COLUNA_CORTE_FORRO)
+  assert.equal(colunaDaOperacao({ operacao: 15, centroTrabalhoPlanejado: { id: 1, nome: 'Corte' } }), COLUNA_CORTE_FORRO)
+  assert.equal(colunaDaOperacao({ operacao: '10', centroTrabalhoPlanejado: 'CORTE' }), 'CORTE')
+  assert.equal(colunaDaOperacao({ operacao: '15', centroTrabalhoPlanejado: 'PINTURA' }), 'PINTURA')
+  assert.equal(colunaDaOperacao({ operacao: '15' }), 'Sem centro de trabalho')
+})
+
+test('coluna CORTE/FORRO entra no quadro depois de CORTE/DOBRA e antes de PINTURA', () => {
+  const ops = [
+    { id: 1, idOrdem: 700, operacao: '10', centroTrabalhoPlanejado: 'CORTE' },
+    { id: 2, idOrdem: 701, operacao: '10', centroTrabalhoPlanejado: 'CORTE/DOBRA' },
+    { id: 3, idOrdem: 702, operacao: '15', centroTrabalhoPlanejado: 'CORTE' },
+    { id: 4, idOrdem: 700, operacao: '20', centroTrabalhoPlanejado: 'PINTURA' },
+  ]
+  assert.deepEqual(ordenarColunas(ops), ['CORTE', 'CORTE/DOBRA', 'CORTE/FORRO', 'PINTURA'])
+})
+
+test('card cuja proxima etapa e o corte de forro aparece na coluna CORTE/FORRO', () => {
+  const ops = [
+    { id: 10, idOrdem: 800, nomeOrdem: 'OS 00800 - 001', operacao: '15', descricao: 'Corte de chapa forro', centroTrabalhoPlanejado: 'CORTE' },
+    { id: 11, idOrdem: 800, nomeOrdem: 'OS 00800 - 001', operacao: '20', descricao: 'Pintura', centroTrabalhoPlanejado: 'PINTURA' },
+  ]
+  const k = montarKanban({
+    operacoes: ops,
+    apontamentos: [],
+    emAndamento: [{ idOperacaoOrdem: 10, dataHoraInicial: '2026-10-22T08:00:00', nomeFuncionario: 'Joao' }],
+  })
+  const coluna = k.colunas.find((c) => c.nome === 'CORTE/FORRO')
+  assert.ok(coluna, 'coluna CORTE/FORRO deveria existir')
+  assert.equal(coluna.cards.length, 1)
+  assert.equal(coluna.cards[0].nomeOrdem, 'OS 00800 - 001')
+  assert.equal(coluna.cards[0].status, STATUS.EM_PRODUCAO)
 })
