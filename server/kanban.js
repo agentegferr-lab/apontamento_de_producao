@@ -100,6 +100,17 @@ export function ordenarColunas(operacoes) {
 
   const normais = ordenado.filter((c) => !SEMPRE_POR_ULTIMO.includes(c))
   const porUltimo = SEMPRE_POR_ULTIMO.filter((c) => ordenado.includes(c))
+
+  // Corte/Forro vem logo ANTES da Pintura, mesmo que a numeracao diga outra coisa: ha produtos
+  // que so pintam (Pintura na operacao 10), o que puxa a Pintura pra antes da operacao 15 do
+  // forro. O fluxo fisico e sempre cortar antes de pintar.
+  const iForro = normais.indexOf(COLUNA_CORTE_FORRO)
+  if (iForro !== -1) {
+    normais.splice(iForro, 1)
+    const iPintura = normais.findIndex((c) => c.toUpperCase() === 'PINTURA')
+    if (iPintura !== -1) normais.splice(iPintura, 0, COLUNA_CORTE_FORRO)
+    else normais.splice(iForro, 0, COLUNA_CORTE_FORRO)
+  }
   return [...normais, ...porUltimo]
 }
 

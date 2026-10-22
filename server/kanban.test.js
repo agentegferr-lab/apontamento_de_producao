@@ -287,3 +287,18 @@ test('card cuja proxima etapa e o corte de forro aparece na coluna CORTE/FORRO',
   assert.equal(coluna.cards[0].nomeOrdem, 'OS 00800 - 001')
   assert.equal(coluna.cards[0].status, STATUS.EM_PRODUCAO)
 })
+
+test('CORTE/FORRO fica antes da PINTURA mesmo quando ha produto que pinta na operacao 10', () => {
+  const ops = [
+    { id: 1, idOrdem: 900, operacao: '10', centroTrabalhoPlanejado: 'CORTE' },
+    { id: 2, idOrdem: 901, operacao: '10', centroTrabalhoPlanejado: 'PINTURA' }, // so pinta
+    { id: 3, idOrdem: 902, operacao: '15', centroTrabalhoPlanejado: 'CORTE' },
+    { id: 4, idOrdem: 902, operacao: '20', centroTrabalhoPlanejado: 'PINTURA' },
+    { id: 5, idOrdem: 902, operacao: '30', centroTrabalhoPlanejado: 'COLAGEM' },
+    { id: 6, idOrdem: 902, operacao: '40', centroTrabalhoPlanejado: 'EXPEDIÇÃO' },
+  ]
+  const colunas = ordenarColunas(ops)
+  assert.ok(colunas.indexOf('CORTE/FORRO') < colunas.indexOf('PINTURA'))
+  assert.ok(colunas.indexOf('CORTE') < colunas.indexOf('CORTE/FORRO'))
+  assert.equal(colunas.indexOf('PINTURA') + 1, colunas.indexOf('COLAGEM'))
+})
