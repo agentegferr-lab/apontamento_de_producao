@@ -87,6 +87,8 @@ function montarUrl(caminho, query) {
  * Nao ha retry para 5xx: um POST /apontamentos que falhou por erro do servidor pode ter
  * sido gravado, e reenviar duplicaria o apontamento. Quem decide retentar e o operador.
  */
+const TENTATIVAS_FALHA_DE_REDE = 3
+
 async function requisitar(metodo, caminho, { query, body, maxTentativas, maxEsperaMs } = {}) {
   const url = montarUrl(caminho, query)
   const tentativasPermitidas = maxTentativas ?? config.maxTentativasThrottle
@@ -107,6 +109,13 @@ async function requisitar(metodo, caminho, { query, body, maxTentativas, maxEspe
       })
     } catch (erro) {
       const timeout = erro.name === 'TimeoutError' || erro.name === 'AbortError'
+      // Queda de conexao no meio de uma varredura de dezenas de paginas (ECONNRESET): GET e
+      // idempotente, entao tenta de novo em vez de jogar fora todas as paginas ja lidas.
+      if (metodo === 'GET' && !timeout && tentativa <= TENTATIVAS_FALHA_DE_REDE) {
+        console.warn(`[nomus] falha de rede em GET ${caminho} (${erro.message}) - tentando de novo (${tentativa}/${TENTATIVAS_FALHA_DE_REDE})`)
+        await dormir(1000 * tentativa)
+        continue
+      }
       throw new NomusError(
         timeout
           ? `Nomus nao respondeu em ${config.timeoutMs}ms (${metodo} ${caminho})`
@@ -201,6 +210,48 @@ async function requisitarPaginado(caminho, { query, tamanhoPagina = 50 } = {}) {
   return itens
 }
 
+/**
+ * Varredura INCREMENTAL de uma lista que o Nomus devolve do id mais NOVO pro mais antigo
+ * (confirmado em 2026-10-23 pra /apontamentos e /operacoesRoteiroOrdem): busca so as paginas
+ * novas, ate achar uma pagina inteira de registros que ja se conhece, e junta com o que ja
+ * estava em cache. De ~80 chamadas por atualizacao passa pra 1 ou 2.
+ *
+ * INCIDENTE (2026-10-22): a varredura completa (77 paginas so de apontamentos) era refeita do
+ * zero a cada atualizacao e descartada inteira se UMA pagina falhasse (429 esgotado, queda de
+ * conexao) — o cache de apontamentos ficava dias velho e uma OS com 3 etapas ja apontadas
+ * (OS 02764) caia na fila "nunca iniciada", sumindo do quadro.
+ *
+ * Uma varredura completa ainda roda a cada COMPLETO_A_CADA_MS (pega registro que mudou ou foi
+ * pra lixeira) e na primeira vez. O que nao e imutavel aqui (ex.: status da operacao) so e
+ * atualizado nessa varredura completa.
+ */
+const COMPLETO_A_CADA_MS = 6 * 60 * 60 * 1000
+async function varrerIncremental(chave, caminho) {
+  const atual = cache.get(chave)
+  const anterior = atual?.valor
+  const incremental =
+    Array.isArray(anterior) && anterior.length > 0 && atual.completoEm && Date.now() - atual.completoEm < COMPLETO_A_CADA_MS
+  if (!incremental) {
+    return { __comMeta: true, valor: await requisitarPaginado(caminho), completoEm: Date.now() }
+  }
+
+  const conhecidos = new Set(anterior.map((x) => x.id))
+  const novos = []
+  for (let pagina = 1; ; pagina++) {
+    if (pagina > 1) await dormir(300)
+    const dados = comoLista(await requisitar('GET', caminho, { query: { pagina }, maxTentativas: 6, maxEsperaMs: 120_000 }))
+    let todosConhecidos = true
+    for (const d of dados) {
+      if (conhecidos.has(d.id)) continue
+      conhecidos.add(d.id)
+      novos.push(d)
+      todosConhecidos = false
+    }
+    if (dados.length < 50 || todosConhecidos) break
+  }
+  return { __comMeta: true, valor: novos.length ? [...novos, ...anterior] : anterior, completoEm: atual.completoEm }
+}
+
 // --- Cache para dados de cadastro e para o roteiro/apontamentos completos -----------
 // Ler tudo paginado e caro (dezenas de paginas): o TTL e alto de proposito, seguindo o
 // mesmo valor validado por um projeto irmao que ja roda contra este mesmo Nomus.
@@ -245,7 +296,12 @@ function persistirCache() {
       for (const [chave, entrada] of cache.entries()) {
         // nunca grava a promise em voo/atualizacao de fundo, so o valor ja resolvido
         if (entrada.valor !== undefined) {
-          paraGravar[chave] = { valor: entrada.valor, expiraEm: entrada.expiraEm, atualizadoEm: entrada.atualizadoEm }
+          paraGravar[chave] = {
+            valor: entrada.valor,
+            expiraEm: entrada.expiraEm,
+            atualizadoEm: entrada.atualizadoEm,
+            completoEm: entrada.completoEm,
+          }
         }
       }
       fs.mkdirSync(path.dirname(ARQUIVO_CACHE), { recursive: true })
@@ -264,6 +320,13 @@ function persistirCache() {
 // timer reiniciava a varredura inteira do zero enquanto o Nomus ja estava limitando.
 const COOLDOWN_FALHA_MS = 60_000
 
+// Um produtor de varredura incremental devolve { __comMeta, valor, completoEm }: o `valor` e o
+// que vai pro cache; `completoEm` registra quando foi a ultima varredura COMPLETA.
+function desembrulhar(resultado) {
+  if (resultado && resultado.__comMeta) return { valor: resultado.valor, extra: { completoEm: resultado.completoEm } }
+  return { valor: resultado, extra: {} }
+}
+
 async function comCache(chave, produtor, ttlMsOverride) {
   const agora = Date.now()
   const entrada = cache.get(chave)
@@ -277,11 +340,13 @@ async function comCache(chave, produtor, ttlMsOverride) {
     const emCooldown = entrada.proximaTentativaEm && entrada.proximaTentativaEm > agora
     if (!entrada.atualizandoEmFundo && !emCooldown) {
       const emFundo = produtor()
-        .then((valor) => {
+        .then((resultado) => {
+          const { valor, extra } = desembrulhar(resultado)
           cache.set(chave, {
             valor,
             expiraEm: Date.now() + (ttlMsOverride ?? config.cacheTtlMs),
             atualizadoEm: Date.now(),
+            ...extra,
           })
           persistirCache()
         })
@@ -302,11 +367,13 @@ async function comCache(chave, produtor, ttlMsOverride) {
   if (entrada?.emVoo) return entrada.emVoo
 
   const emVoo = produtor()
-    .then((valor) => {
+    .then((resultado) => {
+      const { valor, extra } = desembrulhar(resultado)
       cache.set(chave, {
         valor,
         expiraEm: Date.now() + (ttlMsOverride ?? config.cacheTtlMs),
         atualizadoEm: Date.now(),
+        ...extra,
       })
       persistirCache()
       return valor
@@ -386,7 +453,7 @@ export const nomus = {
    * paginas; ver server/config.js.
    */
   async todasOperacoes() {
-    return comCache('operacoes:todas', () => requisitarPaginado('/operacoesRoteiroOrdem'))
+    return comCache('operacoes:todas', () => varrerIncremental('operacoes:todas', '/operacoesRoteiroOrdem'))
   },
 
   /**
@@ -460,7 +527,7 @@ export const nomus = {
 
   /** O que ja foi gravado no Nomus. Define quais etapas contam como concluidas. */
   async apontamentos() {
-    return comCache('apontamentos', () => requisitarPaginado('/apontamentos'))
+    return comCache('apontamentos', () => varrerIncremental('apontamentos', '/apontamentos'))
   },
 
   async criarApontamento(payload) {
