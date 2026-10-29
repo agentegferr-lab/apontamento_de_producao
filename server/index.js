@@ -11,6 +11,7 @@ import { montarRelatorioProducao } from './relatorioProducao.js'
 import { gerarPdfRelatorioProducao } from './relatorioProducaoPdf.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
 import { situacaoDaOrdem, idsRecusadosPeloNomus } from './ordens.js'
+import { apontamentosDaOperacao, mensagemProcessoJaApontado } from './duplicidade.js'
 import { mapaPedidosPorOrdem, buscarPedidoPorCodigo, ultimaAtualizacaoOrdens, forcarOrdensRecentes } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
 import { pedidosOcultos } from './pedidosOcultos.js'
@@ -80,6 +81,23 @@ async function resolverFuncionarioPorMatricula(matricula) {
     throw new AppError(`${funcionario.nome} está inativo no Nomus.`, 403, 'FUNCIONARIO_INATIVO')
   }
   return funcionario
+}
+
+/**
+ * Trava: o mesmo processo da mesma ordem so pode ser apontado UMA vez (ver server/duplicidade.js).
+ * Confere primeiro a lista em cache (instantaneo — inclui o que este servidor acabou de gravar)
+ * e depois pergunta ao Nomus direto pra esse processo, que pega o que o cache ainda nao viu.
+ * Se o Nomus nao responder, vale o que o cache disse: nao trava o operador por causa de um 429.
+ */
+async function garantirProcessoNaoApontado(operacao) {
+  const id = operacao.idOperacaoOrdem
+  let existentes = apontamentosDaOperacao(await nomus.apontamentos().catch(() => []), id)
+  if (existentes.length === 0) {
+    existentes = apontamentosDaOperacao(await nomus.apontamentosDaOperacao(id).catch(() => []), id)
+  }
+  if (existentes.length > 0) {
+    throw new AppError(mensagemProcessoJaApontado(operacao, existentes), 409, 'PROCESSO_JA_APONTADO')
+  }
 }
 
 /**
@@ -277,6 +295,9 @@ app.post(
         'JA_EM_ANDAMENTO',
       )
     }
+
+    // So aqui (depois do "retomar"): um processo pausado ainda esta aberto e nao conta como apontado.
+    await garantirProcessoNaoApontado(operacao)
 
     const [funcionario, atividade] = await Promise.all([
       resolverFuncionarioPorMatricula(matricula),

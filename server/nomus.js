@@ -530,6 +530,22 @@ export const nomus = {
     return comCache('apontamentos', () => varrerIncremental('apontamentos', '/apontamentos'))
   },
 
+  /**
+   * Apontamentos JA gravados de UMA operacao, direto no Nomus (sem cache) — e o que a trava de
+   * duplicidade consulta (ver server/duplicidade.js): o cache de /apontamentos pode estar
+   * alguns minutos atras de um apontamento lancado por outro terminal ou direto no Nomus.
+   * Espera curta no 429 (e uma chamada interativa, o operador esta na tela).
+   */
+  async apontamentosDaOperacao(idOperacaoOrdem) {
+    return comoLista(
+      await requisitar('GET', '/apontamentos', {
+        query: { query: `idOperacaoOrdem==${Number(idOperacaoOrdem)}`, pagina: 1 },
+        maxTentativas: 3,
+        maxEsperaMs: 20_000,
+      }),
+    )
+  },
+
   async criarApontamento(payload) {
     const criado = await requisitar('POST', '/apontamentos', { body: payload })
     // Sem isto o kanban continuaria mostrando a etapa como pendente ate o cache vencer, e
