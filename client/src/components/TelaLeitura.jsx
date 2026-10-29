@@ -126,13 +126,20 @@ export default function TelaLeitura({ onMudouAndamento }) {
 
       // A atividade exige um dado que a tela de leitura nao pede por padrao: pergunta agora
       // em vez de recusar o apontamento e perder o tempo ja cronometrado.
-      if (erro.codigo === 'QUANTIDADE_OBRIGATORIA' || erro.codigo === 'PERCENTUAL_OBRIGATORIO') {
-        const quantidade = erro.codigo === 'QUANTIDADE_OBRIGATORIA'
+      if (
+        erro.codigo === 'QUANTIDADE_OBRIGATORIA' ||
+        erro.codigo === 'PERCENTUAL_OBRIGATORIO' ||
+        erro.codigo === 'QUANTIDADE_ACIMA_DA_ORDEM'
+      ) {
+        const quantidade = erro.codigo !== 'PERCENTUAL_OBRIGATORIO'
+        // Passou da quantidade da ordem: o processo continua aberto no servidor, entao reabre
+        // o campo com o motivo e o operador so corrige o numero (mesmo instante final).
         setPedindo({
           campo: quantidade ? 'quantidade' : 'percentualProdutoAndamento',
           rotulo: quantidade ? 'Quantidade produzida' : '% concluido',
           valor: '',
           extras,
+          erro: erro.codigo === 'QUANTIDADE_ACIMA_DA_ORDEM' ? erro.message : null,
         })
         setAviso(null)
       } else {
@@ -398,6 +405,11 @@ export default function TelaLeitura({ onMudouAndamento }) {
         <div className="modal" role="dialog" aria-modal="true" aria-label={pedindo.rotulo}>
           <form className="modal__caixa" onSubmit={confirmarPedido}>
             <h2 className="modal__titulo">{pedindo.rotulo}</h2>
+            {pedindo.erro && (
+              <p className="aviso aviso--erro" role="alert">
+                {pedindo.erro}
+              </p>
+            )}
             <p className="modal__texto">
               A atividade desta etapa exige este dado para gravar o apontamento no Nomus. O tempo já
               cronometrado está guardado.

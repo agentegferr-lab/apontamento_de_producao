@@ -136,7 +136,7 @@ const componentesListaMateriais = {
 }
 
 const operacoes = []
-PRODUTOS.forEach(([nomeOrdem, produto], i) => {
+PRODUTOS.forEach(([nomeOrdem, produto, , , , qtde], i) => {
   const idOrdem = 501 + i
   ROTEIRO.forEach(([operacao, etapa, centro], j) => {
     operacoes.push({
@@ -146,6 +146,8 @@ PRODUTOS.forEach(([nomeOrdem, produto], i) => {
       operacao,
       descricao: `${etapa} — ${produto}`,
       centroTrabalhoPlanejado: centro,
+      // Texto brasileiro, igual ao Nomus real (ex.: "21", "15,6") — base da trava de quantidade.
+      qtdePlanejada: String(qtde).replace('.', ','),
     })
   })
 })

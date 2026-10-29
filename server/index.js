@@ -12,6 +12,7 @@ import { gerarPdfRelatorioProducao } from './relatorioProducaoPdf.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
 import { situacaoDaOrdem, idsRecusadosPeloNomus } from './ordens.js'
 import { apontamentosDaOperacao, mensagemProcessoJaApontado } from './duplicidade.js'
+import { validarQuantidade, somarQuantidadeApontada, mensagemQuantidadeAcima } from './quantidade.js'
 import { mapaPedidosPorOrdem, buscarPedidoPorCodigo, ultimaAtualizacaoOrdens, forcarOrdensRecentes } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
 import { pedidosOcultos } from './pedidosOcultos.js'
@@ -398,6 +399,18 @@ app.post(
         422,
         'PERCENTUAL_OBRIGATORIO',
       )
+    }
+
+    // Trava: nao aponta mais do que a quantidade da ordem (ja descontado o que ja foi gravado
+    // pra esta etapa). Fica ANTES de fechar o segmento: o recusado continua aberto no terminal
+    // e o operador so corrige a quantidade e finaliza de novo. Num retry (algum segmento ja
+    // enviado) nao revalida — aquela quantidade o Nomus ja aceitou, e contaria em dobro.
+    if (Number(quantidade) > 0 && !aberto.segmentos?.some((seg) => seg.enviado)) {
+      const jaApontada = somarQuantidadeApontada(apontamentosDaOperacao(await nomus.apontamentos().catch(() => []), operacao.idOperacaoOrdem))
+      const veredito = validarQuantidade({ quantidade: Number(quantidade), qtdePlanejada: operacao.qtdePlanejada, jaApontada })
+      if (!veredito.ok) {
+        throw new AppError(mensagemQuantidadeAcima(operacao, quantidade, veredito, jaApontada), 422, 'QUANTIDADE_ACIMA_DA_ORDEM')
+      }
     }
 
     // Fecha o intervalo em curso: agora todo o trabalho esta em `segmentos`.

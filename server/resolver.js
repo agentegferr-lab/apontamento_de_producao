@@ -85,6 +85,9 @@ export function resolverNaLista(operacoes, codigoOrdem, codigoProcesso) {
     nomeOrdem: op.nomeOrdem,
     descricao: op.descricao,
     operacao: op.operacao,
+    // Quantidade da ordem pra esta etapa (texto BR do Nomus) — base da trava de quantidade
+    // (ver server/quantidade.js).
+    qtdePlanejada: op.qtdePlanejada,
     centroTrabalhoPlanejado: op.centroTrabalhoPlanejado,
     // Confirmado contra o Nomus real: a propria operacao pode listar o(s) recurso(s)
     // planejados pra ela. Ver server/recursos.js — e a fonte preferida do idRecurso.
