@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { categorizarMaterial, resumirMateriais, chaveDoPedido } from './materiaisPedido.js'
+import { categorizarMaterial, resumirMateriais, chaveDoPedido, entradaValida } from './materiaisPedido.js'
 
 test('categorizarMaterial reconhece as descricoes reais do catalogo', () => {
   const casos = [
@@ -52,4 +52,12 @@ test('chaveDoPedido normaliza "2019", "PD 02019" e "pd02019" para a mesma chave'
   assert.equal(chaveDoPedido('PD 02019'), '2019')
   assert.equal(chaveDoPedido('pd02019'), '2019')
   assert.equal(chaveDoPedido(''), null)
+})
+
+test('entradaValida: material resolvido vale sempre; "nao encontrado" expira em 24h', () => {
+  const agora = Date.now()
+  assert.equal(entradaValida(null, agora), false)
+  assert.equal(entradaValida({ categorias: ['Telha simples'], itens: [], em: agora - 365 * 24 * 3600 * 1000 }, agora), true)
+  assert.equal(entradaValida({ categorias: [], itens: [], naoEncontrado: true, em: agora - 3600 * 1000 }, agora), true)
+  assert.equal(entradaValida({ categorias: [], itens: [], naoEncontrado: true, em: agora - 25 * 3600 * 1000 }, agora), false)
 })

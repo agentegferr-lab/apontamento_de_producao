@@ -24,6 +24,11 @@ import { motoristas } from './motoristas.js'
 import { entregas } from './entregas.js'
 import { materiaisConhecidos, pedirMateriais } from './materiaisPedido.js'
 
+// Pedidos das entregas, das mais recentes pras mais antigas (o que a tela mostra primeiro sai antes).
+function pedidosMaisRecentesPrimeiro(lista) {
+  return [...lista].sort((a, b) => String(b.data).localeCompare(String(a.data))).map((e) => e.pedido)
+}
+
 try {
   validarConfig()
 } catch (erro) {
@@ -707,7 +712,7 @@ app.get(
     const lista = entregas.listar()
     // Material do pedido (telha sanduiche, parafuso...): o que ja foi resolvido vai junto; o
     // resto e buscado no Nomus em segundo plano e aparece na proxima leitura (`materiais: null`).
-    pedirMateriais(lista.map((e) => e.pedido))
+    pedirMateriais(pedidosMaisRecentesPrimeiro(lista))
     res.json(
       lista.map((e) => {
         const m = materiaisConhecidos(e.pedido)
@@ -947,3 +952,7 @@ function iniciarAtualizacaoDeFundo() {
 }
 
 iniciarAtualizacaoDeFundo()
+
+// Material dos pedidos JA entregues: resolve tudo em segundo plano logo na subida, sem esperar
+// alguem abrir a tela de Entregas (depois de resolvido, fica em dados/cache-materiais-pedido.json).
+pedirMateriais(pedidosMaisRecentesPrimeiro(entregas.listar()))

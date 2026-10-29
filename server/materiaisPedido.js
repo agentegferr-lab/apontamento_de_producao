@@ -96,14 +96,30 @@ function persistir() {
   timer.unref?.()
 }
 
-/** Material ja resolvido do pedido, ou null (ainda nao resolvido). */
+const NAO_ENCONTRADO_VALE_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Uma entrada em cache vale enquanto nao expirar: material resolvido vale pra sempre (os itens
+ * de um pedido ja entregue nao mudam); "pedido nao encontrado" vale 24h e depois e tentado de
+ * novo (o numero pode ter sido digitado errado, ou o pedido criado depois).
+ */
+export function entradaValida(entrada, agora = Date.now()) {
+  if (!entrada) return false
+  if (entrada.naoEncontrado) return agora - entrada.em < NAO_ENCONTRADO_VALE_MS
+  return true
+}
+
+/**
+ * Material ja resolvido do pedido, ou null (ainda nao resolvido). `categorias: []` com
+ * `naoEncontrado: true` = o Nomus nao tem esse numero de pedido (a tela para de esperar).
+ */
 export function materiaisConhecidos(pedido) {
   const chave = chaveDoPedido(pedido)
-  return chave ? (cache.get(chave) ?? null) : null
+  const entrada = chave ? cache.get(chave) : null
+  return entradaValida(entrada) ? entrada : null
 }
 
 const COOLDOWN_FALHA_MS = 5 * 60 * 1000
-const COOLDOWN_NAO_ENCONTRADO_MS = 60 * 60 * 1000
 const PAUSA_ENTRE_PEDIDOS_MS = 400
 const proximaTentativa = new Map() // chave -> quando pode tentar de novo
 const fila = new Set()
@@ -116,7 +132,8 @@ async function resolverPedido(chave) {
   const encontrados = await nomus.consultaSemCache('/pedidos', { query: `codigoPedido=="${codigo}"`, pagina: 1 })
   const pedido = encontrados[0]
   if (!pedido) {
-    proximaTentativa.set(chave, Date.now() + COOLDOWN_NAO_ENCONTRADO_MS)
+    cache.set(chave, { categorias: [], itens: [], naoEncontrado: true, em: Date.now() })
+    persistir()
     return
   }
   const descricoes = []
@@ -147,7 +164,7 @@ async function processarFila() {
 export function pedirMateriais(pedidos) {
   for (const pedido of pedidos ?? []) {
     const chave = chaveDoPedido(pedido)
-    if (!chave || cache.has(chave) || fila.has(chave)) continue
+    if (!chave || entradaValida(cache.get(chave)) || fila.has(chave)) continue
     if ((proximaTentativa.get(chave) ?? 0) > Date.now()) continue
     fila.add(chave)
   }

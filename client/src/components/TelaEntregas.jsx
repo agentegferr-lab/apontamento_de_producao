@@ -63,12 +63,13 @@ export default function TelaEntregas({ adminLiberado, onPedirSenha }) {
   const faltaMaterial = (entregas ?? []).some((e) => e.materiais === null)
   useEffect(() => {
     if (!faltaMaterial) return undefined
+    // Muitos pedidos antigos podem levar alguns minutos (uma consulta ao Nomus por pedido).
     let tentativas = 0
     const id = setInterval(() => {
       tentativas += 1
       api.entregas.listar().then(setEntregas).catch(() => {})
-      if (tentativas >= 12) clearInterval(id)
-    }, 6000)
+      if (tentativas >= 60) clearInterval(id)
+    }, 10_000)
     return () => clearInterval(id)
   }, [faltaMaterial])
 
@@ -786,7 +787,10 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
                     <td data-rotulo="Cliente" className="entregas__col-cliente entregas__celula-truncada" title={e.cliente ?? '—'}>
                       {e.cliente ?? '—'}
                     </td>
-                    <td data-rotulo="Material" title={(e.materialItens ?? []).join('\n') || undefined}>
+                    <td
+                      data-rotulo="Material"
+                      title={(e.materialItens ?? []).join('\n') || (Array.isArray(e.materiais) ? 'Pedido não encontrado no Nomus' : 'Buscando no Nomus...')}
+                    >
                       {Array.isArray(e.materiais) && e.materiais.length > 0 ? (
                         <span className="entregas__materiais">
                           {e.materiais.slice(0, 3).map((m) => (
