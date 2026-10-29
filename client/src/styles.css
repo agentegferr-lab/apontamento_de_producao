@@ -2200,6 +2200,26 @@ body {
   min-width: 200px;
   max-width: 260px;
 }
+.entregas__materiais {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.chip-material {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: var(--tinta);
+  background: var(--fundo);
+  border: 1px solid var(--linha);
+  border-radius: 999px;
+}
+.chip-material--mais {
+  color: var(--tinta-fraca);
+}
 .entregas__celula-truncada {
   overflow: hidden;
   text-overflow: ellipsis;

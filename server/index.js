@@ -22,6 +22,7 @@ import { AppError, asyncRoute } from './erros.js'
 import { caminhoes } from './caminhoes.js'
 import { motoristas } from './motoristas.js'
 import { entregas } from './entregas.js'
+import { materiaisConhecidos, pedirMateriais } from './materiaisPedido.js'
 
 try {
   validarConfig()
@@ -702,7 +703,18 @@ app.patch(
 
 app.get(
   '/api/entregas',
-  asyncRoute(async (_req, res) => res.json(entregas.listar())),
+  asyncRoute(async (_req, res) => {
+    const lista = entregas.listar()
+    // Material do pedido (telha sanduiche, parafuso...): o que ja foi resolvido vai junto; o
+    // resto e buscado no Nomus em segundo plano e aparece na proxima leitura (`materiais: null`).
+    pedirMateriais(lista.map((e) => e.pedido))
+    res.json(
+      lista.map((e) => {
+        const m = materiaisConhecidos(e.pedido)
+        return { ...e, materiais: m ? m.categorias : null, materialItens: m ? m.itens.map((i) => i.descricao) : null }
+      }),
+    )
+  }),
 )
 
 app.post(

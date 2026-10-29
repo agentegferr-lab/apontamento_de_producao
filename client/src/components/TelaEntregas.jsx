@@ -58,6 +58,20 @@ export default function TelaEntregas({ adminLiberado, onPedirSenha }) {
     carregar()
   }, [])
 
+  // O material de cada pedido e buscado no Nomus em segundo plano pelo servidor (`materiais:
+  // null` = ainda nao resolvido): relê a lista algumas vezes ate preencher, sem F5.
+  const faltaMaterial = (entregas ?? []).some((e) => e.materiais === null)
+  useEffect(() => {
+    if (!faltaMaterial) return undefined
+    let tentativas = 0
+    const id = setInterval(() => {
+      tentativas += 1
+      api.entregas.listar().then(setEntregas).catch(() => {})
+      if (tentativas >= 12) clearInterval(id)
+    }, 6000)
+    return () => clearInterval(id)
+  }, [faltaMaterial])
+
   function abrirSubaba(valor) {
     if (valor === 'cadastro' && !adminLiberado) {
       onPedirSenha()
@@ -753,6 +767,7 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
                   <th>Caminhão</th>
                   <th>Pedido</th>
                   <th className="entregas__col-cliente">Cliente</th>
+                  <th>Material</th>
                   <th className="col-numerica">Metragem</th>
                   <th className="col-numerica">Valor</th>
                   <th>Status</th>
@@ -770,6 +785,20 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
                     <td data-rotulo="Pedido">{e.pedido}</td>
                     <td data-rotulo="Cliente" className="entregas__col-cliente entregas__celula-truncada" title={e.cliente ?? '—'}>
                       {e.cliente ?? '—'}
+                    </td>
+                    <td data-rotulo="Material" title={(e.materialItens ?? []).join('\n') || undefined}>
+                      {Array.isArray(e.materiais) && e.materiais.length > 0 ? (
+                        <span className="entregas__materiais">
+                          {e.materiais.slice(0, 3).map((m) => (
+                            <span className="chip-material" key={m}>
+                              {m}
+                            </span>
+                          ))}
+                          {e.materiais.length > 3 && <span className="chip-material chip-material--mais">+{e.materiais.length - 3}</span>}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td data-rotulo="Metragem" className="col-numerica">
                       {e.metragem != null ? formatarMetragem(e.metragem) : '—'}

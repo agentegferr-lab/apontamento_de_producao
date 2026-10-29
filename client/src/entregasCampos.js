@@ -176,8 +176,13 @@ function escaparCsv(valor) {
  * casa decimal), datas dd/MM/aaaa, moeda "R$ 1.234,56". `nomeMotorista`/`placaCaminhao` sao
  * Map(id -> texto), o mesmo que o componente ja monta pra exibir a tabela.
  */
+/** Categorias de material do pedido -> "Telha sanduíche / Parafuso"; "—" enquanto nao resolvido ou sem itens. */
+export function textoMaterial(materiais) {
+  return Array.isArray(materiais) && materiais.length > 0 ? materiais.join(' / ') : '—'
+}
+
 export function gerarCsvEntregas(linhas, { nomeMotorista, placaCaminhao }) {
-  const cabecalho = ['Data', 'Motorista', 'Caminhão', 'Pedido', 'Cliente', 'Metragem (m²)', 'Valor', 'Status']
+  const cabecalho = ['Data', 'Motorista', 'Caminhão', 'Pedido', 'Cliente', 'Material', 'Metragem (m²)', 'Valor', 'Status']
   const corpo = linhas.map((e) =>
     [
       formatarDataBr(e.data),
@@ -185,6 +190,7 @@ export function gerarCsvEntregas(linhas, { nomeMotorista, placaCaminhao }) {
       placaCaminhao.get(e.caminhaoId) ?? '—',
       e.pedido,
       e.cliente ?? '—',
+      textoMaterial(e.materiais),
       e.metragem != null ? formatarNumeroBr(e.metragem) : '—',
       e.valor != null ? formatarMoedaNumero(e.valor) : '—',
       'Entregue',

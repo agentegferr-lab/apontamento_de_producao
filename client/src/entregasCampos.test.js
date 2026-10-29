@@ -14,6 +14,7 @@ import {
   filtrarPorSelecao,
   paginar,
   gerarCsvEntregas,
+  textoMaterial,
 } from './entregasCampos.js'
 
 // 2026-07-25 e sabado — bom caso de teste pra semana (nao cai no domingo/inicio de semana).
@@ -191,8 +192,8 @@ test('gerarCsvEntregas: BOM + separador ";" + cabecalho + linhas formatadas em p
   const csv = gerarCsvEntregas(linhas, { nomeMotorista, placaCaminhao })
   assert.ok(csv.startsWith('﻿'))
   const linhasCsv = csv.slice(1).split('\r\n')
-  assert.equal(linhasCsv[0], 'Data;Motorista;Caminhão;Pedido;Cliente;Metragem (m²);Valor;Status')
-  assert.equal(linhasCsv[1], '27/07/2026;João;ABC-1234;PD 00922;Wellington;69;R$ 9.500,00;Entregue')
+  assert.equal(linhasCsv[0], 'Data;Motorista;Caminhão;Pedido;Cliente;Material;Metragem (m²);Valor;Status')
+  assert.equal(linhasCsv[1], '27/07/2026;João;ABC-1234;PD 00922;Wellington;—;69;R$ 9.500,00;Entregue')
 })
 
 test('gerarCsvEntregas: escapa valores com ";" entre aspas', () => {
@@ -201,4 +202,18 @@ test('gerarCsvEntregas: escapa valores com ";" entre aspas', () => {
     { nomeMotorista: new Map(), placaCaminhao: new Map() },
   )
   assert.ok(csv.includes('"Cliente; com ponto e vírgula"'))
+})
+
+test('gerarCsvEntregas: coluna Material junta as categorias do pedido', () => {
+  const csv = gerarCsvEntregas(
+    [{ data: '2026-10-29', motoristaId: 'm1', caminhaoId: 'c1', pedido: '2019', cliente: 'X', metragem: 7.5, valor: 782.5, materiais: ['Telha sanduíche', 'Parafuso'] }],
+    { nomeMotorista: new Map(), placaCaminhao: new Map() },
+  )
+  assert.ok(csv.includes(';Telha sanduíche / Parafuso;7,5;'))
+})
+
+test('textoMaterial: traco enquanto nao resolvido ou vazio', () => {
+  assert.equal(textoMaterial(null), '—')
+  assert.equal(textoMaterial([]), '—')
+  assert.equal(textoMaterial(['Telha simples']), 'Telha simples')
 })
