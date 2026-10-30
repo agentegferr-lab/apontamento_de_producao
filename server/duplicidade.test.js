@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { apontamentosDaOperacao, mensagemProcessoJaApontado } from './duplicidade.js'
+import { apontamentosDaOperacao, mensagemProcessoJaApontado, processoSemTravas } from './duplicidade.js'
 
 test('apontamentosDaOperacao devolve so os da operacao pedida (id numero ou texto)', () => {
   const lista = [
@@ -31,4 +31,20 @@ test('mensagem diz qual ordem e qual processo ja foram apontados', () => {
 test('mensagem funciona sem descricao nem data', () => {
   const msg = mensagemProcessoJaApontado({ nomeOrdem: 'OS 1', operacao: '20' })
   assert.match(msg, /processo 20\./)
+})
+
+test('processoSemTravas: so o centro CORTE (texto ou objeto, qualquer caixa) fica livre', () => {
+  assert.equal(processoSemTravas({ centroTrabalhoPlanejado: 'CORTE' }), true)
+  assert.equal(processoSemTravas({ centroTrabalhoPlanejado: 'Corte' }), true)
+  assert.equal(processoSemTravas({ centroTrabalhoPlanejado: { id: 1, nome: 'CORTE' } }), true)
+  // a operacao 15 (corte de forro) usa o centro CORTE no Nomus: tambem livre
+  assert.equal(processoSemTravas({ operacao: '15', centroTrabalhoPlanejado: 'CORTE' }), true)
+})
+
+test('processoSemTravas: os demais centros continuam travados (inclusive Corte/Dobra)', () => {
+  for (const centro of ['CORTE/DOBRA', 'PINTURA', 'COLAGEM', 'EXPEDIÇÃO', 'LOGÍSTICA']) {
+    assert.equal(processoSemTravas({ centroTrabalhoPlanejado: centro }), false, centro)
+  }
+  assert.equal(processoSemTravas({}), false)
+  assert.equal(processoSemTravas(undefined), false)
 })

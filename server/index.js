@@ -11,7 +11,7 @@ import { montarRelatorioProducao } from './relatorioProducao.js'
 import { gerarPdfRelatorioProducao } from './relatorioProducaoPdf.js'
 import { resolverRecursoDaOperacao } from './recursos.js'
 import { situacaoDaOrdem, idsRecusadosPeloNomus } from './ordens.js'
-import { apontamentosDaOperacao, mensagemProcessoJaApontado } from './duplicidade.js'
+import { apontamentosDaOperacao, mensagemProcessoJaApontado, processoSemTravas } from './duplicidade.js'
 import { validarQuantidade, somarQuantidadeApontada, mensagemQuantidadeAcima } from './quantidade.js'
 import { mapaPedidosPorOrdem, buscarPedidoPorCodigo, ultimaAtualizacaoOrdens, forcarOrdensRecentes } from './pedidos.js'
 import { planejamento, REGEX_DATA } from './planejamento.js'
@@ -304,7 +304,7 @@ app.post(
     }
 
     // So aqui (depois do "retomar"): um processo pausado ainda esta aberto e nao conta como apontado.
-    await garantirProcessoNaoApontado(operacao)
+    if (!processoSemTravas(operacao)) await garantirProcessoNaoApontado(operacao)
 
     const [funcionario, atividade] = await Promise.all([
       resolverFuncionarioPorMatricula(matricula),
@@ -411,7 +411,7 @@ app.post(
     // pra esta etapa). Fica ANTES de fechar o segmento: o recusado continua aberto no terminal
     // e o operador so corrige a quantidade e finaliza de novo. Num retry (algum segmento ja
     // enviado) nao revalida — aquela quantidade o Nomus ja aceitou, e contaria em dobro.
-    if (Number(quantidade) > 0 && !aberto.segmentos?.some((seg) => seg.enviado)) {
+    if (!processoSemTravas(operacao) && Number(quantidade) > 0 && !aberto.segmentos?.some((seg) => seg.enviado)) {
       const jaApontada = somarQuantidadeApontada(apontamentosDaOperacao(await nomus.apontamentos().catch(() => []), operacao.idOperacaoOrdem))
       const veredito = validarQuantidade({ quantidade: Number(quantidade), qtdePlanejada: operacao.qtdePlanejada, jaApontada })
       if (!veredito.ok) {
