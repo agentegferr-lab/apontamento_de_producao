@@ -33,7 +33,10 @@ test('mensagem funciona sem descricao nem data', () => {
   assert.match(msg, /processo 20\./)
 })
 
-test('processoSemTravas: so o centro CORTE (texto ou objeto, qualquer caixa) fica livre', () => {
+test('processoSemTravas: CORTE e PINTURA (texto ou objeto, qualquer caixa) ficam livres', () => {
+  assert.equal(processoSemTravas({ centroTrabalhoPlanejado: 'PINTURA' }), true)
+  assert.equal(processoSemTravas({ centroTrabalhoPlanejado: 'Pintura' }), true)
+  assert.equal(processoSemTravas({ centroTrabalhoPlanejado: { id: 2, nome: 'PINTURA' } }), true)
   assert.equal(processoSemTravas({ centroTrabalhoPlanejado: 'CORTE' }), true)
   assert.equal(processoSemTravas({ centroTrabalhoPlanejado: 'Corte' }), true)
   assert.equal(processoSemTravas({ centroTrabalhoPlanejado: { id: 1, nome: 'CORTE' } }), true)
@@ -42,7 +45,7 @@ test('processoSemTravas: so o centro CORTE (texto ou objeto, qualquer caixa) fic
 })
 
 test('processoSemTravas: os demais centros continuam travados (inclusive Corte/Dobra)', () => {
-  for (const centro of ['CORTE/DOBRA', 'PINTURA', 'COLAGEM', 'EXPEDIÇÃO', 'LOGÍSTICA']) {
+  for (const centro of ['CORTE/DOBRA', 'COLAGEM', 'EXPEDIÇÃO', 'LOGÍSTICA']) {
     assert.equal(processoSemTravas({ centroTrabalhoPlanejado: centro }), false, centro)
   }
   assert.equal(processoSemTravas({}), false)

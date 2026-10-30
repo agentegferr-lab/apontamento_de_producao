@@ -2,12 +2,12 @@ import { nomeCentro } from './kanban.js'
 
 /**
  * Centros de trabalho SEM travas (nem a de "processo ja apontado" nem a de quantidade acima da
- * ordem). O Corte fica livre (combinado com o usuario em 2026-10-30): la o mesmo processo pode
- * ser apontado mais de uma vez e a quantidade pode passar da ordem. Inclui a operacao 15
- * (corte de forro), que no Nomus usa o centro CORTE; CORTE/DOBRA e outro centro e CONTINUA
- * travado. Pra liberar outro centro, e so acrescentar o nome aqui.
+ * ordem). Corte e Pintura ficam livres (combinado com o usuario em 2026-10-30): la o mesmo
+ * processo pode ser apontado mais de uma vez e a quantidade pode passar da ordem. Corte inclui
+ * a operacao 15 (corte de forro), que no Nomus usa o centro CORTE; CORTE/DOBRA e outro centro
+ * e CONTINUA travado. Pra liberar outro centro, e so acrescentar o nome aqui.
  */
-export const CENTROS_SEM_TRAVAS = ['CORTE']
+export const CENTROS_SEM_TRAVAS = ['CORTE', 'PINTURA']
 
 /** true quando o processo e de um centro sem travas (ver CENTROS_SEM_TRAVAS). */
 export function processoSemTravas(operacao) {
