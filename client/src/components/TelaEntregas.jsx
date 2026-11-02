@@ -608,15 +608,15 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
 
   // O servidor consulta o Nomus pedido a pedido (vendedor, valor, recebimento): acompanha o
   // andamento e baixa o PDF quando ficar pronto.
-  async function gerarRelatorioCompleto() {
-    setGerandoPdf({ feitos: 0, total: doPeriodo.length })
+  async function gerarRelatorioCompleto(tipo = 'completo') {
+    setGerandoPdf({ feitos: 0, total: doPeriodo.length, tipo })
     onErro(null)
     try {
-      const { id } = await api.entregas.relatorioCompleto.iniciar(periodo.inicio, periodo.fim, periodo.rotulo)
+      const { id } = await api.entregas.relatorioCompleto.iniciar(periodo.inicio, periodo.fim, periodo.rotulo, tipo)
       for (;;) {
         await new Promise((resolver) => setTimeout(resolver, 1500))
         const estado = await api.entregas.relatorioCompleto.estado(id)
-        setGerandoPdf({ feitos: estado.feitos, total: estado.total })
+        setGerandoPdf({ feitos: estado.feitos, total: estado.total, tipo })
         if (estado.status === 'pronto') {
           window.location.assign(api.entregas.relatorioCompleto.urlPdf(id))
           break
@@ -781,11 +781,20 @@ function Relatorio({ entregas, motoristas, caminhoes, onMudou, onErro }) {
           <button
             type="button"
             className="botao botao--neutro botao--pequeno"
-            onClick={gerarRelatorioCompleto}
+            onClick={() => gerarRelatorioCompleto('completo')}
             disabled={doPeriodo.length === 0 || gerandoPdf != null}
             title="Todos os pedidos entregues no período, por loja e por motorista, com vendedor e recebimento na entrega"
           >
-            {gerandoPdf ? `Gerando PDF... ${gerandoPdf.feitos}/${gerandoPdf.total}` : 'Relatório completo (PDF)'}
+            {gerandoPdf?.tipo === 'completo' ? `Gerando PDF... ${gerandoPdf.feitos}/${gerandoPdf.total}` : 'Relatório completo (PDF)'}
+          </button>
+          <button
+            type="button"
+            className="botao botao--neutro botao--pequeno"
+            onClick={() => gerarRelatorioCompleto('prazo')}
+            disabled={doPeriodo.length === 0 || gerandoPdf != null}
+            title="Data de entrega prometida no Nomus x data real da entrega, por loja: no prazo, atrasados e dias de atraso"
+          >
+            {gerandoPdf?.tipo === 'prazo' ? `Gerando PDF... ${gerandoPdf.feitos}/${gerandoPdf.total}` : 'Relatório de prazo (PDF)'}
           </button>
         </div>
       </div>

@@ -10,6 +10,8 @@ import { entregas } from './entregas.js'
 import { motoristas } from './motoristas.js'
 import { caminhoes } from './caminhoes.js'
 import { gerarPdfEntregasCompleto } from './relatorioEntregasPdf.js'
+import { gerarPdfPrazo } from './relatorioPrazoPdf.js'
+import { dataPrometidaDoPedido, dataNomusParaIso as dataIso, consolidarEntregasPorPedido, montarLinhaPrazo, agruparPrazo } from './relatorioPrazo.js'
 import PDFDocument from 'pdfkit'
 
 /**
@@ -215,7 +217,7 @@ async function dadosDoPedido(pedido) {
   const chave = chaveDoPedido(pedido)
   if (!chave) return { encontrado: false }
   const guardado = cachePedidos.get(chave)
-  if (guardado && Date.now() - guardado.em < VALE_PEDIDO_MS && (guardado.parcelas !== undefined || !guardado.encontrado)) return guardado
+  if (guardado && Date.now() - guardado.em < VALE_PEDIDO_MS && (!guardado.encontrado || (guardado.parcelas !== undefined && guardado.prazoIso !== undefined))) return guardado
 
   const lista = await nomus.obterComPaciencia('/pedidos', { query: `codigoPedido=="${codigoNomusDoPedido(pedido)}"`, pagina: 1 })
   const p = Array.isArray(lista) ? lista[0] : null
@@ -231,7 +233,17 @@ async function dadosDoPedido(pedido) {
       valor: lerQuantidadeBr(par.valorParcela) ?? 0,
       idFormaPagamento: par.idFormaPagamento ?? null,
     }))
-    resultado = { encontrado: true, valorTotal: lerQuantidadeBr(p.valorTotal), vendedor, parcelas, em: Date.now() }
+    const prazo = dataPrometidaDoPedido(p)
+    resultado = {
+      encontrado: true,
+      valorTotal: lerQuantidadeBr(p.valorTotal),
+      vendedor,
+      parcelas,
+      prazoIso: prazo.iso,
+      prazoOrigem: prazo.origem,
+      modificadoEm: dataIso(p.dataModificacao),
+      em: Date.now(),
+    }
   }
   cachePedidos.set(chave, resultado)
   persistirCache()
@@ -264,46 +276,84 @@ function limparTrabalhosAntigos() {
   for (const [id, t] of trabalhos) if (Date.now() - t.criadoEm > VALE_TRABALHO_MS) trabalhos.delete(id)
 }
 
-function gerarBuffer(dados) {
+function gerarBuffer(desenhar, dados) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape', bufferPages: true })
     const partes = []
     doc.on('data', (p) => partes.push(p))
     doc.on('end', () => resolve(Buffer.concat(partes)))
     doc.on('error', reject)
-    gerarPdfEntregasCompleto(doc, dados)
+    desenhar(doc, dados)
     doc.end()
   })
 }
 
-/** Dispara a geracao e devolve o id; acompanhe por obterTrabalho(id). */
-export function iniciarRelatorio({ inicio, fim, rotulo }) {
+const vendedoresSemLojaDe = (linhas) => [...new Set(linhas.filter((l) => l.loja.id === SEM_LOJA.id && l.vendedor).map((l) => l.vendedor))].sort()
+
+/**
+ * Dispara a geracao e devolve o id; acompanhe por obterTrabalho(id).
+ * `tipo`: "completo" (entregas por loja + recebimento) ou "prazo" (data prometida x data real).
+ * `lancamentos` permite informar as entregas direto (script/teste); sem ele le dados/entregas.json.
+ */
+export function iniciarRelatorio({ inicio, fim, rotulo, tipo = 'completo', lancamentos }) {
   limparTrabalhosAntigos()
-  const doPeriodo = entregas.listar().filter((e) => e.data >= inicio && e.data <= fim)
+  const todas = lancamentos ?? entregas.listar()
+  const doPeriodo = todas.filter((e) => e.data >= inicio && e.data <= fim)
+  const prazo = tipo === 'prazo'
+  const total = prazo ? new Set(doPeriodo.map((e) => chaveDoPedido(e.pedido) ?? e.pedido)).size : doPeriodo.length
   const id = crypto.randomUUID()
-  const trabalho = { status: 'coletando', feitos: 0, total: doPeriodo.length, erro: null, pdf: null, nomeArquivo: `relatorio-entregas-${inicio}-a-${fim}.pdf`, criadoEm: Date.now() }
+  const trabalho = {
+    status: 'coletando',
+    feitos: 0,
+    total,
+    erro: null,
+    pdf: null,
+    nomeArquivo: `${prazo ? 'relatorio-prazo-entrega' : 'relatorio-entregas'}-${inicio}-a-${fim}.pdf`,
+    criadoEm: Date.now(),
+  }
   trabalhos.set(id, trabalho)
 
   ;(async () => {
     const nomeMotorista = new Map(motoristas.listar().map((m) => [m.id, m.nome]))
     const placaCaminhao = new Map(caminhoes.listar().map((c) => [c.id, c.placa]))
     const tabelaLojas = carregarTabelaDeLojas()
-    const formas = await nomesDasFormas()
-    const nomeDaForma = (id) => formas.get(id) ?? null
-    const linhas = []
-    for (const e of doPeriodo) {
-      const [info, contas] = await Promise.all([dadosDoPedido(e.pedido), contasDoPedido(e.pedido)])
-      linhas.push(montarLinha(e, { nomeMotorista: nomeMotorista.get(e.motoristaId), placaCaminhao: placaCaminhao.get(e.caminhaoId) }, info, contas, tabelaLojas, nomeDaForma))
-      trabalho.feitos += 1
+    const periodoRotulo = rotulo || `${inicio} a ${fim}`
+    const geradoEm = new Date().toLocaleString('pt-BR')
+
+    if (prazo) {
+      // Uma consulta ao Nomus por PEDIDO (prazo prometido + vendedor); contas a receber nao entram aqui.
+      const consolidados = consolidarEntregasPorPedido(
+        doPeriodo.map((e) => ({ ...e, motorista: e.motorista ?? nomeMotorista.get(e.motoristaId) ?? '—' })),
+      )
+      const linhas = []
+      for (const c of consolidados) {
+        linhas.push(montarLinhaPrazo(c, await dadosDoPedido(c.pedido), tabelaLojas))
+        trabalho.feitos += 1
+      }
+      trabalho.pdf = await gerarBuffer(gerarPdfPrazo, {
+        periodoRotulo,
+        geradoEm,
+        agrupado: agruparPrazo(linhas, tabelaLojas),
+        semTabelaDeLojas: !tabelaLojas.temDados,
+        vendedoresSemLoja: vendedoresSemLojaDe(linhas),
+      })
+    } else {
+      const formas = await nomesDasFormas()
+      const nomeDaForma = (id) => formas.get(id) ?? null
+      const linhas = []
+      for (const e of doPeriodo) {
+        const [info, contas] = await Promise.all([dadosDoPedido(e.pedido), contasDoPedido(e.pedido)])
+        linhas.push(montarLinha(e, { nomeMotorista: nomeMotorista.get(e.motoristaId) ?? e.motorista, placaCaminhao: placaCaminhao.get(e.caminhaoId) }, info, contas, tabelaLojas, nomeDaForma))
+        trabalho.feitos += 1
+      }
+      trabalho.pdf = await gerarBuffer(gerarPdfEntregasCompleto, {
+        periodoRotulo,
+        geradoEm,
+        agrupado: agruparRelatorio(linhas, tabelaLojas),
+        semTabelaDeLojas: !tabelaLojas.temDados,
+        vendedoresSemLoja: vendedoresSemLojaDe(linhas),
+      })
     }
-    const agrupado = agruparRelatorio(linhas, tabelaLojas)
-    trabalho.pdf = await gerarBuffer({
-      periodoRotulo: rotulo || `${inicio} a ${fim}`,
-      geradoEm: new Date().toLocaleString('pt-BR'),
-      agrupado,
-      semTabelaDeLojas: !tabelaLojas.temDados,
-      vendedoresSemLoja: [...new Set(linhas.filter((l) => l.loja.id === SEM_LOJA.id && l.vendedor).map((l) => l.vendedor))].sort(),
-    })
     trabalho.status = 'pronto'
   })().catch((erro) => {
     console.error('[relatorio-entregas] falhou:', erro)

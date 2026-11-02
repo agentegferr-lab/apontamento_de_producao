@@ -734,11 +734,13 @@ app.post(
 app.post(
   '/api/entregas/relatorio-completo',
   asyncRoute(async (req, res) => {
-    const { inicio, fim, rotulo } = req.body ?? {}
+    const { inicio, fim, rotulo, tipo } = req.body ?? {}
     if (!REGEX_DATA.test(inicio ?? '') || !REGEX_DATA.test(fim ?? '')) {
       throw new AppError('inicio e fim devem estar no formato AAAA-MM-DD.', 400)
     }
-    res.status(202).json({ id: iniciarRelatorio({ inicio, fim, rotulo: typeof rotulo === 'string' ? rotulo.slice(0, 80) : undefined }) })
+    res.status(202).json({
+      id: iniciarRelatorio({ inicio, fim, rotulo: typeof rotulo === 'string' ? rotulo.slice(0, 80) : undefined, tipo: tipo === 'prazo' ? 'prazo' : 'completo' }),
+    })
   }),
 )
 

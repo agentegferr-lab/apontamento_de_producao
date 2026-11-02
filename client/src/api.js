@@ -118,8 +118,9 @@ export const api = {
     // Relatorio completo em PDF: iniciar() devolve { id }; estado(id) { status, feitos, total };
     // urlPdf(id) e o link de download quando status === 'pronto'.
     relatorioCompleto: {
-      iniciar: (inicio, fim, rotulo) =>
-        chamar('/api/entregas/relatorio-completo', { method: 'POST', body: JSON.stringify({ inicio, fim, rotulo }) }),
+      // tipo: 'completo' (por loja + recebimento) ou 'prazo' (data prometida x data real)
+      iniciar: (inicio, fim, rotulo, tipo = 'completo') =>
+        chamar('/api/entregas/relatorio-completo', { method: 'POST', body: JSON.stringify({ inicio, fim, rotulo, tipo }) }),
       estado: (id) => chamar(`/api/entregas/relatorio-completo/${encodeURIComponent(id)}`),
       urlPdf: (id) => `/api/entregas/relatorio-completo/${encodeURIComponent(id)}/pdf`,
     },
