@@ -23,6 +23,7 @@ import { caminhoes } from './caminhoes.js'
 import { motoristas } from './motoristas.js'
 import { entregas } from './entregas.js'
 import { materiaisConhecidos, pedirMateriais } from './materiaisPedido.js'
+import { iniciarRelatorio, obterTrabalho } from './relatorioEntregas.js'
 
 // Pedidos das entregas, das mais recentes pras mais antigas (o que a tela mostra primeiro sai antes).
 function pedidosMaisRecentesPrimeiro(lista) {
@@ -725,6 +726,41 @@ app.get(
 app.post(
   '/api/entregas',
   asyncRoute(async (req, res) => res.status(201).json(entregas.lancar(req.body ?? {}))),
+)
+
+// Relatorio completo de entregas em PDF (por loja + resumo por motorista, ver
+// server/relatorioEntregas.js). Demora (uma consulta ao Nomus por pedido), entao roda em
+// segundo plano: POST inicia e devolve o id, GET acompanha, GET /pdf baixa quando pronto.
+app.post(
+  '/api/entregas/relatorio-completo',
+  asyncRoute(async (req, res) => {
+    const { inicio, fim, rotulo } = req.body ?? {}
+    if (!REGEX_DATA.test(inicio ?? '') || !REGEX_DATA.test(fim ?? '')) {
+      throw new AppError('inicio e fim devem estar no formato AAAA-MM-DD.', 400)
+    }
+    res.status(202).json({ id: iniciarRelatorio({ inicio, fim, rotulo: typeof rotulo === 'string' ? rotulo.slice(0, 80) : undefined }) })
+  }),
+)
+
+app.get(
+  '/api/entregas/relatorio-completo/:id',
+  asyncRoute(async (req, res) => {
+    const t = obterTrabalho(req.params.id)
+    if (!t) throw new AppError('Relatorio nao encontrado (expira em 1 hora).', 404)
+    res.json({ status: t.status, feitos: t.feitos, total: t.total, erro: t.erro })
+  }),
+)
+
+app.get(
+  '/api/entregas/relatorio-completo/:id/pdf',
+  asyncRoute(async (req, res) => {
+    const t = obterTrabalho(req.params.id)
+    if (!t) throw new AppError('Relatorio nao encontrado (expira em 1 hora).', 404)
+    if (t.status !== 'pronto') throw new AppError('O relatorio ainda esta sendo gerado.', 409)
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${t.nomeArquivo}"`)
+    res.send(t.pdf)
+  }),
 )
 
 app.delete(

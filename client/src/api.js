@@ -115,5 +115,13 @@ export const api = {
     listar: () => chamar('/api/entregas'),
     lancar: (dados) => chamar('/api/entregas', { method: 'POST', body: JSON.stringify(dados) }),
     remover: (id) => chamar(`/api/entregas/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    // Relatorio completo em PDF: iniciar() devolve { id }; estado(id) { status, feitos, total };
+    // urlPdf(id) e o link de download quando status === 'pronto'.
+    relatorioCompleto: {
+      iniciar: (inicio, fim, rotulo) =>
+        chamar('/api/entregas/relatorio-completo', { method: 'POST', body: JSON.stringify({ inicio, fim, rotulo }) }),
+      estado: (id) => chamar(`/api/entregas/relatorio-completo/${encodeURIComponent(id)}`),
+      urlPdf: (id) => `/api/entregas/relatorio-completo/${encodeURIComponent(id)}/pdf`,
+    },
   },
 }

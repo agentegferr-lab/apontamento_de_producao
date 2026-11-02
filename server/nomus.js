@@ -470,6 +470,14 @@ export const nomus = {
     return comoLista(await requisitar('GET', caminho, { query, maxTentativas: 6, maxEsperaMs: 120_000 }))
   },
 
+  /**
+   * GET unico, SEM cache, devolvendo o corpo CRU (objeto ou lista) e esperando o 429 passar —
+   * pra trabalho de fundo/relatorios, onde vale esperar em vez de falhar (ver relatorioEntregas.js).
+   */
+  async obterComPaciencia(caminho, query) {
+    return requisitar('GET', caminho, { query, maxTentativas: 6, maxEsperaMs: 120_000 })
+  },
+
   /** Valor que ja esta em cache (mesmo vencido), sem nenhuma chamada de rede. */
   espiarCache(chave) {
     return cache.get(chave)?.valor
