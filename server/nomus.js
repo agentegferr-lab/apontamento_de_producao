@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { config } from './config.js'
+import { cancelamentos } from './cancelamentos.js'
 
 export class NomusError extends Error {
   constructor(mensagem, { status, corpo, retryAfterMs } = {}) {
@@ -420,6 +421,22 @@ export function ultimaAtualizacao(chave) {
   return entrada?.atualizadoEm ? new Date(entrada.atualizadoEm) : null
 }
 
+// Ignora os apontamentos que ESTE app ja mandou pra lixeira, mesmo que o Nomus ainda os devolva
+// numa listagem: um apontamento cancelado nunca volta a contar (nem a travar um novo apontamento
+// da mesma etapa). Memoiza o resultado — a lista tem milhares de itens e e lida a cada tela.
+let ultimaLista = null
+let ultimoTamanho = -1
+let ultimoFiltrado = null
+function semCancelados(lista) {
+  const ids = cancelamentos.idsApontamentosCancelados()
+  if (ids.size === 0) return lista
+  if (lista === ultimaLista && ids.size === ultimoTamanho) return ultimoFiltrado
+  ultimaLista = lista
+  ultimoTamanho = ids.size
+  ultimoFiltrado = lista.filter((a) => !ids.has(Number(a?.id)))
+  return ultimoFiltrado
+}
+
 export const nomus = {
   async funcionarioPorMatricula(matricula) {
     return comCache(`funcionario:${matricula}`, async () => {
@@ -535,7 +552,8 @@ export const nomus = {
 
   /** O que ja foi gravado no Nomus. Define quais etapas contam como concluidas. */
   async apontamentos() {
-    return comCache('apontamentos', () => varrerIncremental('apontamentos', '/apontamentos'))
+    const lista = await comCache('apontamentos', () => varrerIncremental('apontamentos', '/apontamentos'))
+    return semCancelados(lista)
   },
 
   /**
@@ -545,13 +563,31 @@ export const nomus = {
    * Espera curta no 429 (e uma chamada interativa, o operador esta na tela).
    */
   async apontamentosDaOperacao(idOperacaoOrdem) {
-    return comoLista(
+    const lista = comoLista(
       await requisitar('GET', '/apontamentos', {
         query: { query: `idOperacaoOrdem==${Number(idOperacaoOrdem)}`, pagina: 1 },
         maxTentativas: 3,
         maxEsperaMs: 20_000,
       }),
     )
+    return semCancelados(lista)
+  },
+
+  /**
+   * Move UM apontamento pra lixeira do Nomus ("desativa" — nao apaga de vez). Endpoint da
+   * documentacao oficial: PUT /apontamentos/moverParaLixeira/{id}, 204 sem corpo.
+   */
+  async moverApontamentoParaLixeira(id) {
+    await requisitar('PUT', `/apontamentos/moverParaLixeira/${Number(id)}`, { maxTentativas: 3, maxEsperaMs: 20_000 })
+  },
+
+  /** Tira um apontamento (ja cancelado) da lista em cache, sem esperar a proxima atualizacao. */
+  esquecerApontamento(id) {
+    const atual = cache.get('apontamentos')
+    if (atual && Array.isArray(atual.valor)) {
+      cache.set('apontamentos', { ...atual, valor: atual.valor.filter((a) => Number(a.id) !== Number(id)) })
+      persistirCache()
+    }
   },
 
   async criarApontamento(payload) {

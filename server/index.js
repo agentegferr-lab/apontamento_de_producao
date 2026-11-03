@@ -24,6 +24,7 @@ import { motoristas } from './motoristas.js'
 import { entregas } from './entregas.js'
 import { materiaisConhecidos, pedirMateriais } from './materiaisPedido.js'
 import { iniciarRelatorio, obterTrabalho } from './relatorioEntregas.js'
+import { cancelamentos } from './cancelamentos.js'
 
 // Pedidos das entregas, das mais recentes pras mais antigas (o que a tela mostra primeiro sai antes).
 function pedidosMaisRecentesPrimeiro(lista) {
@@ -478,6 +479,157 @@ app.delete(
   asyncRoute(async (req, res) => {
     if (!andamento.remover(req.params.id)) throw new AppError('Apontamento em andamento nao encontrado.', 404)
     res.status(204).end()
+  }),
+)
+
+// --- Cancelar apontamento --------------------------------------------------------------
+// Botao "Cancelar apontamento" da tela de leitura: o operador le a ordem + a etapa (como nos
+// outros botoes) e escolhe entre DESCARTAR o processo que ainda esta aberto no terminal (nunca
+// foi pro Nomus) ou mandar pra LIXEIRA do Nomus os apontamentos ja gravados daquela etapa
+// (PUT /apontamentos/moverParaLixeira/{id} — "desativa", nao apaga de vez). Tudo fica registrado
+// em dados/cancelamentos.json (quem, quando, o que era, motivo). Depois e so apontar de novo.
+
+async function nomeDoFuncionario(id) {
+  try {
+    const lista = await nomus.funcionarios()
+    return lista.find((f) => Number(f.id) === Number(id))?.nome ?? null
+  } catch {
+    return null
+  }
+}
+
+/** Apontamentos gravados da etapa: direto no Nomus (o cache pode estar atras); cai no cache se ele nao responder. */
+async function gravadosDaEtapa(idOperacaoOrdem) {
+  let lista
+  try {
+    lista = await nomus.apontamentosDaOperacao(idOperacaoOrdem)
+  } catch {
+    lista = await nomus.apontamentos()
+  }
+  return apontamentosDaOperacao(lista, idOperacaoOrdem)
+}
+
+const resumoDoApontamento = (a, nomeFuncionario) => ({
+  id: Number(a.id),
+  dataHoraInicial: a.dataHoraInicial ?? null,
+  dataHoraFinal: a.dataHoraFinal ?? null,
+  quantidade: Number(a.quantidade) || 0,
+  unidadeMedida: a.unidadeMedida ?? null,
+  idFuncionario: a.idFuncionario ?? null,
+  nomeFuncionario: nomeFuncionario ?? null,
+})
+
+async function quemCancelou(matricula) {
+  const m = String(matricula ?? '').trim()
+  if (!m) return { matricula: null, nome: null }
+  try {
+    const f = await nomus.funcionarioPorMatricula(m)
+    return { matricula: m, nome: f?.nome ?? null }
+  } catch {
+    return { matricula: m, nome: null }
+  }
+}
+
+app.post(
+  '/api/cancelar/consultar',
+  asyncRoute(async (req, res) => {
+    const { codigoOrdem, codigoProcesso } = req.body ?? {}
+    const operacao = await resolverOperacao(codigoOrdem, codigoProcesso)
+    const aberto = andamento.porOperacao(operacao.idOperacaoOrdem)
+    const gravados = await gravadosDaEtapa(operacao.idOperacaoOrdem)
+    const nomes = new Map()
+    for (const a of gravados) if (a.idFuncionario != null && !nomes.has(a.idFuncionario)) nomes.set(a.idFuncionario, await nomeDoFuncionario(a.idFuncionario))
+    res.json({
+      operacao: {
+        idOperacaoOrdem: operacao.idOperacaoOrdem,
+        nomeOrdem: operacao.nomeOrdem,
+        operacao: operacao.operacao,
+        descricao: operacao.descricao,
+      },
+      emAndamento: aberto
+        ? { id: aberto.id, estado: aberto.estado, dataHoraInicial: aberto.dataHoraInicial, nomeFuncionario: aberto.nomeFuncionario ?? null }
+        : null,
+      gravados: gravados.map((a) => resumoDoApontamento(a, nomes.get(a.idFuncionario))),
+    })
+  }),
+)
+
+app.post(
+  '/api/cancelar/em-andamento',
+  asyncRoute(async (req, res) => {
+    const { codigoOrdem, codigoProcesso, matricula, motivo } = req.body ?? {}
+    const operacao = await resolverOperacao(codigoOrdem, codigoProcesso)
+    const aberto = andamento.porOperacao(operacao.idOperacaoOrdem)
+    if (!aberto) throw new AppError('Esta etapa nao esta em andamento no terminal.', 404, 'NAO_INICIADO')
+    andamento.remover(aberto.id)
+    cancelamentos.registrar({
+      tipo: 'EM_ANDAMENTO',
+      ordem: operacao.nomeOrdem,
+      operacao: operacao.operacao,
+      descricao: operacao.descricao,
+      idOperacaoOrdem: operacao.idOperacaoOrdem,
+      iniciadoEm: aberto.dataHoraInicial,
+      iniciadoPor: aberto.nomeFuncionario ?? null,
+      cancelouPor: await quemCancelou(matricula),
+      motivo: typeof motivo === 'string' ? motivo.slice(0, 200) : null,
+    })
+    console.log(`[cancelar] em andamento descartado: ${operacao.nomeOrdem}/${operacao.operacao}`)
+    res.json({ ok: true })
+  }),
+)
+
+app.post(
+  '/api/cancelar/gravados',
+  asyncRoute(async (req, res) => {
+    const { codigoOrdem, codigoProcesso, ids, matricula, motivo } = req.body ?? {}
+    const operacao = await resolverOperacao(codigoOrdem, codigoProcesso)
+    const pedidos = [...new Set((Array.isArray(ids) ? ids : []).map(Number).filter(Number.isFinite))]
+    if (pedidos.length === 0) throw new AppError('Escolha ao menos um apontamento para cancelar.', 400)
+
+    // So cancela apontamentos DESTA etapa: o id vem do navegador, nao se confia nele.
+    const daEtapa = new Map((await gravadosDaEtapa(operacao.idOperacaoOrdem)).map((a) => [Number(a.id), a]))
+    const estranhos = pedidos.filter((id) => !daEtapa.has(id))
+    if (estranhos.length > 0) {
+      throw new AppError(`O apontamento ${estranhos.join(', ')} nao pertence a esta etapa (ou ja foi cancelado).`, 400, 'APONTAMENTO_DE_OUTRA_ETAPA')
+    }
+
+    const cancelados = []
+    const falhas = []
+    for (const id of pedidos) {
+      try {
+        await nomus.moverApontamentoParaLixeira(id)
+        nomus.esquecerApontamento(id)
+        cancelados.push(id)
+      } catch (erro) {
+        falhas.push({ id, motivo: erro.message })
+      }
+    }
+    const nomes = new Map()
+    const removidos = []
+    for (const id of cancelados) {
+      const a = daEtapa.get(id)
+      if (a.idFuncionario != null && !nomes.has(a.idFuncionario)) nomes.set(a.idFuncionario, await nomeDoFuncionario(a.idFuncionario))
+      removidos.push(resumoDoApontamento(a, nomes.get(a.idFuncionario)))
+    }
+    if (cancelados.length > 0 || falhas.length > 0) {
+      cancelamentos.registrar({
+        tipo: 'GRAVADO',
+        ordem: operacao.nomeOrdem,
+        operacao: operacao.operacao,
+        descricao: operacao.descricao,
+        idOperacaoOrdem: operacao.idOperacaoOrdem,
+        cancelados,
+        falhas,
+        removidos,
+        cancelouPor: await quemCancelou(matricula),
+        motivo: typeof motivo === 'string' ? motivo.slice(0, 200) : null,
+      })
+      console.log(`[cancelar] ${operacao.nomeOrdem}/${operacao.operacao}: ${cancelados.length} apontamento(s) para a lixeira do Nomus, ${falhas.length} falha(s)`)
+    }
+    if (cancelados.length === 0) {
+      throw new AppError(`Nao foi possivel cancelar no Nomus: ${falhas.map((f) => f.motivo).join('; ')}`, 502, 'FALHA_AO_CANCELAR')
+    }
+    res.json({ cancelados, falhas })
   }),
 )
 

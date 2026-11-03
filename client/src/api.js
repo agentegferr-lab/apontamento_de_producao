@@ -82,6 +82,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ codigoOrdem, codigoProcesso }),
     }),
+  // Cancelar apontamento feito errado (ver ModalCancelarApontamento.jsx)
+  cancelamento: {
+    consultar: (codigoOrdem, codigoProcesso) =>
+      chamar('/api/cancelar/consultar', { method: 'POST', body: JSON.stringify({ codigoOrdem, codigoProcesso }) }),
+    descartarEmAndamento: (dados) => chamar('/api/cancelar/em-andamento', { method: 'POST', body: JSON.stringify(dados) }),
+    cancelarGravados: (dados) => chamar('/api/cancelar/gravados', { method: 'POST', body: JSON.stringify(dados) }),
+  },
   planejamento: () => chamar('/api/planejamento'),
   agendar: (dados) => chamar('/api/planejamento', { method: 'POST', body: JSON.stringify(dados) }),
   moverPlanejado: (id, data) =>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { agoraLocalISO } from '../tempo.js'
+import ModalCancelarApontamento from './ModalCancelarApontamento.jsx'
 
 const IconeBarcode = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -31,7 +32,7 @@ const IconeMatricula = () => (
  * le o processo e o operador escolhe Iniciar ou Finalizar. Nao ha submit implicito — o
  * Enter e tratado na mao, pra leitura nunca depender do numero de campos do form.
  */
-export default function TelaLeitura({ onMudouAndamento }) {
+export default function TelaLeitura({ onMudouAndamento, adminLiberado = false, onPedirSenhaCancelamento }) {
   // Cada operador bipa o proprio cracha antes de iniciar — e essa matricula (nao mais uma
   // fixa no .env do servidor, ver server/index.js resolverFuncionarioPorMatricula) que
   // assina o apontamento. NAO limpa em limpar() de proposito: um operador que aponta varias
@@ -45,6 +46,7 @@ export default function TelaLeitura({ onMudouAndamento }) {
   const [pedindo, setPedindo] = useState(null) // { campo, rotulo, valor } quando a atividade exige
   const [escolhendoAtividade, setEscolhendoAtividade] = useState(null) // { atividades, extras }
   const [escolhendoMotivo, setEscolhendoMotivo] = useState(null) // { motivos } ao pausar
+  const [cancelando, setCancelando] = useState(false) // modal "Cancelar apontamento"
 
   const refMatricula = useRef(null)
   const refOrdem = useRef(null)
@@ -179,6 +181,17 @@ export default function TelaLeitura({ onMudouAndamento }) {
     } finally {
       setOcupado(false)
     }
+  }
+
+  // Cancelar usa a mesma leitura dos outros botoes: ordem + etapa do processo a corrigir.
+  function abrirCancelamento() {
+    if (!ordem.trim() || !processo.trim()) {
+      setAviso({ tipo: 'erro', texto: 'Leia a ordem de servico e a etapa do processo que deseja cancelar.' })
+      ;(!ordem.trim() ? refOrdem : refProcesso).current?.focus()
+      return
+    }
+    setAviso(null)
+    setCancelando(true)
   }
 
   function escolherMotivo(motivo) {
@@ -345,6 +358,17 @@ export default function TelaLeitura({ onMudouAndamento }) {
           </button>
         </div>
 
+        <div className="leitura__cancelar">
+          <button className="botao botao--cancelar" onClick={abrirCancelamento} disabled={bloqueado}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M9 9l6 6M15 9l-6 6" strokeLinecap="round" />
+            </svg>
+            CANCELAR APONTAMENTO
+          </button>
+          <small>Apontou errado (quantidade ou operação)? Leia a ordem e a etapa e toque aqui.</small>
+        </div>
+
         {aviso && (
           <p className={`aviso aviso--${aviso.tipo}`} role={aviso.tipo === 'erro' ? 'alert' : 'status'}>
             {aviso.texto}
@@ -352,6 +376,21 @@ export default function TelaLeitura({ onMudouAndamento }) {
         )}
 
       </main>
+
+      {cancelando && (
+        <ModalCancelarApontamento
+          codigoOrdem={ordem.trim()}
+          codigoProcesso={processo.trim()}
+          matricula={matricula.trim()}
+          adminLiberado={adminLiberado}
+          onPedirSenha={onPedirSenhaCancelamento}
+          onFechar={() => setCancelando(false)}
+          onMudou={() => {
+            limpar()
+            onMudouAndamento?.()
+          }}
+        />
+      )}
 
       {escolhendoMotivo && (
         <div className="modal" role="dialog" aria-modal="true" aria-label="Motivo da parada">

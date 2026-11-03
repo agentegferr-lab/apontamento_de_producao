@@ -213,11 +213,25 @@ app.get('/rest/operacoesRoteiroOrdem', (req, res) => {
   paginar(operacoes, req, res)
 })
 
+let proximoIdApontamento = 7000
 app.post('/rest/apontamentos', (req, res) => {
-  const registro = { id: 7000 + apontamentos.length, ...req.body }
+  const registro = { id: proximoIdApontamento++, ...req.body }
   apontamentos.push(registro)
   console.log('[mock] apontamento gravado:', JSON.stringify(registro))
   res.status(201).json(registro)
+})
+
+// Como o Nomus real (documentacao oficial): "desativa" o apontamento, 204 sem corpo; id que nao
+// existe devolve 406 com a mensagem de negocio.
+app.put('/rest/apontamentos/moverParaLixeira/:id', (req, res) => {
+  const i = apontamentos.findIndex((a) => String(a.id) === req.params.id)
+  if (i < 0) {
+    const mensagem = `Nao foi possivel encontrar um apontamento com o id=${req.params.id}`
+    return res.status(406).json({ descricao: '', erros: [{ codigo: mensagem, mensagem }], status: 406 })
+  }
+  apontamentos.splice(i, 1)
+  console.log('[mock] apontamento movido para a lixeira:', req.params.id)
+  res.status(204).end()
 })
 
 app.get('/rest/apontamentos', (req, res) => paginar(apontamentos, req, res))

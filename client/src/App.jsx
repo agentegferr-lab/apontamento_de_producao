@@ -96,6 +96,12 @@ export default function App() {
     setPedindoSenha(true)
   }
 
+  function pedirSenhaParaCancelamento() {
+    setOrigemSenha('cancelamento')
+    setSenhaErrada(false)
+    setPedindoSenha(true)
+  }
+
   function confirmarSenha(senha) {
     if (senha === SENHA_ADMIN) {
       sessionStorage.setItem(CHAVE_SESSAO, '1')
@@ -203,7 +209,9 @@ export default function App() {
         <Relogio />
       </header>
 
-      {tela === 'leitura' && <TelaLeitura onMudouAndamento={aoMudarAndamento} />}
+      {tela === 'leitura' && (
+        <TelaLeitura onMudouAndamento={aoMudarAndamento} adminLiberado={adminLiberado} onPedirSenhaCancelamento={pedirSenhaParaCancelamento} />
+      )}
       {tela === 'kanban' && <TelaKanban recarregarEm={versaoAndamento} />}
       {tela === 'planejamento' && (adminLiberado || planejamentoVisualizacao) && (
         <TelaPlanejamento somenteLeitura={!adminLiberado} />
@@ -217,7 +225,9 @@ export default function App() {
           mensagem={
             origemSenha === 'entregas'
               ? 'Digite a senha para abrir o Cadastro de caminhões e motoristas.'
-              : 'Digite a senha para abrir o Planejamento.'
+              : origemSenha === 'cancelamento'
+                ? 'Digite a senha de administrador para cancelar apontamentos já gravados no Nomus.'
+                : 'Digite a senha para abrir o Planejamento.'
           }
           onConfirmar={confirmarSenha}
           onCancelar={() => setPedindoSenha(false)}
