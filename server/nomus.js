@@ -575,10 +575,16 @@ export const nomus = {
 
   /**
    * Move UM apontamento pra lixeira do Nomus ("desativa" — nao apaga de vez). Endpoint da
-   * documentacao oficial: PUT /apontamentos/moverParaLixeira/{id}, 204 sem corpo.
+   * documentacao oficial: PUT /apontamentos/moverParaLixeira/{id}, 204 sem corpo na resposta.
+   * Testado no Nomus real: sem corpo na REQUISICAO ele responde 500; com `{}` + Content-Type
+   * JSON responde 204. E o GET depois ainda devolve o registro (por isso o filtro por ids cancelados).
    */
   async moverApontamentoParaLixeira(id) {
-    await requisitar('PUT', `/apontamentos/moverParaLixeira/${Number(id)}`, { maxTentativas: 3, maxEsperaMs: 20_000 })
+    await requisitar('PUT', `/apontamentos/moverParaLixeira/${Number(id)}`, {
+      body: {},
+      maxTentativas: 3,
+      maxEsperaMs: 20_000,
+    })
   },
 
   /** Tira um apontamento (ja cancelado) da lista em cache, sem esperar a proxima atualizacao. */
