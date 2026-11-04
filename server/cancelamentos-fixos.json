@@ -1,0 +1,4 @@
+{
+  "_comentario": "Apontamentos movidos pra lixeira do Nomus FORA do terminal (correcao manual). O Nomus continua listando registros da lixeira, entao o app precisa ignorar estes ids. 4093/4020/3870: Pintura de out/2026 com a virgula perdida na quantidade (47024, 28600, 6306), reapontados como 4320/4321/4322. 37: teste de formato de data.",
+  "ids": [4093, 4020, 3870, 37]
+}

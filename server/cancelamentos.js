@@ -34,7 +34,22 @@ function gravar() {
   fs.renameSync(`${ARQUIVO}.tmp`, ARQUIVO)
 }
 
-let idsCancelados = new Set(itens.flatMap((i) => (i.tipo === 'GRAVADO' ? (i.cancelados ?? []).map(Number) : [])))
+// Ids movidos pra lixeira FORA do terminal (correcao manual), versionados pra valerem em qualquer
+// servidor sem copiar arquivo de dados. Ver server/cancelamentos-fixos.json.
+const ARQUIVO_FIXOS = process.env.ARQUIVO_CANCELAMENTOS_FIXOS
+  ? path.resolve(process.env.ARQUIVO_CANCELAMENTOS_FIXOS)
+  : path.join(__dirname, 'cancelamentos-fixos.json')
+let fixos = []
+try {
+  fixos = (JSON.parse(fs.readFileSync(ARQUIVO_FIXOS, 'utf8')).ids ?? []).map(Number)
+} catch (erro) {
+  if (erro.code !== 'ENOENT') console.error(`[cancelamentos] ids fixos ilegiveis (${ARQUIVO_FIXOS}):`, erro.message)
+}
+
+let idsCancelados = new Set([
+  ...fixos,
+  ...itens.flatMap((i) => (i.tipo === 'GRAVADO' ? (i.cancelados ?? []).map(Number) : [])),
+])
 
 export const cancelamentos = {
   /** Guarda um cancelamento. `entrada.cancelados` (ids movidos pra lixeira) alimenta a lista de ignorados. */

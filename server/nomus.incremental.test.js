@@ -7,6 +7,9 @@ import fs from 'node:fs'
 // Tem que vir ANTES de importar nomus.js: o cache em disco e a config sao lidos no import.
 const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'nomus-inc-'))
 process.env.ARQUIVO_CACHE_NOMUS = path.join(pasta, 'cache.json')
+// Ids sequenciais de teste nao podem colidir com os cancelamentos reais do computador.
+process.env.ARQUIVO_CANCELAMENTOS = path.join(pasta, 'cancelamentos.json')
+process.env.ARQUIVO_CANCELAMENTOS_FIXOS = path.join(pasta, 'fixos.json')
 process.env.NOMUS_API_KEY = 'chave-de-teste'
 process.env.NOMUS_BASE_URL = 'http://nomus.falso/rest'
 process.env.CACHE_TTL_MS = '1'
