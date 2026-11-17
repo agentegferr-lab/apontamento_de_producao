@@ -6,6 +6,7 @@ import TelaLeitura from './components/TelaLeitura.jsx'
 import TelaKanban from './components/TelaKanban.jsx'
 import TelaPlanejamento from './components/TelaPlanejamento.jsx'
 import TelaEntregas from './components/TelaEntregas.jsx'
+import TelaEps from './components/TelaEps.jsx'
 import TelaRelatorioProducao from './components/TelaRelatorioProducao.jsx'
 import ModalSenha from './components/ModalSenha.jsx'
 
@@ -96,6 +97,12 @@ export default function App() {
     setPedindoSenha(true)
   }
 
+  function pedirSenhaParaEps() {
+    setOrigemSenha('eps')
+    setSenhaErrada(false)
+    setPedindoSenha(true)
+  }
+
   function pedirSenhaParaCancelamento() {
     setOrigemSenha('cancelamento')
     setSenhaErrada(false)
@@ -179,6 +186,12 @@ export default function App() {
               Entregas
             </button>
             <button
+              className={`aba ${tela === 'eps' ? 'aba--ativa' : ''}`}
+              onClick={() => irPara('eps')}
+            >
+              EPS
+            </button>
+            <button
               className={`aba ${tela === 'relatorio-producao' ? 'aba--ativa' : ''}`}
               onClick={() => irPara('relatorio-producao')}
             >
@@ -217,6 +230,7 @@ export default function App() {
         <TelaPlanejamento somenteLeitura={!adminLiberado} />
       )}
       {tela === 'entregas' && <TelaEntregas adminLiberado={adminLiberado} onPedirSenha={pedirSenhaParaEntregas} />}
+      {tela === 'eps' && <TelaEps adminLiberado={adminLiberado} onPedirSenha={pedirSenhaParaEps} />}
       {tela === 'relatorio-producao' && <TelaRelatorioProducao />}
 
       {pedindoSenha && (
@@ -225,7 +239,9 @@ export default function App() {
           mensagem={
             origemSenha === 'entregas'
               ? 'Digite a senha para abrir o Cadastro de caminhões e motoristas.'
-              : origemSenha === 'cancelamento'
+              : origemSenha === 'eps'
+                ? 'Digite a senha de administrador para cancelar um lançamento de EPS.'
+                : origemSenha === 'cancelamento'
                 ? 'Digite a senha de administrador para cancelar apontamentos já gravados no Nomus.'
                 : 'Digite a senha para abrir o Planejamento.'
           }

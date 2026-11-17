@@ -3285,3 +3285,103 @@ body {
     grid-template-rows: auto repeat(6, minmax(70px, 1fr));
   }
 }
+
+/* --- Placas de EPS ------------------------------------------------------------------------ */
+.eps__form {
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.eps__tipos {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.eps__tipo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 8px;
+  min-height: 84px;
+  font: inherit;
+  color: var(--tinta);
+  background: var(--papel);
+  border: 2px solid var(--linha);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.eps__tipo strong {
+  font-size: 15px;
+}
+.eps__tipo span {
+  font-size: 22px;
+  font-weight: 800;
+}
+.eps__tipo small {
+  color: var(--tinta-fraca);
+  font-size: 11px;
+}
+.eps__tipo--ativo {
+  background: var(--amarelo-tenue);
+  border-color: var(--amarelo-escuro);
+}
+.eps__numeros {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.eps__numero {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+}
+.eps__previa {
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--amarelo-tenue);
+  border-radius: var(--raio);
+  font-size: 15px;
+}
+.eps__neg {
+  color: var(--vermelho-escuro);
+}
+.eps__pos {
+  color: var(--ambar);
+}
+.eps__cabecalho {
+  align-items: center;
+}
+.eps__periodos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.eps__periodo--ativo {
+  background: var(--amarelo);
+  color: var(--preto);
+  border-color: var(--amarelo-escuro);
+}
+.eps__resumos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.eps__cancelar {
+  padding: 4px 10px;
+  min-height: 0;
+  font-size: 12px;
+}
+@media (max-width: 880px) {
+  .eps__tipos {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .eps__resumos,
+  .eps__numeros {
+    grid-template-columns: 1fr;
+  }
+}

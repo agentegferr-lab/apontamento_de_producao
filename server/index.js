@@ -20,6 +20,7 @@ import { materiaisParaItens } from './materiais.js'
 import { sugerirPlanejamento } from './ia.js'
 import { AppError, asyncRoute } from './erros.js'
 import { caminhoes } from './caminhoes.js'
+import { eps, resumirEps } from './eps.js'
 import { motoristas } from './motoristas.js'
 import { entregas } from './entregas.js'
 import { materiaisConhecidos, pedirMateriais } from './materiaisPedido.js'
@@ -821,6 +822,49 @@ app.get(
     const info = await buscarPedidoPorCodigo(codigo)
     if (!info) throw new AppError('Pedido nao encontrado (ou ainda nao resolvido).', 404)
     res.json(info)
+  }),
+)
+
+// --- Placas de EPS ------------------------------------------------------------------------
+// Producao de estoque, sem OS e sem Nomus (ver server/eps.js). O colaborador e o do cracha
+// (matricula resolvida no cadastro de funcionarios do Nomus, igual ao Apontamento).
+app.get(
+  '/api/eps/tipos',
+  asyncRoute(async (_req, res) => res.json(eps.tipos())),
+)
+
+app.get(
+  '/api/eps',
+  asyncRoute(async (req, res) => {
+    const lancamentos = eps.listar({ inicio: req.query.inicio, fim: req.query.fim })
+    res.json({ lancamentos, resumo: resumirEps(lancamentos) })
+  }),
+)
+
+app.post(
+  '/api/eps',
+  asyncRoute(async (req, res) => {
+    const { matricula, tipo, blocos, placas, observacao, data, confirmarExcesso } = req.body ?? {}
+    const funcionario = await resolverFuncionarioPorMatricula(matricula)
+    const registro = eps.lancar({
+      tipo,
+      blocos,
+      placas,
+      observacao,
+      data,
+      confirmarExcesso: confirmarExcesso === true,
+      colaborador: { id: funcionario.id, nome: funcionario.nome, matricula: funcionario.matricula },
+    })
+    res.status(201).json(registro)
+  }),
+)
+
+app.delete(
+  '/api/eps/:id',
+  asyncRoute(async (req, res) => {
+    const por = await quemCancelou(req.query.matricula)
+    eps.cancelar(req.params.id, { por: por.nome ?? por.matricula })
+    res.status(204).end()
   }),
 )
 

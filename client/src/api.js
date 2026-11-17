@@ -89,6 +89,14 @@ export const api = {
     descartarEmAndamento: (dados) => chamar('/api/cancelar/em-andamento', { method: 'POST', body: JSON.stringify(dados) }),
     cancelarGravados: (dados) => chamar('/api/cancelar/gravados', { method: 'POST', body: JSON.stringify(dados) }),
   },
+  // Placas de EPS (ver TelaEps.jsx)
+  eps: {
+    tipos: () => chamar('/api/eps/tipos'),
+    listar: (inicio, fim) => chamar(`/api/eps?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`),
+    lancar: (dados) => chamar('/api/eps', { method: 'POST', body: JSON.stringify(dados) }),
+    cancelar: (id, matricula = '') =>
+      chamar(`/api/eps/${encodeURIComponent(id)}?matricula=${encodeURIComponent(matricula)}`, { method: 'DELETE' }),
+  },
   planejamento: () => chamar('/api/planejamento'),
   agendar: (dados) => chamar('/api/planejamento', { method: 'POST', body: JSON.stringify(dados) }),
   moverPlanejado: (id, data) =>
