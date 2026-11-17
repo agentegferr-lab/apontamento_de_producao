@@ -3287,12 +3287,9 @@ body {
 }
 
 /* --- Placas de EPS ------------------------------------------------------------------------ */
-.eps__form {
-  max-width: 760px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 28px;
+/* Linha "Tipo de placa" da tela de apontamento de EPS: os 4 botoes ocupam o lugar do campo. */
+.leitura__campo--tipos {
+  padding: 10px;
 }
 .eps__tipos {
   display: grid;
@@ -3328,18 +3325,8 @@ body {
   background: var(--amarelo-tenue);
   border-color: var(--amarelo-escuro);
 }
-.eps__numeros {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-.eps__numero {
-  font-size: 24px;
-  font-weight: 700;
-  text-align: center;
-}
 .eps__previa {
-  margin: 0;
+  margin: 0 0 14px;
   padding: 10px 14px;
   background: var(--amarelo-tenue);
   border-radius: var(--raio);
@@ -3351,8 +3338,30 @@ body {
 .eps__pos {
   color: var(--ambar);
 }
-.eps__cabecalho {
-  align-items: center;
+.eps__extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.eps__extras .modal__campo {
+  flex: 1;
+  min-width: 220px;
+}
+.eps__ver-relatorio {
+  color: var(--tinta);
+  background: var(--papel);
+  border: 2px solid var(--grafite);
+}
+.eps__botao-topo {
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 14px;
+}
+.eps__periodos--topo {
+  margin-bottom: 20px;
+}
+.eps__lista-titulo {
+  margin: 0 0 12px;
 }
 .eps__periodos {
   display: flex;
@@ -3380,8 +3389,7 @@ body {
   .eps__tipos {
     grid-template-columns: repeat(2, 1fr);
   }
-  .eps__resumos,
-  .eps__numeros {
+  .eps__resumos {
     grid-template-columns: 1fr;
   }
 }

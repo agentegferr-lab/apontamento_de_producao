@@ -1,26 +1,50 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { formatarNumeroBr } from '../numero.js'
-import { chaveDia, csvDosLancamentos, dataBr, formatarRendimento, periodoPronto, previaEps } from '../epsCampos.js'
+import { chaveDia, formatarRendimento, previaEps } from '../epsCampos.js'
 import ModalConfirmar from './ModalConfirmar.jsx'
+import TelaEpsRelatorio from './TelaEpsRelatorio.jsx'
 
-const PERIODOS = [
-  { id: 'hoje', rotulo: 'Hoje' },
-  { id: 'semana', rotulo: 'Últimos 7 dias' },
-  { id: 'mes', rotulo: 'Mês' },
-  { id: 'outro', rotulo: 'Período' },
-]
+const IconeMatricula = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <rect x="3" y="4.5" width="18" height="15" rx="2" />
+    <circle cx="9" cy="11" r="2.25" />
+    <path d="M5.5 16.5c.6-2 2-3 3.5-3s2.9 1 3.5 3" strokeLinecap="round" />
+    <path d="M14.5 9.5h4M14.5 13h4" strokeLinecap="round" />
+  </svg>
+)
 
-const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+const IconePlaca = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <path d="M3 9l9-5 9 5-9 5-9-5z" strokeLinejoin="round" />
+    <path d="M3 13.5l9 5 9-5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const IconeBloco = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" strokeLinejoin="round" />
+    <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" strokeLinejoin="round" />
+  </svg>
+)
+
+const IconeNumero = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <path d="M9 4L7 20M17 4l-2 16M4.5 9h16M3.5 15h16" strokeLinecap="round" />
+  </svg>
+)
 
 /**
- * Producao de placas de EPS (estoque, sem OS e sem Nomus): quem produziu, que tipo de placa,
- * quantos blocos gastou e quantas placas saiu. O esperado sai do rendimento fixo do bloco
- * (trapezio 40, telha forro 20) e a diferenca e a perda. Regras no servidor (server/eps.js).
+ * Apontamento da producao de placas de EPS (estoque, sem OS e sem Nomus), com o mesmo jeito da
+ * tela de Apontamento: uma linha por informacao e botoes grandes. O esperado sai do rendimento
+ * fixo do bloco (trapezio 40, telha forro 20); a diferenca e a perda. Regras em server/eps.js.
+ * O relatorio fica numa tela separada (TelaEpsRelatorio.jsx), aberta pelo botao daqui.
  */
 export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
+  const [visao, setVisao] = useState('apontar') // 'apontar' | 'relatorio'
   const [tipos, setTipos] = useState([])
-  const [matricula, setMatricula] = useState('') // fica entre lancamentos (mesmo operador seguido)
+  // Fica entre lancamentos (mesmo operador lancando varias vezes), como no Apontamento.
+  const [matricula, setMatricula] = useState('')
   const [tipoId, setTipoId] = useState(null)
   const [blocos, setBlocos] = useState('')
   const [placas, setPlacas] = useState('')
@@ -30,33 +54,20 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
   const [aviso, setAviso] = useState(null) // { tipo: 'ok'|'erro', texto }
   const [excesso, setExcesso] = useState(null) // mensagem do servidor, esperando confirmacao
 
-  const [periodo, setPeriodo] = useState('hoje')
-  const [intervalo, setIntervalo] = useState(() => periodoPronto('hoje'))
-  const [dados, setDados] = useState({ lancamentos: [], resumo: null })
-  const [erroLista, setErroLista] = useState(null)
-  const [cancelando, setCancelando] = useState(null) // lancamento a cancelar
+  const refMatricula = useRef(null)
+  const refBlocos = useRef(null)
+  const refPlacas = useRef(null)
 
   const tipo = tipos.find((t) => t.id === tipoId) ?? null
   const previa = previaEps(tipo, blocos, placas)
 
-  const carregar = useCallback(() => {
-    return api.eps
-      .listar(intervalo.inicio, intervalo.fim)
-      .then((d) => (setDados(d), setErroLista(null)))
-      .catch((e) => setErroLista(e.message))
-  }, [intervalo])
-
   useEffect(() => {
     api.eps.tipos().then(setTipos).catch((e) => setAviso({ tipo: 'erro', texto: e.message }))
   }, [])
-  useEffect(() => {
-    carregar()
-  }, [carregar])
 
-  function escolherPeriodo(id) {
-    setPeriodo(id)
-    if (id !== 'outro') setIntervalo(periodoPronto(id))
-  }
+  useEffect(() => {
+    if (visao === 'apontar') refMatricula.current?.focus()
+  }, [visao])
 
   async function registrar(confirmarExcesso = false) {
     setAviso(null)
@@ -79,7 +90,7 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
       setBlocos('')
       setPlacas('')
       setObservacao('')
-      carregar()
+      setTipoId(null)
     } catch (erro) {
       if (erro.codigo === 'EXCESSO_SOBRE_ESPERADO') setExcesso(erro.message)
       else setAviso({ tipo: 'erro', texto: erro.message })
@@ -88,117 +99,154 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
     }
   }
 
-  function aoSubmeter(e) {
-    e.preventDefault()
+  function aoRegistrar() {
     if (!matricula.trim()) return setAviso({ tipo: 'erro', texto: 'Bipe o crachá ou digite a matrícula do colaborador.' })
     if (!tipoId) return setAviso({ tipo: 'erro', texto: 'Escolha o tipo de placa.' })
-    if (!blocos || !placas) return setAviso({ tipo: 'erro', texto: 'Informe os blocos usados e as placas produzidas.' })
+    if (!blocos || !placas) return setAviso({ tipo: 'erro', texto: 'Informe os blocos utilizados e as placas produzidas.' })
     registrar(false)
   }
 
-  function pedirCancelamento(lancamento) {
-    if (!adminLiberado) return onPedirSenha?.()
-    setCancelando(lancamento)
+  // Enter pula pro proximo campo (leitor de cracha termina com Enter); no ultimo, registra.
+  const aoTeclar = (proximo) => (e) => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    if (proximo) proximo.current?.focus()
+    else aoRegistrar()
   }
 
-  async function cancelarLancamento() {
-    try {
-      await api.eps.cancelar(cancelando.id, matricula.trim())
-      setCancelando(null)
-      carregar()
-    } catch (erro) {
-      setCancelando(null)
-      setErroLista(erro.message)
-    }
+  if (visao === 'relatorio') {
+    return (
+      <TelaEpsRelatorio
+        matricula={matricula}
+        adminLiberado={adminLiberado}
+        onPedirSenha={onPedirSenha}
+        onVoltar={() => setVisao('apontar')}
+      />
+    )
   }
 
-  function baixarCsv() {
-    const blob = new Blob([csvDosLancamentos(dados.lancamentos)], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `eps-${intervalo.inicio}-a-${intervalo.fim}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const resumo = dados.resumo
   const classeDiferenca = (d) => (d < 0 ? 'eps__neg' : d > 0 ? 'eps__pos' : '')
-  const sinal = (d) => (d > 0 ? `+${d}` : String(d))
 
   return (
-    <main className="entregas eps">
-      <div className="entregas__topo">
-        <div>
-          <h1 className="entregas__titulo">PLACAS DE EPS</h1>
-          <p className="entregas__subtitulo">Produção para estoque — blocos usados e placas produzidas.</p>
-        </div>
-      </div>
+    <>
+      <main className="leitura">
+        <h1 className="leitura__titulo">APONTAMENTO DE PLACAS DE EPS</h1>
+        <p className="leitura__subtitulo">Informe os dados abaixo para registrar a produção de placas.</p>
 
-      <form className="entregas__painel eps__form" onSubmit={aoSubmeter}>
-        <h2 className="entregas__painel-titulo">Novo lançamento</h2>
-
-        <div className="entregas__campo">
-          <label htmlFor="eps-matricula">Matrícula do colaborador</label>
-          <input
-            id="eps-matricula"
-            className="modal__campo"
-            value={matricula}
-            onChange={(e) => setMatricula(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            autoComplete="off"
-            placeholder="Bipe o crachá"
-            disabled={ocupado}
-          />
-        </div>
-
-        <div className="entregas__campo">
-          <label>Tipo de placa</label>
-          <div className="eps__tipos" role="radiogroup" aria-label="Tipo de placa">
-            {tipos.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="radio"
-                aria-checked={t.id === tipoId}
-                className={`eps__tipo ${t.id === tipoId ? 'eps__tipo--ativo' : ''}`}
-                onClick={() => setTipoId(t.id)}
-                disabled={ocupado}
-              >
-                <strong>{t.familia}</strong>
-                <span>{t.perfil}</span>
-                <small>{t.placasPorBloco} placas por bloco</small>
-              </button>
-            ))}
+        <div className="leitura__linha">
+          <div className="leitura__rotulo">
+            <span className="leitura__icone">
+              <IconeMatricula />
+            </span>
+            <span>
+              <strong>MATRÍCULA DO COLABORADOR</strong>
+              <small>Bipe o crachá antes de lançar</small>
+            </span>
+          </div>
+          <div className="leitura__campo">
+            <input
+              ref={refMatricula}
+              value={matricula}
+              onChange={(e) => setMatricula(e.target.value)}
+              onKeyDown={aoTeclar(refBlocos)}
+              onFocus={(e) => e.target.select()}
+              disabled={ocupado}
+              autoComplete="off"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              aria-label="Matrícula do colaborador"
+              autoFocus
+            />
+            <span className="leitura__marca" aria-hidden="true">
+              <IconeMatricula />
+            </span>
           </div>
         </div>
 
-        <div className="eps__numeros">
-          <div className="entregas__campo">
-            <label htmlFor="eps-blocos">Blocos usados</label>
+        <div className="leitura__linha">
+          <div className="leitura__rotulo">
+            <span className="leitura__icone">
+              <IconePlaca />
+            </span>
+            <span>
+              <strong>1 - TIPO DE PLACA</strong>
+              <small>Toque no tipo que está sendo produzido</small>
+            </span>
+          </div>
+          <div className="leitura__campo leitura__campo--tipos">
+            <div className="eps__tipos" role="radiogroup" aria-label="Tipo de placa">
+              {tipos.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={t.id === tipoId}
+                  className={`eps__tipo ${t.id === tipoId ? 'eps__tipo--ativo' : ''}`}
+                  onClick={() => (setTipoId(t.id), refBlocos.current?.focus())}
+                  disabled={ocupado}
+                >
+                  <strong>{t.familia}</strong>
+                  <span>{t.perfil}</span>
+                  <small>{t.placasPorBloco} placas por bloco</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="leitura__linha">
+          <div className="leitura__rotulo">
+            <span className="leitura__icone">
+              <IconeBloco />
+            </span>
+            <span>
+              <strong>2 - BLOCOS UTILIZADOS</strong>
+              <small>Quantidade de blocos de EPS usados</small>
+            </span>
+          </div>
+          <div className="leitura__campo">
             <input
-              id="eps-blocos"
-              className="modal__campo eps__numero"
+              ref={refBlocos}
               value={blocos}
               onChange={(e) => setBlocos(e.target.value.replace(/\D/g, ''))}
-              inputMode="numeric"
-              autoComplete="off"
+              onKeyDown={aoTeclar(refPlacas)}
               disabled={ocupado}
+              autoComplete="off"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              aria-label="Quantidade de blocos utilizados"
             />
+            <span className="leitura__marca" aria-hidden="true">
+              <IconeBloco />
+            </span>
           </div>
-          <div className="entregas__campo">
-            <label htmlFor="eps-placas">Placas produzidas</label>
+        </div>
+
+        <div className="leitura__linha">
+          <div className="leitura__rotulo">
+            <span className="leitura__icone">
+              <IconeNumero />
+            </span>
+            <span>
+              <strong>3 - PLACAS PRODUZIDAS</strong>
+              <small>Quantidade de placas que saíram</small>
+            </span>
+          </div>
+          <div className="leitura__campo">
             <input
-              id="eps-placas"
-              className="modal__campo eps__numero"
+              ref={refPlacas}
               value={placas}
               onChange={(e) => setPlacas(e.target.value.replace(/\D/g, ''))}
-              inputMode="numeric"
-              autoComplete="off"
+              onKeyDown={aoTeclar(null)}
               disabled={ocupado}
+              autoComplete="off"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              aria-label="Quantidade de placas produzidas"
             />
+            <span className="leitura__marca" aria-hidden="true">
+              <IconeNumero />
+            </span>
           </div>
         </div>
 
@@ -208,170 +256,51 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
             {previa.diferenca != null && (
               <>
                 {' · '}diferença{' '}
-                <strong className={classeDiferenca(previa.diferenca)}>{sinal(previa.diferenca)}</strong>
+                <strong className={classeDiferenca(previa.diferenca)}>{previa.diferenca > 0 ? `+${previa.diferenca}` : previa.diferenca}</strong>
                 {' · '}rendimento <strong>{formatarRendimento(previa.rendimento)}</strong>
               </>
             )}
           </p>
         )}
 
-        <div className="eps__numeros">
-          <div className="entregas__campo">
-            <label htmlFor="eps-obs">Observação (opcional)</label>
-            <input id="eps-obs" className="modal__campo" value={observacao} onChange={(e) => setObservacao(e.target.value)} maxLength={200} disabled={ocupado} />
-          </div>
+        <div className="eps__extras">
+          <input
+            className="modal__campo"
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+            maxLength={200}
+            placeholder="Observação (opcional) — ex.: refile, quebra"
+            aria-label="Observação"
+            disabled={ocupado}
+          />
           {adminLiberado && (
-            <div className="entregas__campo">
-              <label htmlFor="eps-data">Data (retroativo)</label>
-              <input id="eps-data" type="date" className="modal__campo" value={data} onChange={(e) => setData(e.target.value)} disabled={ocupado} />
-            </div>
+            <input type="date" className="modal__campo" value={data} onChange={(e) => setData(e.target.value)} aria-label="Data do lançamento (retroativo)" disabled={ocupado} />
           )}
         </div>
 
-        {aviso && <p className={`aviso aviso--${aviso.tipo}`}>{aviso.texto}</p>}
+        <div className="leitura__acoes">
+          <button type="button" className="botao botao--iniciar" onClick={aoRegistrar} disabled={ocupado}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M8 12.5l3 3 5-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {ocupado ? 'AGUARDE...' : 'REGISTRAR PRODUÇÃO'}
+          </button>
 
-        <button type="submit" className="botao botao--iniciar" disabled={ocupado}>
-          {ocupado ? 'Registrando...' : 'REGISTRAR PRODUÇÃO'}
-        </button>
-      </form>
-
-      <div className="lista-cabecalho eps__cabecalho">
-        <h2 className="lista-titulo">Produção registrada</h2>
-        <div className="eps__periodos">
-          {PERIODOS.map((p) => (
-            <button key={p.id} type="button" className={`botao botao--neutro ${periodo === p.id ? 'eps__periodo--ativo' : ''}`} onClick={() => escolherPeriodo(p.id)}>
-              {p.rotulo}
-            </button>
-          ))}
-          {periodo === 'outro' && (
-            <>
-              <input type="date" className="modal__campo" value={intervalo.inicio} onChange={(e) => setIntervalo((i) => ({ ...i, inicio: e.target.value }))} aria-label="Data inicial" />
-              <input type="date" className="modal__campo" value={intervalo.fim} onChange={(e) => setIntervalo((i) => ({ ...i, fim: e.target.value }))} aria-label="Data final" />
-            </>
-          )}
-          <button type="button" className="botao botao--neutro" onClick={baixarCsv} disabled={dados.lancamentos.length === 0}>
-            Baixar Excel (CSV)
+          <button type="button" className="botao botao--neutro eps__ver-relatorio" onClick={() => setVisao('relatorio')} disabled={ocupado}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M5 20V10M12 20V4M19 20v-7" strokeLinecap="round" />
+            </svg>
+            VER RELATÓRIO
           </button>
         </div>
-      </div>
 
-      {erroLista && <p className="aviso aviso--erro">{erroLista}</p>}
-
-      {resumo && (
-        <div className="entregas__indicadores">
-          <div className="indicador">
-            <span className="indicador__titulo">Blocos usados</span>
-            <span className="indicador__valor">{formatarNumeroBr(resumo.total.blocos)}</span>
-          </div>
-          <div className="indicador">
-            <span className="indicador__titulo">Placas produzidas</span>
-            <span className="indicador__valor">{formatarNumeroBr(resumo.total.placas)}</span>
-            <span className="indicador__aux">esperado {formatarNumeroBr(resumo.total.esperado)}</span>
-          </div>
-          <div className="indicador">
-            <span className="indicador__titulo">Perda</span>
-            <span className="indicador__valor">{formatarNumeroBr(resumo.total.perda)}</span>
-            <span className="indicador__aux">placas abaixo do esperado</span>
-          </div>
-          <div className="indicador">
-            <span className="indicador__titulo">Rendimento</span>
-            <span className="indicador__valor">{formatarRendimento(resumo.total.rendimento)}</span>
-            <span className="indicador__aux">{resumo.total.lancamentos} lançamento(s)</span>
-          </div>
-        </div>
-      )}
-
-      {resumo && resumo.total.lancamentos > 0 && (
-        <div className="eps__resumos">
-          <div className="tabela-wrap">
-            <table className="relatorio-producao__tabela">
-              <thead>
-                <tr>
-                  <th>Tipo</th>
-                  <th className="col-numerica">Blocos</th>
-                  <th className="col-numerica">Placas</th>
-                  <th className="col-numerica">Rendimento</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resumo.porTipo.map((t) => (
-                  <tr key={t.tipo}>
-                    <td>{t.rotulo}</td>
-                    <td className="col-numerica">{formatarNumeroBr(t.blocos)}</td>
-                    <td className="col-numerica">{formatarNumeroBr(t.placas)}</td>
-                    <td className="col-numerica">{formatarRendimento(t.rendimento)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="tabela-wrap">
-            <table className="relatorio-producao__tabela">
-              <thead>
-                <tr>
-                  <th>Colaborador</th>
-                  <th className="col-numerica">Blocos</th>
-                  <th className="col-numerica">Placas</th>
-                  <th className="col-numerica">Rendimento</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resumo.porColaborador.map((c) => (
-                  <tr key={c.matricula ?? c.nome}>
-                    <td>{c.nome}</td>
-                    <td className="col-numerica">{formatarNumeroBr(c.blocos)}</td>
-                    <td className="col-numerica">{formatarNumeroBr(c.placas)}</td>
-                    <td className="col-numerica">{formatarRendimento(c.rendimento)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {dados.lancamentos.length === 0 ? (
-        <p className="vazio">Nenhuma produção registrada neste período.</p>
-      ) : (
-        <div className="tabela-wrap">
-          <table className="relatorio-producao__tabela">
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Colaborador</th>
-                <th>Tipo</th>
-                <th className="col-numerica">Blocos</th>
-                <th className="col-numerica">Placas</th>
-                <th className="col-numerica">Esperado</th>
-                <th className="col-numerica">Dif.</th>
-                <th>Observação</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {dados.lancamentos.map((l) => (
-                <tr key={l.id}>
-                  <td>
-                    {dataBr(l.data)} <small>{hora(l.em)}</small>
-                  </td>
-                  <td>{l.colaborador?.nome}</td>
-                  <td>{l.tipoRotulo}</td>
-                  <td className="col-numerica">{l.blocos}</td>
-                  <td className="col-numerica">{l.placas}</td>
-                  <td className="col-numerica">{l.esperado}</td>
-                  <td className={`col-numerica ${classeDiferenca(l.diferenca)}`}>{sinal(l.diferenca)}</td>
-                  <td>{l.observacao}</td>
-                  <td>
-                    <button type="button" className="botao botao--neutro eps__cancelar" onClick={() => pedirCancelamento(l)}>
-                      Cancelar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {aviso && (
+          <p className={`aviso aviso--${aviso.tipo}`} role={aviso.tipo === 'erro' ? 'alert' : 'status'}>
+            {aviso.texto}
+          </p>
+        )}
+      </main>
 
       {excesso && (
         <ModalConfirmar
@@ -384,16 +313,6 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
           onCancelar={() => setExcesso(null)}
         />
       )}
-      {cancelando && (
-        <ModalConfirmar
-          titulo="Cancelar lançamento"
-          mensagem={`Cancelar o lançamento de ${cancelando.colaborador?.nome} (${cancelando.placas} placas de ${cancelando.tipoRotulo}, ${dataBr(cancelando.data)})? Ele deixa de contar nos totais.`}
-          textoConfirmar="Cancelar lançamento"
-          textoCancelar="Voltar"
-          onConfirmar={cancelarLancamento}
-          onCancelar={() => setCancelando(null)}
-        />
-      )}
-    </main>
+    </>
   )
 }
