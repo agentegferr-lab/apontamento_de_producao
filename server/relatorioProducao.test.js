@@ -181,3 +181,24 @@ test('sem apontamentos no periodo, devolve listas vazias sem quebrar', () => {
   const r = montarRelatorioProducao({ operacoes: OPERACOES, apontamentos: [], inicio: '2026-07-27', fim: '2026-07-27' })
   assert.deepEqual(r, { porCentro: [], detalhado: [], totalApontamentos: 0 })
 })
+
+test('dias trabalhados: conta os dias distintos com apontamento em cada centro', () => {
+  const apt = (id, op, dia, hora) => ({
+    id,
+    idOperacaoOrdem: op,
+    idFuncionario: 3,
+    dataHoraInicial: `${dia}/07/2026 ${hora}:00:00`,
+    dataHoraFinal: `${dia}/07/2026 ${hora}:30:00`,
+    quantidade: '10.000000',
+    unidadeMedida: 'METRO QUADRADO',
+  })
+  const r = montarRelatorioProducao({
+    operacoes: OPERACOES,
+    apontamentos: [apt(1, 100, '27', '09'), apt(2, 102, '27', '11'), apt(3, 100, '28', '09'), apt(4, 100, '30', '09'), apt(5, 101, '28', '13')],
+    funcionarios: FUNCIONARIOS,
+    inicio: '2026-07-01',
+    fim: '2026-07-31',
+  })
+  assert.equal(r.porCentro.find((c) => c.centro === 'CORTE').dias, 3) // 27, 28 e 30 (dois apontamentos no 27 contam 1 dia)
+  assert.equal(r.porCentro.find((c) => c.centro === 'PINTURA').dias, 1)
+})

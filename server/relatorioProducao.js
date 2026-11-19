@@ -88,10 +88,11 @@ export function montarRelatorioProducao({ operacoes, apontamentos, funcionarios 
         : null
 
     if (!porCentro.has(centro)) {
-      porCentro.set(centro, { centro, quantidadePorUnidade: new Map(), ordens: new Set(), apontamentos: 0, tempoMs: 0, valorProduzido: 0 })
+      porCentro.set(centro, { centro, quantidadePorUnidade: new Map(), ordens: new Set(), dias: new Set(), apontamentos: 0, tempoMs: 0, valorProduzido: 0 })
     }
     const agregado = porCentro.get(centro)
     agregado.apontamentos += 1
+    agregado.dias.add(chaveDoDia(dataFinal)) // dia trabalhado = teve apontamento (pelo dia em que terminou)
     agregado.tempoMs += duracaoMs
     if (op) agregado.ordens.add(Number(op.idOrdem))
     if (quantidade > 0 && unidade) {
@@ -122,6 +123,7 @@ export function montarRelatorioProducao({ operacoes, apontamentos, funcionarios 
       centro: c.centro,
       apontamentos: c.apontamentos,
       ordens: c.ordens.size,
+      dias: c.dias.size,
       tempoMs: c.tempoMs,
       quantidades: [...c.quantidadePorUnidade.entries()].map(([unidade, total]) => ({ unidade, total })),
       valorProduzido: c.valorProduzido > 0 ? c.valorProduzido : null,
