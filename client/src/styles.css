@@ -2666,6 +2666,29 @@ body {
   text-overflow: ellipsis;
 }
 .indicador-producao__dias {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 8px 12px;
+  background: var(--amarelo-tenue);
+  border: 1px solid var(--amarelo);
+  border-radius: var(--raio);
+}
+.indicador-producao__dias-numero {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+.indicador-producao__dias-texto {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--grafite);
+}
+.indicador-producao__dias-media {
+  margin-left: auto;
   font-size: 12px;
   color: var(--tinta-fraca);
 }

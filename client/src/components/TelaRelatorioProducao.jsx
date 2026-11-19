@@ -752,10 +752,13 @@ export default function TelaRelatorioProducao() {
                       <BadgeTendencia tendencia={c.tendencia} />
                     </div>
                     <div className="indicador-producao__dias" title="Dias do período em que o setor teve pelo menos um apontamento">
-                      {c.dias} {pluralizar(c.dias, 'dia trabalhado', 'dias trabalhados')}
-                      {c.dias > 1 && c.principal
-                        ? ` · média ${formatarNumeroBr(c.principal.total / c.dias)} ${formatarUnidade(c.principal.unidade)}/dia`
-                        : ''}
+                      <span className="indicador-producao__dias-numero">{c.dias}</span>
+                      <span className="indicador-producao__dias-texto">{pluralizar(c.dias, 'dia trabalhado', 'dias trabalhados')}</span>
+                      {c.dias > 1 && c.principal && (
+                        <span className="indicador-producao__dias-media">
+                          média {formatarNumeroBr(c.principal.total / c.dias)} {formatarUnidade(c.principal.unidade)}/dia
+                        </span>
+                      )}
                     </div>
                     {c.meta ? (
                       <div
