@@ -6,19 +6,20 @@ import { AppError } from './erros.js'
 
 /**
  * Producao de placas de EPS (isopor) — estoque, sem ordem de servico e sem Nomus: cada
- * lancamento e "quem, que tipo de placa, quantos blocos gastou, quantas placas saiu".
+ * lancamento e "quem, que tipo de placa, quantos blocos gastou, quantos METROS saiu".
  *
  * Bloco de 1000 x 1200 x 2000 mm. O rendimento por bloco e fixo (trapezio 84 placas de 1 m,
- * telha forro 42 placas de 2 m), entao o esperado de um lancamento e blocos x rendimento e a
- * diferenca pro produzido e a perda (refile, quebra). Cada lancamento guarda o esperado e o
- * preco do dia: mudar o bloco ou o preco depois nao reescreve o que ja foi registrado.
+ * telha forro 42 placas de 2 m — 84 m nos dois), entao o esperado de um lancamento e blocos x
+ * metros por bloco e a diferenca pro produzido e a perda (refile, quebra). Cada lancamento
+ * guarda o esperado e o preco do dia: mudar o bloco ou o preco depois nao reescreve o que ja
+ * foi registrado.
  * Mesmo padrao de armazenamento de server/caminhoes.js: JSON local em dados/ (fora do Git),
  * carregado no boot e gravado com .tmp+rename.
  */
 
-// Preco por PLACA: trapezio de 1 m a R$ 5,70 (R$ 5,70/m); forro de 2 m a R$ 19,20 (R$ 9,60/m).
-const TRAPEZIO = { familia: 'Trapézio', placasPorBloco: 84, comprimentoM: 1, valorPlaca: 5.7 }
-const FORRO = { familia: 'Telha forro', placasPorBloco: 42, comprimentoM: 2, valorPlaca: 19.2 }
+// Preco por METRO: trapezio R$ 5,70 (placa de 1 m); forro R$ 9,60 (placa de 2 m = R$ 19,20).
+const TRAPEZIO = { familia: 'Trapézio', placasPorBloco: 84, comprimentoM: 1, metrosPorBloco: 84, valorMetro: 5.7 }
+const FORRO = { familia: 'Telha forro', placasPorBloco: 42, comprimentoM: 2, metrosPorBloco: 84, valorMetro: 9.6 }
 
 export const TIPOS_EPS = [
   { id: 'TRAPEZIO_TR25', ...TRAPEZIO, perfil: 'TR25', rotulo: 'Trapézio TR25' },
@@ -30,7 +31,7 @@ export const TIPOS_EPS = [
 const centavos = (n) => Math.round(n * 100) / 100
 
 const MAX_BLOCOS = 10_000
-const MAX_PLACAS = 1_000_000
+const MAX_METROS = 1_000_000
 const REGEX_DATA = /^\d{4}-\d{2}-\d{2}$/
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -63,14 +64,37 @@ export function tipoPorId(id) {
   return TIPOS_EPS.find((t) => t.id === id) ?? null
 }
 
-/** Esperado, perda e rendimento de um lancamento. Pura (o cliente mostra o mesmo calculo ao digitar). */
-export function calcularEps(tipo, blocos, placas) {
-  const esperado = blocos * tipo.placasPorBloco
+/** Esperado, perda (em metros) e rendimento de um lancamento. Pura (o cliente mostra o mesmo calculo ao digitar). */
+export function calcularEps(tipo, blocos, metros) {
+  const esperado = blocos * tipo.metrosPorBloco
   return {
     esperado,
-    diferenca: placas - esperado, // negativo = perda
-    rendimento: esperado > 0 ? placas / esperado : null,
+    diferenca: centavos(metros - esperado), // negativo = perda
+    rendimento: esperado > 0 ? metros / esperado : null,
   }
+}
+
+/**
+ * Lancamentos antigos (de quando se digitava a quantidade de PLACAS) viram metros pelo
+ * comprimento da placa do tipo — trapezio 1 m, forro 2 m. O arquivo nao e reescrito.
+ */
+export function emMetros(item) {
+  if (item.unidade === 'm') return item
+  const comprimento = tipoPorId(item.tipo)?.comprimentoM ?? 1
+  const metros = item.metros ?? item.placas * comprimento
+  const esperado = item.esperado * comprimento
+  return { ...item, unidade: 'm', metros, esperado, diferenca: centavos(metros - esperado) }
+}
+
+/** Metros digitados ("83,5" ou 83.5): zero ou mais, no maximo 2 casas. */
+function lerMetros(valor) {
+  const texto = String(valor ?? '').trim().replace(',', '.')
+  if (!/^\d+(\.\d{1,2})?$/.test(texto)) {
+    throw new AppError('Informe os metros produzidos (número, com no máximo 2 casas decimais).', 400, 'QUANTIDADE_INVALIDA')
+  }
+  const n = Number(texto)
+  if (n > MAX_METROS) throw new AppError(`Os metros não podem passar de ${MAX_METROS}.`, 400, 'QUANTIDADE_INVALIDA')
+  return n
 }
 
 function inteiro(valor, nome, { minimo, maximo }) {
@@ -92,16 +116,15 @@ export function resumirEps(lista) {
   const somar = (grupo, item) => {
     grupo.lancamentos += 1
     grupo.blocos += item.blocos
-    grupo.placas += item.placas
+    grupo.metros = centavos(grupo.metros + item.metros)
     grupo.esperado += item.esperado
-    grupo.metros += item.metros ?? 0
     grupo.valor = centavos(grupo.valor + (item.valor ?? 0))
   }
-  const novo = (extra) => ({ ...extra, lancamentos: 0, blocos: 0, placas: 0, esperado: 0, metros: 0, valor: 0 })
+  const novo = (extra) => ({ ...extra, lancamentos: 0, blocos: 0, metros: 0, esperado: 0, valor: 0 })
   const fechar = (g) => ({
     ...g,
-    perda: g.esperado - g.placas,
-    rendimento: g.esperado > 0 ? g.placas / g.esperado : null,
+    perda: centavos(g.esperado - g.metros),
+    rendimento: g.esperado > 0 ? g.metros / g.esperado : null,
   })
 
   const total = novo({})
@@ -123,7 +146,7 @@ export function resumirEps(lista) {
   return {
     total: fechar(total),
     porTipo: [...porTipo.values()].filter((g) => g.lancamentos > 0).map(fechar),
-    porColaborador: [...porColaborador.values()].map(fechar).sort((a, b) => b.placas - a.placas),
+    porColaborador: [...porColaborador.values()].map(fechar).sort((a, b) => b.metros - a.metros),
     porDia: [...porDia.values()].map(fechar).sort((a, b) => a.data.localeCompare(b.data)),
   }
 }
@@ -141,20 +164,21 @@ export const eps = {
     return itens
       .filter((i) => !i.cancelado && i.data >= de && i.data <= ate)
       .sort((a, b) => b.em.localeCompare(a.em))
+      .map(emMetros)
   },
 
-  lancar({ tipo, blocos, placas, colaborador, observacao, data, confirmarExcesso }) {
+  lancar({ tipo, blocos, metros, colaborador, observacao, data, confirmarExcesso }) {
     const t = tipoPorId(tipo)
     if (!t) throw new AppError('Escolha o tipo de placa.', 400, 'TIPO_INVALIDO')
     const nBlocos = inteiro(blocos, 'Quantidade de blocos', { minimo: 1, maximo: MAX_BLOCOS })
-    const nPlacas = inteiro(placas, 'Quantidade de placas', { minimo: 0, maximo: MAX_PLACAS })
+    const nMetros = lerMetros(metros)
     if (data != null && data !== '' && !REGEX_DATA.test(data)) throw new AppError('data deve estar no formato AAAA-MM-DD.', 400)
 
-    const calculo = calcularEps(t, nBlocos, nPlacas)
-    // Rendimento e fixo: sair MAIS placas do que o bloco da quase sempre e digitacao errada.
-    if (nPlacas > calculo.esperado && !confirmarExcesso) {
+    const calculo = calcularEps(t, nBlocos, nMetros)
+    // Rendimento e fixo: sair MAIS metros do que o bloco da quase sempre e digitacao errada.
+    if (nMetros > calculo.esperado && !confirmarExcesso) {
       throw new AppError(
-        `${nBlocos} bloco(s) de ${t.rotulo} rendem ${calculo.esperado} placas, mas foram informadas ${nPlacas}. Confira os números.`,
+        `${nBlocos} bloco(s) de ${t.rotulo} rendem ${calculo.esperado} m, mas foram informados ${String(nMetros).replace('.', ',')} m. Confira os números.`,
         409,
         'EXCESSO_SOBRE_ESPERADO',
       )
@@ -165,12 +189,12 @@ export const eps = {
       tipo: t.id,
       tipoRotulo: t.rotulo,
       blocos: nBlocos,
-      placas: nPlacas,
+      unidade: 'm',
+      metros: nMetros,
       ...calculo,
-      placasPorBloco: t.placasPorBloco,
-      metros: nPlacas * t.comprimentoM,
-      valorPlaca: t.valorPlaca,
-      valor: centavos(nPlacas * t.valorPlaca),
+      metrosPorBloco: t.metrosPorBloco,
+      valorMetro: t.valorMetro,
+      valor: centavos(nMetros * t.valorMetro),
       colaborador: { id: colaborador?.id ?? null, nome: colaborador?.nome ?? null, matricula: colaborador?.matricula ?? null },
       observacao: String(observacao ?? '').trim() || null,
       data: data || dataDeHoje(),

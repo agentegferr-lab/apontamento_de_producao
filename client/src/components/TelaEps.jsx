@@ -47,7 +47,7 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
   const [matricula, setMatricula] = useState('')
   const [tipoId, setTipoId] = useState(null)
   const [blocos, setBlocos] = useState('')
-  const [placas, setPlacas] = useState('')
+  const [metros, setMetros] = useState('')
   const [observacao, setObservacao] = useState('')
   const [data, setData] = useState(chaveDia(new Date())) // so admin mexe (retroativo)
   const [ocupado, setOcupado] = useState(false)
@@ -56,10 +56,10 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
 
   const refMatricula = useRef(null)
   const refBlocos = useRef(null)
-  const refPlacas = useRef(null)
+  const refMetros = useRef(null)
 
   const tipo = tipos.find((t) => t.id === tipoId) ?? null
-  const previa = previaEps(tipo, blocos, placas)
+  const previa = previaEps(tipo, blocos, metros)
 
   useEffect(() => {
     api.eps.tipos().then(setTipos).catch((e) => setAviso({ tipo: 'erro', texto: e.message }))
@@ -77,7 +77,7 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
         matricula: matricula.trim(),
         tipo: tipoId,
         blocos,
-        placas,
+        metros,
         observacao,
         data: adminLiberado ? data : undefined,
         confirmarExcesso,
@@ -85,10 +85,10 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
       setExcesso(null)
       setAviso({
         tipo: 'ok',
-        texto: `Registrado: ${r.colaborador.nome} — ${r.placas} placas de ${r.tipoRotulo} (${r.blocos} bloco${r.blocos > 1 ? 's' : ''}).`,
+        texto: `Registrado: ${r.colaborador.nome} — ${formatarNumeroBr(r.metros)} m de ${r.tipoRotulo} (${r.blocos} bloco${r.blocos > 1 ? 's' : ''}).`,
       })
       setBlocos('')
-      setPlacas('')
+      setMetros('')
       setObservacao('')
       setTipoId(null)
     } catch (erro) {
@@ -102,7 +102,7 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
   function aoRegistrar() {
     if (!matricula.trim()) return setAviso({ tipo: 'erro', texto: 'Bipe o crachá ou digite a matrícula do colaborador.' })
     if (!tipoId) return setAviso({ tipo: 'erro', texto: 'Escolha o tipo de placa.' })
-    if (!blocos || !placas) return setAviso({ tipo: 'erro', texto: 'Informe os blocos utilizados e as placas produzidas.' })
+    if (!blocos || !metros) return setAviso({ tipo: 'erro', texto: 'Informe os blocos utilizados e os metros produzidos.' })
     registrar(false)
   }
 
@@ -187,10 +187,8 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
                 >
                   <strong>{t.familia}</strong>
                   <span>{t.perfil}</span>
-                  <small>
-                    {t.placasPorBloco} placas de {t.comprimentoM} m por bloco
-                  </small>
-                  <small>{formatarMoedaNumero(t.valorPlaca)} a placa</small>
+                  <small>{t.metrosPorBloco} m por bloco</small>
+                  <small>{formatarMoedaNumero(t.valorMetro)} o metro</small>
                 </button>
               ))}
             </div>
@@ -212,7 +210,7 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
               ref={refBlocos}
               value={blocos}
               onChange={(e) => setBlocos(e.target.value.replace(/\D/g, ''))}
-              onKeyDown={aoTeclar(refPlacas)}
+              onKeyDown={aoTeclar(refMetros)}
               disabled={ocupado}
               autoComplete="off"
               inputMode="numeric"
@@ -231,21 +229,21 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
               <IconeNumero />
             </span>
             <span>
-              <strong>3 - PLACAS PRODUZIDAS</strong>
-              <small>Quantidade de placas que saíram</small>
+              <strong>3 - METROS PRODUZIDOS</strong>
+              <small>Quantos metros de placa saíram</small>
             </span>
           </div>
           <div className="leitura__campo">
             <input
-              ref={refPlacas}
-              value={placas}
-              onChange={(e) => setPlacas(e.target.value.replace(/\D/g, ''))}
+              ref={refMetros}
+              value={metros}
+              // Aceita decimal com virgula (ponto vira virgula).
+              onChange={(e) => setMetros(e.target.value.replace(/\./g, ',').replace(/[^\d,]/g, ''))}
               onKeyDown={aoTeclar(null)}
               disabled={ocupado}
               autoComplete="off"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              aria-label="Quantidade de placas produzidas"
+              inputMode="decimal"
+              aria-label="Metros produzidos"
             />
             <span className="leitura__marca" aria-hidden="true">
               <IconeNumero />
@@ -255,13 +253,16 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
 
         {previa && (
           <p className="eps__previa" aria-live="polite">
-            Esperado: <strong>{formatarNumeroBr(previa.esperado)}</strong> placas
+            Esperado: <strong>{formatarNumeroBr(previa.esperado)} m</strong>
             {previa.diferenca != null && (
               <>
                 {' · '}diferença{' '}
-                <strong className={classeDiferenca(previa.diferenca)}>{previa.diferenca > 0 ? `+${previa.diferenca}` : previa.diferenca}</strong>
+                <strong className={classeDiferenca(previa.diferenca)}>
+                  {previa.diferenca > 0 ? '+' : ''}
+                  {formatarNumeroBr(previa.diferenca)} m
+                </strong>
                 {' · '}rendimento <strong>{formatarRendimento(previa.rendimento)}</strong>
-                {' · '}valor <strong>{formatarMoedaNumero(Number(placas) * tipo.valorPlaca)}</strong>
+                {' · '}valor <strong>{formatarMoedaNumero(previa.valor)}</strong>
               </>
             )}
           </p>
@@ -308,7 +309,7 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
 
       {excesso && (
         <ModalConfirmar
-          titulo="Placas acima do esperado"
+          titulo="Metros acima do esperado"
           mensagem={`${excesso} Registrar mesmo assim?`}
           textoConfirmar="Registrar mesmo assim"
           textoCancelar="Corrigir"

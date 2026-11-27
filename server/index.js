@@ -844,12 +844,12 @@ app.get(
 app.post(
   '/api/eps',
   asyncRoute(async (req, res) => {
-    const { matricula, tipo, blocos, placas, observacao, data, confirmarExcesso } = req.body ?? {}
+    const { matricula, tipo, blocos, metros, observacao, data, confirmarExcesso } = req.body ?? {}
     const funcionario = await resolverFuncionarioPorMatricula(matricula)
     const registro = eps.lancar({
       tipo,
       blocos,
-      placas,
+      metros,
       observacao,
       data,
       confirmarExcesso: confirmarExcesso === true,

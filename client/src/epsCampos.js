@@ -24,14 +24,20 @@ export function periodoPronto(tipo, hoje = new Date()) {
   return { inicio: fim, fim }
 }
 
-/** Previa ao digitar: esperado, diferenca e rendimento (mesma conta de calcularEps no servidor). */
-export function previaEps(tipo, blocos, placas) {
+/** Previa ao digitar (em metros): esperado, diferenca, rendimento e valor — mesma conta do servidor. */
+export function previaEps(tipo, blocos, metros) {
   const b = Number(blocos)
   if (!tipo || !Number.isInteger(b) || b < 1) return null
-  const esperado = b * tipo.placasPorBloco
-  const informado = placas === '' || placas == null ? null : Number(placas)
-  if (informado == null || !Number.isInteger(informado) || informado < 0) return { esperado, diferenca: null, rendimento: null }
-  return { esperado, diferenca: informado - esperado, rendimento: esperado > 0 ? informado / esperado : null }
+  const esperado = b * tipo.metrosPorBloco
+  const informado = metros === '' || metros == null ? NaN : Number(String(metros).replace(',', '.'))
+  if (!Number.isFinite(informado) || informado < 0) return { esperado, diferenca: null, rendimento: null, valor: null }
+  const centavos = (n) => Math.round(n * 100) / 100
+  return {
+    esperado,
+    diferenca: centavos(informado - esperado),
+    rendimento: esperado > 0 ? informado / esperado : null,
+    valor: centavos(informado * tipo.valorMetro),
+  }
 }
 
 export function formatarRendimento(r) {
@@ -40,9 +46,10 @@ export function formatarRendimento(r) {
 
 /** CSV pro Excel brasileiro: ponto e virgula, BOM, aspas escapadas. */
 export function csvDosLancamentos(lancamentos) {
+  const decimal = (n) => String(n ?? '').replace('.', ',')
   const campo = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
   const linhas = [
-    ['Data', 'Colaborador', 'Matrícula', 'Tipo', 'Blocos usados', 'Placas produzidas', 'Esperado', 'Diferença', 'Rendimento', 'Metros', 'Valor (R$)', 'Observação'].map(campo).join(';'),
+    ['Data', 'Colaborador', 'Matrícula', 'Tipo', 'Blocos usados', 'Metros produzidos', 'Esperado (m)', 'Diferença (m)', 'Rendimento', 'Valor (R$)', 'Observação'].map(campo).join(';'),
     ...lancamentos.map((l) =>
       [
         dataBr(l.data),
@@ -50,11 +57,10 @@ export function csvDosLancamentos(lancamentos) {
         l.colaborador?.matricula,
         l.tipoRotulo,
         l.blocos,
-        l.placas,
+        decimal(l.metros),
         l.esperado,
-        l.diferenca,
+        decimal(l.diferenca),
         l.rendimento == null ? '' : (l.rendimento * 100).toFixed(1).replace('.', ',') + '%',
-        l.metros,
         l.valor == null ? '' : l.valor.toFixed(2).replace('.', ','),
         l.observacao,
       ]

@@ -69,14 +69,14 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
 
   const resumo = dados.resumo
   const classeDiferenca = (d) => (d < 0 ? 'eps__neg' : d > 0 ? 'eps__pos' : '')
-  const sinal = (d) => (d > 0 ? `+${d}` : String(d))
+  const sinal = (d) => `${d > 0 ? '+' : ''}${formatarNumeroBr(d)}`
 
   return (
     <main className="entregas eps">
       <div className="entregas__topo">
         <div>
           <h1 className="entregas__titulo">RELATÓRIO DE PLACAS DE EPS</h1>
-          <p className="entregas__subtitulo">Blocos usados, placas produzidas e rendimento por tipo e colaborador.</p>
+          <p className="entregas__subtitulo">Blocos usados, metros produzidos e rendimento por tipo e colaborador.</p>
         </div>
         <div className="entregas__acoes-topo">
           <button type="button" className="botao botao--neutro eps__botao-topo" onClick={onVoltar}>
@@ -111,19 +111,18 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
             <span className="indicador__valor">{formatarNumeroBr(resumo.total.blocos)}</span>
           </div>
           <div className="indicador">
-            <span className="indicador__titulo">Placas produzidas</span>
-            <span className="indicador__valor">{formatarNumeroBr(resumo.total.placas)}</span>
-            <span className="indicador__aux">esperado {formatarNumeroBr(resumo.total.esperado)}</span>
+            <span className="indicador__titulo">Metros produzidos</span>
+            <span className="indicador__valor">{formatarNumeroBr(resumo.total.metros)} m</span>
+            <span className="indicador__aux">esperado {formatarNumeroBr(resumo.total.esperado)} m</span>
           </div>
           <div className="indicador">
             <span className="indicador__titulo">Valor produzido</span>
             <span className="indicador__valor">{formatarMoedaNumero(resumo.total.valor)}</span>
-            <span className="indicador__aux">{formatarNumeroBr(resumo.total.metros)} metros</span>
           </div>
           <div className="indicador">
             <span className="indicador__titulo">Perda</span>
-            <span className="indicador__valor">{formatarNumeroBr(resumo.total.perda)}</span>
-            <span className="indicador__aux">placas abaixo do esperado</span>
+            <span className="indicador__valor">{formatarNumeroBr(resumo.total.perda)} m</span>
+            <span className="indicador__aux">abaixo do esperado</span>
           </div>
           <div className="indicador">
             <span className="indicador__titulo">Rendimento</span>
@@ -141,7 +140,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                 <tr>
                   <th>Tipo</th>
                   <th className="col-numerica">Blocos</th>
-                  <th className="col-numerica">Placas</th>
+                  <th className="col-numerica">Metros</th>
                   <th className="col-numerica">Rendimento</th>
                   <th className="col-numerica">Valor</th>
                 </tr>
@@ -151,7 +150,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                   <tr key={t.tipo}>
                     <td>{t.rotulo}</td>
                     <td className="col-numerica">{formatarNumeroBr(t.blocos)}</td>
-                    <td className="col-numerica">{formatarNumeroBr(t.placas)}</td>
+                    <td className="col-numerica">{formatarNumeroBr(t.metros)}</td>
                     <td className="col-numerica">{formatarRendimento(t.rendimento)}</td>
                     <td className="col-numerica">{formatarMoedaNumero(t.valor)}</td>
                   </tr>
@@ -165,7 +164,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                 <tr>
                   <th>Colaborador</th>
                   <th className="col-numerica">Blocos</th>
-                  <th className="col-numerica">Placas</th>
+                  <th className="col-numerica">Metros</th>
                   <th className="col-numerica">Rendimento</th>
                   <th className="col-numerica">Valor</th>
                 </tr>
@@ -175,7 +174,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                   <tr key={c.matricula ?? c.nome}>
                     <td>{c.nome}</td>
                     <td className="col-numerica">{formatarNumeroBr(c.blocos)}</td>
-                    <td className="col-numerica">{formatarNumeroBr(c.placas)}</td>
+                    <td className="col-numerica">{formatarNumeroBr(c.metros)}</td>
                     <td className="col-numerica">{formatarRendimento(c.rendimento)}</td>
                     <td className="col-numerica">{formatarMoedaNumero(c.valor)}</td>
                   </tr>
@@ -198,7 +197,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                 <th>Colaborador</th>
                 <th>Tipo</th>
                 <th className="col-numerica">Blocos</th>
-                <th className="col-numerica">Placas</th>
+                <th className="col-numerica">Metros</th>
                 <th className="col-numerica">Esperado</th>
                 <th className="col-numerica">Dif.</th>
                 <th className="col-numerica">Valor</th>
@@ -215,8 +214,8 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                   <td>{l.colaborador?.nome}</td>
                   <td>{l.tipoRotulo}</td>
                   <td className="col-numerica">{l.blocos}</td>
-                  <td className="col-numerica">{l.placas}</td>
-                  <td className="col-numerica">{l.esperado}</td>
+                  <td className="col-numerica">{formatarNumeroBr(l.metros)}</td>
+                  <td className="col-numerica">{formatarNumeroBr(l.esperado)}</td>
                   <td className={`col-numerica ${classeDiferenca(l.diferenca)}`}>{sinal(l.diferenca)}</td>
                   <td className="col-numerica">{l.valor != null ? formatarMoedaNumero(l.valor) : '—'}</td>
                   <td>{l.observacao}</td>
@@ -235,7 +234,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
       {cancelando && (
         <ModalConfirmar
           titulo="Cancelar lançamento"
-          mensagem={`Cancelar o lançamento de ${cancelando.colaborador?.nome} (${cancelando.placas} placas de ${cancelando.tipoRotulo}, ${dataBr(cancelando.data)})? Ele deixa de contar nos totais.`}
+          mensagem={`Cancelar o lançamento de ${cancelando.colaborador?.nome} (${formatarNumeroBr(cancelando.metros)} m de ${cancelando.tipoRotulo}, ${dataBr(cancelando.data)})? Ele deixa de contar nos totais.`}
           textoConfirmar="Cancelar lançamento"
           textoCancelar="Voltar"
           onConfirmar={cancelarLancamento}
