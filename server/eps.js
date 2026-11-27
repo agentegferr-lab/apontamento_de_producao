@@ -8,18 +8,26 @@ import { AppError } from './erros.js'
  * Producao de placas de EPS (isopor) — estoque, sem ordem de servico e sem Nomus: cada
  * lancamento e "quem, que tipo de placa, quantos blocos gastou, quantas placas saiu".
  *
- * O rendimento por bloco e fixo (trapezio 40 placas, telha forro 20), entao o esperado de um
- * lancamento e blocos x rendimento e a diferenca pro produzido e a perda (refile, quebra).
+ * Bloco de 1000 x 1200 x 2000 mm. O rendimento por bloco e fixo (trapezio 84 placas de 1 m,
+ * telha forro 42 placas de 2 m), entao o esperado de um lancamento e blocos x rendimento e a
+ * diferenca pro produzido e a perda (refile, quebra). Cada lancamento guarda o esperado e o
+ * preco do dia: mudar o bloco ou o preco depois nao reescreve o que ja foi registrado.
  * Mesmo padrao de armazenamento de server/caminhoes.js: JSON local em dados/ (fora do Git),
  * carregado no boot e gravado com .tmp+rename.
  */
 
+// Preco por PLACA: trapezio de 1 m a R$ 5,70 (R$ 5,70/m); forro de 2 m a R$ 19,20 (R$ 9,60/m).
+const TRAPEZIO = { familia: 'Trapézio', placasPorBloco: 84, comprimentoM: 1, valorPlaca: 5.7 }
+const FORRO = { familia: 'Telha forro', placasPorBloco: 42, comprimentoM: 2, valorPlaca: 19.2 }
+
 export const TIPOS_EPS = [
-  { id: 'TRAPEZIO_TR25', familia: 'Trapézio', perfil: 'TR25', rotulo: 'Trapézio TR25', placasPorBloco: 40 },
-  { id: 'TRAPEZIO_TR40', familia: 'Trapézio', perfil: 'TR40', rotulo: 'Trapézio TR40', placasPorBloco: 40 },
-  { id: 'FORRO_TR25', familia: 'Telha forro', perfil: 'TR25', rotulo: 'Telha forro TR25', placasPorBloco: 20 },
-  { id: 'FORRO_TR40', familia: 'Telha forro', perfil: 'TR40', rotulo: 'Telha forro TR40', placasPorBloco: 20 },
+  { id: 'TRAPEZIO_TR25', ...TRAPEZIO, perfil: 'TR25', rotulo: 'Trapézio TR25' },
+  { id: 'TRAPEZIO_TR40', ...TRAPEZIO, perfil: 'TR40', rotulo: 'Trapézio TR40' },
+  { id: 'FORRO_TR25', ...FORRO, perfil: 'TR25', rotulo: 'Telha forro TR25' },
+  { id: 'FORRO_TR40', ...FORRO, perfil: 'TR40', rotulo: 'Telha forro TR40' },
 ]
+
+const centavos = (n) => Math.round(n * 100) / 100
 
 const MAX_BLOCOS = 10_000
 const MAX_PLACAS = 1_000_000
@@ -86,8 +94,10 @@ export function resumirEps(lista) {
     grupo.blocos += item.blocos
     grupo.placas += item.placas
     grupo.esperado += item.esperado
+    grupo.metros += item.metros ?? 0
+    grupo.valor = centavos(grupo.valor + (item.valor ?? 0))
   }
-  const novo = (extra) => ({ ...extra, lancamentos: 0, blocos: 0, placas: 0, esperado: 0 })
+  const novo = (extra) => ({ ...extra, lancamentos: 0, blocos: 0, placas: 0, esperado: 0, metros: 0, valor: 0 })
   const fechar = (g) => ({
     ...g,
     perda: g.esperado - g.placas,
@@ -157,6 +167,10 @@ export const eps = {
       blocos: nBlocos,
       placas: nPlacas,
       ...calculo,
+      placasPorBloco: t.placasPorBloco,
+      metros: nPlacas * t.comprimentoM,
+      valorPlaca: t.valorPlaca,
+      valor: centavos(nPlacas * t.valorPlaca),
       colaborador: { id: colaborador?.id ?? null, nome: colaborador?.nome ?? null, matricula: colaborador?.matricula ?? null },
       observacao: String(observacao ?? '').trim() || null,
       data: data || dataDeHoje(),

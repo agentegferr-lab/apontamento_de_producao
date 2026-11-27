@@ -42,7 +42,7 @@ export function formatarRendimento(r) {
 export function csvDosLancamentos(lancamentos) {
   const campo = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
   const linhas = [
-    ['Data', 'Colaborador', 'Matrícula', 'Tipo', 'Blocos usados', 'Placas produzidas', 'Esperado', 'Diferença', 'Rendimento', 'Observação'].map(campo).join(';'),
+    ['Data', 'Colaborador', 'Matrícula', 'Tipo', 'Blocos usados', 'Placas produzidas', 'Esperado', 'Diferença', 'Rendimento', 'Metros', 'Valor (R$)', 'Observação'].map(campo).join(';'),
     ...lancamentos.map((l) =>
       [
         dataBr(l.data),
@@ -54,6 +54,8 @@ export function csvDosLancamentos(lancamentos) {
         l.esperado,
         l.diferenca,
         l.rendimento == null ? '' : (l.rendimento * 100).toFixed(1).replace('.', ',') + '%',
+        l.metros,
+        l.valor == null ? '' : l.valor.toFixed(2).replace('.', ','),
         l.observacao,
       ]
         .map(campo)

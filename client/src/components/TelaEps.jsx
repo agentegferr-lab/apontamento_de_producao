@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
-import { formatarNumeroBr } from '../numero.js'
+import { formatarMoedaNumero, formatarNumeroBr } from '../numero.js'
 import { chaveDia, formatarRendimento, previaEps } from '../epsCampos.js'
 import ModalConfirmar from './ModalConfirmar.jsx'
 import TelaEpsRelatorio from './TelaEpsRelatorio.jsx'
@@ -37,7 +37,7 @@ const IconeNumero = () => (
 /**
  * Apontamento da producao de placas de EPS (estoque, sem OS e sem Nomus), com o mesmo jeito da
  * tela de Apontamento: uma linha por informacao e botoes grandes. O esperado sai do rendimento
- * fixo do bloco (trapezio 40, telha forro 20); a diferenca e a perda. Regras em server/eps.js.
+ * fixo do bloco (ver TIPOS_EPS); a diferenca e a perda. Regras em server/eps.js.
  * O relatorio fica numa tela separada (TelaEpsRelatorio.jsx), aberta pelo botao daqui.
  */
 export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
@@ -131,7 +131,7 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
     <>
       <main className="leitura">
         <h1 className="leitura__titulo">APONTAMENTO DE PLACAS DE EPS</h1>
-        <p className="leitura__subtitulo">Informe os dados abaixo para registrar a produção de placas.</p>
+        <p className="leitura__subtitulo">Bloco de 1000 × 1200 × 2000 mm. Informe os dados abaixo para registrar a produção.</p>
 
         <div className="leitura__linha">
           <div className="leitura__rotulo">
@@ -187,7 +187,10 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
                 >
                   <strong>{t.familia}</strong>
                   <span>{t.perfil}</span>
-                  <small>{t.placasPorBloco} placas por bloco</small>
+                  <small>
+                    {t.placasPorBloco} placas de {t.comprimentoM} m por bloco
+                  </small>
+                  <small>{formatarMoedaNumero(t.valorPlaca)} a placa</small>
                 </button>
               ))}
             </div>
@@ -258,6 +261,7 @@ export default function TelaEps({ adminLiberado = false, onPedirSenha }) {
                 {' · '}diferença{' '}
                 <strong className={classeDiferenca(previa.diferenca)}>{previa.diferenca > 0 ? `+${previa.diferenca}` : previa.diferenca}</strong>
                 {' · '}rendimento <strong>{formatarRendimento(previa.rendimento)}</strong>
+                {' · '}valor <strong>{formatarMoedaNumero(Number(placas) * tipo.valorPlaca)}</strong>
               </>
             )}
           </p>

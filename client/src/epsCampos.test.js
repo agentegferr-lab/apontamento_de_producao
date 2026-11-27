@@ -26,9 +26,9 @@ test('formatacao de rendimento e data', () => {
 
 test('csv: BOM, ponto e virgula, aspas escapadas', () => {
   const csv = csvDosLancamentos([
-    { data: '2026-11-03', colaborador: { nome: 'Ana "A"', matricula: '12' }, tipoRotulo: 'Trapézio TR25', blocos: 5, placas: 190, esperado: 200, diferenca: -10, rendimento: 0.95, observacao: null },
+    { data: '2026-11-03', colaborador: { nome: 'Ana "A"', matricula: '12' }, tipoRotulo: 'Trapézio TR25', blocos: 5, placas: 190, esperado: 200, diferenca: -10, rendimento: 0.95, metros: 190, valor: 1083, observacao: null },
   ])
   assert.ok(csv.startsWith('﻿"Data";'))
   const linha = csv.split('\r\n')[1]
-  assert.equal(linha, '"03/11/2026";"Ana ""A""";"12";"Trapézio TR25";"5";"190";"200";"-10";"95,0%";""')
+  assert.equal(linha, '"03/11/2026";"Ana ""A""";"12";"Trapézio TR25";"5";"190";"200";"-10";"95,0%";"190";"1083,00";""')
 })

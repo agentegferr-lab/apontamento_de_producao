@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api.js'
-import { formatarNumeroBr } from '../numero.js'
+import { formatarMoedaNumero, formatarNumeroBr } from '../numero.js'
 import { csvDosLancamentos, dataBr, formatarRendimento, periodoPronto } from '../epsCampos.js'
 import ModalConfirmar from './ModalConfirmar.jsx'
 
@@ -116,6 +116,11 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
             <span className="indicador__aux">esperado {formatarNumeroBr(resumo.total.esperado)}</span>
           </div>
           <div className="indicador">
+            <span className="indicador__titulo">Valor produzido</span>
+            <span className="indicador__valor">{formatarMoedaNumero(resumo.total.valor)}</span>
+            <span className="indicador__aux">{formatarNumeroBr(resumo.total.metros)} metros</span>
+          </div>
+          <div className="indicador">
             <span className="indicador__titulo">Perda</span>
             <span className="indicador__valor">{formatarNumeroBr(resumo.total.perda)}</span>
             <span className="indicador__aux">placas abaixo do esperado</span>
@@ -138,6 +143,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                   <th className="col-numerica">Blocos</th>
                   <th className="col-numerica">Placas</th>
                   <th className="col-numerica">Rendimento</th>
+                  <th className="col-numerica">Valor</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,6 +153,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                     <td className="col-numerica">{formatarNumeroBr(t.blocos)}</td>
                     <td className="col-numerica">{formatarNumeroBr(t.placas)}</td>
                     <td className="col-numerica">{formatarRendimento(t.rendimento)}</td>
+                    <td className="col-numerica">{formatarMoedaNumero(t.valor)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -160,6 +167,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                   <th className="col-numerica">Blocos</th>
                   <th className="col-numerica">Placas</th>
                   <th className="col-numerica">Rendimento</th>
+                  <th className="col-numerica">Valor</th>
                 </tr>
               </thead>
               <tbody>
@@ -169,6 +177,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                     <td className="col-numerica">{formatarNumeroBr(c.blocos)}</td>
                     <td className="col-numerica">{formatarNumeroBr(c.placas)}</td>
                     <td className="col-numerica">{formatarRendimento(c.rendimento)}</td>
+                    <td className="col-numerica">{formatarMoedaNumero(c.valor)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -192,6 +201,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                 <th className="col-numerica">Placas</th>
                 <th className="col-numerica">Esperado</th>
                 <th className="col-numerica">Dif.</th>
+                <th className="col-numerica">Valor</th>
                 <th>Observação</th>
                 <th />
               </tr>
@@ -208,6 +218,7 @@ export default function TelaEpsRelatorio({ matricula = '', adminLiberado = false
                   <td className="col-numerica">{l.placas}</td>
                   <td className="col-numerica">{l.esperado}</td>
                   <td className={`col-numerica ${classeDiferenca(l.diferenca)}`}>{sinal(l.diferenca)}</td>
+                  <td className="col-numerica">{l.valor != null ? formatarMoedaNumero(l.valor) : '—'}</td>
                   <td>{l.observacao}</td>
                   <td>
                     <button type="button" className="botao botao--neutro eps__cancelar" onClick={() => pedirCancelamento(l)}>

@@ -3384,6 +3384,9 @@ body {
   padding: 0 18px;
   font-size: 14px;
 }
+.eps .entregas__indicadores {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
 .eps__periodos--topo {
   margin-bottom: 20px;
 }
